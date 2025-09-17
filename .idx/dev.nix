@@ -14,6 +14,8 @@
     pkgs.nano
     pkgs.openssh
     pkgs.openssl
+    pkgs.python3
+    pkgs.python311Packages.pip
   ];
 
   services.docker.enable = true;

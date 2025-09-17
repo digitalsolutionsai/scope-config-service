@@ -1,0 +1,3 @@
+# Ignore generated Python gRPC files
+config_pb2.py
+config_pb2_grpc.py
