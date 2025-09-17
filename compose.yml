@@ -1,0 +1,16 @@
+services:
+  config-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "50051:50051"
+    networks:
+      - postgres_network
+
+networks:
+  postgres_network:
+    external: true

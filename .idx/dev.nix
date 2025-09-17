@@ -8,7 +8,16 @@
     pkgs.go
     pkgs.nodejs_20
     pkgs.nodePackages.nodemon
+    pkgs.grpc-tools
+    pkgs.tree
+    pkgs.docker
+    pkgs.nano
+    pkgs.openssh
+    pkgs.openssl
   ];
+
+  services.docker.enable = true;
+  
   # Sets environment variables in the workspace
   env = {};
   idx = {

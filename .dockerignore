@@ -1,0 +1,19 @@
+Dockerfile
+.git
+.gitignore
+.dockerignore
+*compose*.yml
+
+# Exclude binaries, as they are built in the container
+bin/
+
+# Exclude configuration files
+configs/
+
+# Exclude documentation
+README.md
+GEMINI.md
+blueprint.md
+
+# Exclude IDE specific files
+.idx/
