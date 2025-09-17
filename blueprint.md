@@ -1,15 +1,14 @@
 # System Design Document: ScopeConfig Service
 
-- **Version:** 1.1
+- **Version:** 1.2
     
-- **Last Updated:** September 14, 2025
+- **Last Updated:** September 15, 2025
     
 - **Author:** Gemini
     
-- **Status:** Draft
-    
+- **Status:** In Development
 
-## 1\. Overview and Project Purpose
+## 1. Overview and Project Purpose
 
 ### 1.1. Project Name
 
@@ -41,9 +40,8 @@ This project solves the following challenges:
 - **Caching:** In-memory cache (implemented within the service)
     
 - **Deployment:** Docker
-    
 
-## 2\. System Architecture Design
+## 2. System Architecture Design
 
 ### 2.1. Design Principles
 
@@ -54,7 +52,6 @@ This project solves the following challenges:
 - **Clean Architecture:** A clear separation of layers: Interface (gRPC), Business Logic (Service/Usecase), and Data Access (Repository).
     
 - **High Performance:** Optimized for configuration read operations by using an in-memory cache.
-    
 
 ### 2.2. Architecture Diagram
 
@@ -63,14 +60,24 @@ This project solves the following challenges:
 |   Client Microservice A  | ------> |                            |
 +--------------------------+  gRPC   |                            |
                                     |     ScopeConfig Service    |         +-------------------+
-+--------------------------+         |        (Golang)            | ------> |    PostgreSQL     |
-|   Client Microservice B  | ------> |                            |         |     Database      |
-+--------------------------+         |    +------------------+    |         +-------------------+
-                                    |    | In-Memory Cache  |    |
-                                    |    +------------------+    |
+|   Client Microservice B  | ------> |        (Golang)            | ------> |    PostgreSQL     |
++--------------------------+         |                            |         |     Database      |
+                                    |    +------------------+    |         +-------------------+
++--------------------------+         |    | In-Memory Cache  |    |
+|   Admin/Dev Tool (CLI)   | ------> |    +------------------+    |
 +--------------------------+         |                            |
-|   Admin/Dev Tool (CLI)   | ------> |                            |
+                                    |                            |
 +--------------------------+         +----------------------------+
+|      Java SDK            |
++--------------------------+
+
++--------------------------+         
+|    NestJS (Node.js) SDK  |
++--------------------------+
+
++--------------------------+         
+|        Python SDK        |
++--------------------------+         
 ```
 
 ### 2.3. Main Workflows
@@ -95,9 +102,8 @@ This project solves the following challenges:
 2.  The **ScopeConfig Service** performs the write operations (INSERT/UPDATE) on the **PostgreSQL Database**.
     
 3.  **Important:** After a successful write, the service **must invalidate (delete)** the corresponding key in the **In-Memory Cache**. The next read for this configuration will be a cache-miss, ensuring the data is always fresh.
-    
 
-## 3\. API Design (gRPC Proto)
+## 3. API Design (gRPC Proto)
 
 The `proto/config/v1/config.proto` file will define the entire service interface. Compared to the original proto file, this version is improved for clarity and adherence to gRPC best practices.
 
@@ -109,7 +115,7 @@ package vn.dsai.config.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "[github.com/vn-dsai/scope-config-service/gen/go/config/v1;configv1](https://github.com/vn-dsai/scope-config-service/gen/go/config/v1;configv1)";
+option go_package = "github.com/vn-dsai/scope-config-service/gen/go/config/v1;configv1";
 
 // ConfigService is the main service for managing and retrieving configurations.
 service ConfigService {
@@ -230,7 +236,7 @@ message GetConfigHistoryResponse {
 }
 ```
 
-## 4\. Data Model (Database Schema)
+## 4. Data Model (Database Schema)
 
 Based on the existing Liquibase schema, we will maintain the two primary tables.
 
@@ -271,126 +277,49 @@ Stores each key-value pair for a specific configuration version.
 | `is_active` | `BOOLEAN` | `DEFAULT true` |     |
 |     |     | `UNIQUE` (config_version_id, version, path) | Ensures each key is unique within a version |
 
-## 5\. Caching Strategy
+## 5. Current State of Implementation
 
-- **Objective:** Minimize database access for configuration read requests.
-    
-- **Cache Type:** In-memory, LRU (Least Recently Used) to prevent unbounded cache growth.
-    
-- **Recommended Library:** Start with a simple `map` and `sync.RWMutex`. For more complex needs (like TTL, size limits), consider using [ristretto](https://github.com/dgraph-io/ristretto "null").
-    
-- **Cache Key:** A string generated from the `ConfigIdentifier`.
-    
-    - **Format:** `fmt.Sprintf("%s:%s:%s:%s:%s", id.ServiceName, id.ProjectId, id.StoreId, id.GroupId, id.Scope)`
-- **Cache Value:** The fully processed `ScopeConfig` object.
-    
-- **Invalidation Mechanism:**
-    
-    - After a successful call to `UpdateConfig`, `PublishVersion`, or `DeleteConfig`, the service **MUST** delete the corresponding cache key.
-        
-    - This ensures that the next `GetConfig` call will have to re-read from the database and cache the latest data.
-        
+The project has a solid foundation and the core service is functional.
 
-## 6\. Project Structure (Go)
+*   **gRPC Service:** The main `ConfigService` is implemented in Go, providing all the necessary RPC methods for managing and retrieving configurations.
+*   **Database Schema:** The PostgreSQL database schema is defined and managed through migration files. Indexes have been added to optimize query performance.
+*   **Command-Line Interface (CLI):** A CLI tool is available for interacting with the service. It allows users to `set`, `get`, `publish`, and `show` configurations.
+*   **Containerization:** The entire application is containerized using Docker, making it easy to build, deploy, and run.
 
-We will follow a standard Go project structure for easier management and maintenance.
+## 6. Next Steps: Client SDKs
 
-```
-scope-config-service/
-├── cmd/
-│   └── server/
-│       └── main.go              # Application entry point
-├── configs/
-│   └── config.yml               # Service configuration file (DB conn, port,...)
-├── db/                          #<-- NEW: Database migration files
-│   └── migrations/
-│       ├── 000001_init_schema.up.sql
-│       └── 000001_init_schema.down.sql
-├── internal/
-│   ├── app/                     # Application layer, orchestrates logic
-│   │   └── grpc/
-│   │       └── server.go        # gRPC server implementation and RPC handlers
-│   ├── domain/                  # Contains core business models and entities
-│   │   ├── config.go
-│   │   └── repository.go      # Interfaces for repositories
-│   ├── infrastructure/
-│   │   ├── cache/
-│   │   │   └── memory.go        # In-memory cache implementation
-│   │   └── persistence/
-│   │       └── postgres.go      # Repository implementation for DB interaction
-├── gen/                         # Contains generated Go code from proto files
-│   └── go/
-│       └── config/
-│           └── v1/
-│               └── config.pb.go
-├── proto/                       # Contains the .proto source files
-│   └── config/
-│       └── v1/
-│           └── config.proto
-├── go.mod
-├── go.sum
-└── Dockerfile
-```
+To facilitate the adoption of the **ScopeConfig Service** across different platforms, we will develop client SDKs for the following languages:
 
-## 7\. Database Migration Strategy
+*   **Java**
+*   **NestJS (Node.js/TypeScript)**
+*   **Python**
 
-### 7.1. Tooling
+### 6.1. SDK Development Strategy
 
-We will use **`golang-migrate/migrate`**, the de-facto standard for database migrations in the Go ecosystem.
+The general strategy for developing these SDKs will be as follows:
 
-- **Migrations are written in plain SQL**, providing explicit control over the schema.
-    
-- **State is tracked** in a `schema_migrations` table within the database to prevent duplicate runs.
-    
+1.  **Generate gRPC Client:** Use the existing `config.proto` file to generate the gRPC client code for each target language.
+2.  **Create a Wrapper/Facade:** Create a user-friendly wrapper class or module that simplifies the interaction with the generated gRPC client. This wrapper will:
+    *   Handle the gRPC connection and channel setup.
+    *   Provide idiomatic methods that are easy to understand and use in the target language (e.g., using Promises in Node.js, native data types in Python).
+    *   Abstract away the complexities of the gRPC request and response objects.
+3.  **Implement Configuration Parsing:** The SDKs should include utility functions to parse the configuration values from the `ConfigField` objects into the correct data types (e.g., string, integer, boolean, JSON).
+4.  **Provide Clear Documentation and Examples:** For each SDK, create a `README.md` file with clear instructions on how to install and use it. Include code examples for common use cases.
 
-### 7.2. Workflow
+### 6.2. Java SDK
 
-The chosen strategy is to **run migrations programmatically on application startup**. This ensures that the deployed application instance is always in sync with the required database schema, simplifying the deployment process.
+*   **Build Tool:** Maven or Gradle.
+*   **gRPC Generation:** Use the `protobuf-maven-plugin` or the `protobuf-gradle-plugin` to generate the Java gRPC client.
+*   **Wrapper Class:** Create a `ScopeConfigClient` class that encapsulates the gRPC client and provides methods like `getConfig()`, `publishVersion()`, etc.
 
-### 7.3. Implementation
+### 6.3. NestJS SDK
 
-1.  **Migration Files:** All SQL migration scripts will be located in the `db/migrations` directory. Each migration consists of an `up` and a `down` file (e.g., `000001_init_schema.up.sql`).
-    
-2.  **Startup Logic:** The migration logic will be executed in the `main()` function of the application entry point (`cmd/server/main.go`) before the gRPC server is started.
-    
-3.  **Code Example:** The application will use the `golang-migrate/migrate` library to connect to the database and apply any pending migrations found in the migrations directory.
-    
-    ```
-    // Example from cmd/server/main.go
-    
-    import (
-        "log"
-        "[github.com/golang-migrate/migrate/v4](https://github.com/golang-migrate/migrate/v4)"
-        _ "[github.com/golang-migrate/migrate/v4/database/postgres](https://github.com/golang-migrate/migrate/v4/database/postgres)"
-        _ "[github.com/golang-migrate/migrate/v4/source/file](https://github.com/golang-migrate/migrate/v4/source/file)"
-    )
-    
-    func main() {
-        // 1. Load configuration (DB URL, migration path)
-        dbURL := "postgres://user:password@host:port/dbname?sslmode=disable"
-        migrationsPath := "file://db/migrations"
-    
-        // 2. Run migrations before starting the app
-        runMigrations(dbURL, migrationsPath)
-    
-        // 3. Continue with application startup
-        log.Println("Successfully applied migrations. Starting server...")
-        // ... initialize DB pool, gRPC server, etc.
-    }
-    
-    func runMigrations(databaseURL string, migrationsPath string) {
-        m, err := migrate.New(migrationsPath, databaseURL)
-        if err != nil {
-            log.Fatalf("Failed to create migrate instance: %v", err)
-        }
-    
-        if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-            log.Fatalf("Failed to apply migrations: %v", err)
-        }
-    
-        log.Println("Database migrations applied successfully.")
-    }
-    ```
-    
+*   **Package Manager:** npm or yarn.
+*   **gRPC Generation:** Use `@grpc/grpc-js` and `ts-protoc-gen` to generate the Node.js gRPC client and TypeScript definitions.
+*   **NestJS Module:** Create a `ScopeConfigModule` that can be imported into a NestJS application. This module will provide a `ScopeConfigService` that can be injected into other services.
 
-This approach automates schema management and reduces the risk of deployment errors caused by mismatched application code and database structure.
+### 6.4. Python SDK
+
+*   **Package Manager:** pip.
+*   **gRPC Generation:** Use `grpcio-tools` to generate the Python gRPC client.
+*   **Wrapper Class:** Create a `ScopeConfigClient` class that provides a simple and Pythonic interface for interacting with the service.
