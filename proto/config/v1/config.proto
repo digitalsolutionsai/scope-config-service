@@ -9,9 +9,11 @@ option go_package = "github.com/digitalsolutionsai/scope-config-service/config/v
 
 // ConfigService is the main service for managing and retrieving configurations.
 service ConfigService {
-  // Retrieves the configuration for the published version or the latest version.
-  // This is the most frequently used RPC by client services.
+  // Retrieves the configuration for the published version.
   rpc GetConfig(GetConfigRequest) returns (ScopeConfig);
+
+  // Retrieves the configuration for the latest (most recent) version, published or not.
+  rpc GetLatestConfig(GetConfigRequest) returns (ScopeConfig);
 
   // Retrieves a configuration by a specific version number.
   rpc GetConfigByVersion(GetConfigByVersionRequest) returns (ScopeConfig);
@@ -20,7 +22,6 @@ service ConfigService {
   rpc GetConfigHistory(GetConfigHistoryRequest) returns (GetConfigHistoryResponse);
 
   // Updates or creates a new configuration set.
-  // This action creates a new version (latest_version + 1).
   rpc UpdateConfig(UpdateConfigRequest) returns (ScopeConfig);
 
   // Marks a specific version as "published" for client consumption.

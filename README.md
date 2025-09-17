@@ -48,51 +48,66 @@ To run both services, use the following command:
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 ```
 
-### Using the CLI
+## User Guide: Managing Configurations
 
-The CLI provides several commands for interacting with the service. Here are a few examples:
+This guide will walk you through the common workflow of creating, viewing, and publishing configurations using the CLI.
 
-*   **Get a configuration**:
+### 1. Create a New, Unpublished Configuration
 
-    ```bash
-    ./bin/config get --service=config-service
-    ```
+The `set` command creates a new version of a configuration. If you provide new key-value pairs, they will be added to the configuration.
 
-*   **Set a configuration**:
+In this example, we'''ll create a new configuration for a service named `test-service` in the `test` project. This will create version 2 of the configuration, but it will not be published yet.
 
-    ```bash
-    ./bin/config set database.host localhost --service=config-service
-    ```
+```bash
+docker compose -f compose.yml exec config-service config set --service=test-service --scope=SYSTEM --project=test db.host=postgres db.port=5432 --user=gemini
+```
 
-### Advanced CLI Examples
+### 2. View the Latest, Unpublished Configuration
 
-Once the service is running in Docker, you can use `docker exec` to run commands with the built-in `config` CLI. This allows you to manage configurations for different projects and services.
+The `show` command displays the latest version of a configuration, including unpublished changes. This is useful for reviewing a configuration before publishing it.
 
-*   **Set a Gemini API Key for a Translation Service**
+```bash
+docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
+```
 
-    This command sets the `GEMINI_API_KEY` for a service named `translate` within the `test` project, using `0` as a unique store identifier.
+You should see an output similar to this:
 
-    ```bash
-    docker exec -it config_service config set "GEMINI_API_KEY" "your-secret-gemini-api-key" \
-      --project="test" \
-      --service="translate" \
-      --store="0"
-    ```
+```
+Latest Version: 2
+Published Version: 1
+Fields:
+  db.host: postgres
+  db.port: 5432
+```
 
-*   **Set PayPal Merchant Configuration for a Payment Service**
+### 3. Publish the New Configuration
 
-    This example shows how to set multiple keys for a PayPal merchant configuration under the `payment` service in an `e-commerce` project.
+The `publish` command makes a specific version of a configuration the "published" version. This is the version that client services will consume when they request the configuration.
 
-    ```bash
-    # Set the Client ID
-    docker exec -it config_service config set "paypal.client_id" "your-paypal-client-id" \
-      --project="e-commerce" \
-      --service="payment" \
-      --store="merchant"
+```bash
+docker compose -f compose.yml exec config-service config publish 2 --service=test-service --scope=SYSTEM --project=test --user=gemini
+```
 
-    # Set the Client Secret
-    docker exec -it config_service config set "paypal.client_secret" "your-paypal-client-secret" \
-      --project="e-commerce" \
-      --service="payment" \
-      --store="merchant"
-    ```
+### 4. Get the Published Configuration
+
+The `get` command retrieves a single value from the *published* configuration.
+
+```bash
+docker compose -f compose.yml exec config-service config get db.host --service=test-service --scope=SYSTEM --project=test
+```
+
+This will return the value of the `db.host` key, which is `postgres`.
+
+To view the entire published configuration, you can use the `show` command again. Since version 2 is now published, the output will reflect this:
+
+```bash
+docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
+```
+
+```
+Latest Version: 2
+Published Version: 2
+Fields:
+  db.host: postgres
+  db.port: 5432
+```

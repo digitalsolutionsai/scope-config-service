@@ -3,42 +3,48 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
-	"github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show all configuration values for a given scope",
+	Short: "Show the latest (unpublished) configuration",
+	Long:  `Retrieves and displays the latest version of a configuration, regardless of its publication status.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Set up a connection to the server.
-		conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Fatalf("did not connect: %v", err)
+			fmt.Printf("Failed to connect: %v\n", err)
+			return
 		}
 		defer conn.Close()
-		c := configv1.NewConfigServiceClient(conn)
 
-		// Contact the server and print out its response.
-		r, err := c.GetConfig(context.Background(), &configv1.GetConfigRequest{
-			Identifier: &configv1.ConfigIdentifier{
-				ServiceName: serviceName,
-				ProjectId:   projectID,
-				StoreId:     storeID,
-				GroupId:     groupID,
-				Scope:       configv1.Scope(configv1.Scope_value[scope]),
-			},
-		})
+		client := configv1.NewConfigServiceClient(conn)
 
-		if err != nil {
-			log.Fatalf("could not get config: %v", err)
+		identifier := &configv1.ConfigIdentifier{
+			ServiceName: serviceName,
+			ProjectId:   projectID,
+			StoreId:     storeID,
+			GroupId:     groupID,
+			Scope:       configv1.Scope(configv1.Scope_value[scope]),
 		}
 
-		for _, field := range r.Fields {
-			fmt.Printf("%s: %s\n", field.Path, field.Value)
+		req := &configv1.GetConfigRequest{Identifier: identifier}
+
+		resp, err := client.GetLatestConfig(context.Background(), req)
+		if err != nil {
+			fmt.Printf("Error calling GetLatestConfig: %v\n", err)
+			return
+		}
+
+		fmt.Printf("Latest Version: %d\n", resp.CurrentVersion)
+		fmt.Printf("Published Version: %d\n", resp.VersionInfo.PublishedVersion)
+		fmt.Println("Fields:")
+		for _, field := range resp.Fields {
+			fmt.Printf("  %s: %s\n", field.Path, field.Value)
 		}
 	},
 }

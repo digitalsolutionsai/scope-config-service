@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -11,12 +12,12 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	// This is a placeholder for the full implementation.
-	fmt.Println("Starting ScopeConfig Service...")
+	log.Println("Starting ScopeConfig Service...")
 
 	// Use the DATABASE_URL from the environment, with a fallback for local development.
 	dbURL := os.Getenv("DATABASE_URL")
@@ -24,13 +25,24 @@ func main() {
 		dbURL = "postgres://user:password@localhost:5432/config_db?sslmode=disable"
 	}
 
+	// Run database migrations before connecting.
 	migrationsPath := "file://db/migrations"
-
-	// Run database migrations.
 	runMigrations(dbURL, migrationsPath)
 
+	// Connect to the database.
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	log.Println("Successfully connected to the database.")
+
 	// Start the gRPC server.
-	startGRPCServer(50051)
+	startGRPCServer(db, 50051)
 }
 
 func runMigrations(databaseURL string, migrationsPath string) {
@@ -46,14 +58,15 @@ func runMigrations(databaseURL string, migrationsPath string) {
 	log.Println("Database migrations applied successfully.")
 }
 
-func startGRPCServer(port int) {
+func startGRPCServer(db *sql.DB, port int) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("Failed to listen on port %d: %v", port, err)
 	}
 
 	s := grpc.NewServer()
-	configService := service.NewConfigService()
+	// Pass the database connection to the service.
+	configService := service.NewConfigService(db)
 	configv1.RegisterConfigServiceServer(s, configService)
 
 	log.Printf("gRPC server listening on port %d", port)

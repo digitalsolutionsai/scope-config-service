@@ -15,6 +15,7 @@ var (
 	storeID     string
 	groupID     string
 	scope       string
+	userName    string // Added userName variable
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -40,12 +41,14 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&storeID, "store", "", "Store ID")
 	rootCmd.PersistentFlags().StringVar(&groupID, "group", "", "Group ID")
 	rootCmd.PersistentFlags().StringVar(&scope, "scope", "", "Scope (default, system, service, project, store)")
+	rootCmd.PersistentFlags().StringVar(&userName, "user", "", "User name for audit trails") // Added user flag
 
 	viper.BindPFlag("project", rootCmd.PersistentFlags().Lookup("project"))
 	viper.BindPFlag("service", rootCmd.PersistentFlags().Lookup("service"))
 	viper.BindPFlag("store", rootCmd.PersistentFlags().Lookup("store"))
 	viper.BindPFlag("group", rootCmd.PersistentFlags().Lookup("group"))
 	viper.BindPFlag("scope", rootCmd.PersistentFlags().Lookup("scope"))
+	viper.BindPFlag("user", rootCmd.PersistentFlags().Lookup("user"))
 }
 
 // initConfig reads in config file and ENV variables if set.

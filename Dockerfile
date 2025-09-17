@@ -7,6 +7,15 @@ FROM golang:1.24-alpine AS builder
 # Set the working directory inside the container.
 WORKDIR /app
 
+# Add Go's bin directory to the PATH.
+# This is necessary so that tools installed via `go install` are available.
+ENV PATH="/go/bin:${PATH}"
+
+# Install the build tools.
+RUN go install github.com/bufbuild/buf/cmd/buf@latest
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 # Copy Go module and sum files.
 COPY go.mod go.sum ./
 
@@ -15,6 +24,9 @@ RUN go mod download
 
 # Copy the rest of the application source code.
 COPY . .
+
+# Generate the protobuf Go code.
+RUN buf generate
 
 # Build the application binaries.
 # CGO_ENABLED=0 is used to build a statically linked binary.
