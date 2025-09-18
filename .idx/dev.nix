@@ -16,6 +16,8 @@
     pkgs.openssl
     pkgs.python3
     pkgs.python311Packages.pip
+    pkgs.gnumake
+    pkgs.buf
   ];
 
   services.docker.enable = true;

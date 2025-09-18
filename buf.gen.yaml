@@ -1,8 +1,8 @@
 version: v1
 plugins:
   - plugin: go
-    out: .
+    out: proto
     opt: paths=source_relative
   - plugin: go-grpc
-    out: .
+    out: proto
     opt: paths=source_relative

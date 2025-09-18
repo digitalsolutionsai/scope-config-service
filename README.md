@@ -17,6 +17,33 @@ This is a gRPC service for managing and retrieving versioned configurations for 
 - Protocol Buffers (protoc)
 - Docker and Docker Compose
 
+### Generating Protobuf Clients
+
+This project uses `buf` to manage and generate the gRPC client from the `.proto` files. If you make changes to the `proto/config/v1/config.proto` file, you will need to regenerate the client.
+
+**1. Install Go Plugins:**
+
+First, you need to install the Go protobuf and gRPC plugins:
+
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+**2. Generate the Client:**
+
+Next, run the `buf generate` command. You may need to prepend your Go binary path to the `PATH` to ensure `buf` can find the installed plugins.
+
+```bash
+# First, find your GOPATH
+GOPATH=$(go env GOPATH)
+
+# Then, run buf generate with the correct PATH
+PATH=$PATH:$GOPATH/bin buf generate
+```
+
+> **Note:** The generated Go code in `proto/config/v1` and `config/v1` is committed to the repository. This is to ensure that developers can build the project without needing to install `buf` and the protobuf plugins.
+
 ### Building the Service
 
 You can build the gRPC server and the command-line interface (CLI) using the following commands:
