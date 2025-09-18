@@ -26,6 +26,10 @@ This project is a Go application designed to be a starting point for building fe
 - **Unit Testing:** Write unit tests for your application logic using the built-in `testing` package.
 - **Table-Driven Tests:** Use table-driven tests for testing functions that interact with the AI models under different scenarios.
 
+### Database
+- **Table Naming:** Use singular nouns for table names (e.g., `config_version` instead of `config_versions`).
+- **Column Grouping:** When designing tables, group related columns together using a common prefix to reflect the domain-driven design of the application.
+
 ## 4. Building with the Go Generative AI SDK
 
 This project uses the `google.golang.org/genai` package. Make sure to add it to your project:

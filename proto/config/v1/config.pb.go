@@ -320,7 +320,7 @@ func (x *ConfigVersion) GetUpdatedBy() string {
 	return ""
 }
 
-// A specific configuration field.
+// A specific configuration field with its value.
 type ConfigField struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                     // The key of the config (e.g., "database.postgres.connection_string")
@@ -458,6 +458,205 @@ func (x *ScopeConfig) GetFields() []*ConfigField {
 	return nil
 }
 
+// A predefined choice for a configuration field, used for creating dropdowns in UIs.
+type ValueOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"` // The actual value to be stored
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"` // The human-readable label for the UI
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValueOption) Reset() {
+	*x = ValueOption{}
+	mi := &file_config_v1_config_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValueOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValueOption) ProtoMessage() {}
+
+func (x *ValueOption) ProtoReflect() protoreflect.Message {
+	mi := &file_config_v1_config_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValueOption.ProtoReflect.Descriptor instead.
+func (*ValueOption) Descriptor() ([]byte, []int) {
+	return file_config_v1_config_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ValueOption) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *ValueOption) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+// Defines the schema for a single configuration field.
+type ConfigFieldTemplate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                                                 // The key (e.g., "payment.provider.name")
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`                                                               // The display name for UIs (e.g., "Payment Provider")
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`                                                   // A helpful description for the user
+	Type          FieldType              `protobuf:"varint,4,opt,name=type,proto3,enum=vn.dsai.config.v1.FieldType" json:"type,omitempty"`                               // The data type (STRING, INT, etc.)
+	DefaultValue  string                 `protobuf:"bytes,5,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`                             // Default value for this field
+	DisplayOn     []Scope                `protobuf:"varint,6,rep,packed,name=display_on,json=displayOn,proto3,enum=vn.dsai.config.v1.Scope" json:"display_on,omitempty"` // Defines which scopes can set this value (STORE, PROJECT, etc.)
+	Options       []*ValueOption         `protobuf:"bytes,7,rep,name=options,proto3" json:"options,omitempty"`                                                           // A list of predefined options for this field
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigFieldTemplate) Reset() {
+	*x = ConfigFieldTemplate{}
+	mi := &file_config_v1_config_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigFieldTemplate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigFieldTemplate) ProtoMessage() {}
+
+func (x *ConfigFieldTemplate) ProtoReflect() protoreflect.Message {
+	mi := &file_config_v1_config_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigFieldTemplate.ProtoReflect.Descriptor instead.
+func (*ConfigFieldTemplate) Descriptor() ([]byte, []int) {
+	return file_config_v1_config_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ConfigFieldTemplate) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ConfigFieldTemplate) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ConfigFieldTemplate) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ConfigFieldTemplate) GetType() FieldType {
+	if x != nil {
+		return x.Type
+	}
+	return FieldType_FIELD_TYPE_UNSPECIFIED
+}
+
+func (x *ConfigFieldTemplate) GetDefaultValue() string {
+	if x != nil {
+		return x.DefaultValue
+	}
+	return ""
+}
+
+func (x *ConfigFieldTemplate) GetDisplayOn() []Scope {
+	if x != nil {
+		return x.DisplayOn
+	}
+	return nil
+}
+
+func (x *ConfigFieldTemplate) GetOptions() []*ValueOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+// A container that groups all field templates for a specific service_name and group_id.
+type ConfigTemplate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"` // Uniquely identifies the template (using service_name and group_id)
+	Fields        []*ConfigFieldTemplate `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigTemplate) Reset() {
+	*x = ConfigTemplate{}
+	mi := &file_config_v1_config_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigTemplate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigTemplate) ProtoMessage() {}
+
+func (x *ConfigTemplate) ProtoReflect() protoreflect.Message {
+	mi := &file_config_v1_config_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigTemplate.ProtoReflect.Descriptor instead.
+func (*ConfigTemplate) Descriptor() ([]byte, []int) {
+	return file_config_v1_config_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ConfigTemplate) GetIdentifier() *ConfigIdentifier {
+	if x != nil {
+		return x.Identifier
+	}
+	return nil
+}
+
+func (x *ConfigTemplate) GetFields() []*ConfigFieldTemplate {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
 type GetConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
@@ -467,7 +666,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[4]
+	mi := &file_config_v1_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +678,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[4]
+	mi := &file_config_v1_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +691,7 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{4}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetConfigRequest) GetIdentifier() *ConfigIdentifier {
@@ -512,7 +711,7 @@ type GetConfigByVersionRequest struct {
 
 func (x *GetConfigByVersionRequest) Reset() {
 	*x = GetConfigByVersionRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[5]
+	mi := &file_config_v1_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +723,7 @@ func (x *GetConfigByVersionRequest) String() string {
 func (*GetConfigByVersionRequest) ProtoMessage() {}
 
 func (x *GetConfigByVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[5]
+	mi := &file_config_v1_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +736,7 @@ func (x *GetConfigByVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigByVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigByVersionRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{5}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetConfigByVersionRequest) GetIdentifier() *ConfigIdentifier {
@@ -565,7 +764,7 @@ type UpdateConfigRequest struct {
 
 func (x *UpdateConfigRequest) Reset() {
 	*x = UpdateConfigRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[6]
+	mi := &file_config_v1_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +776,7 @@ func (x *UpdateConfigRequest) String() string {
 func (*UpdateConfigRequest) ProtoMessage() {}
 
 func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[6]
+	mi := &file_config_v1_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +789,7 @@ func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{6}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateConfigRequest) GetIdentifier() *ConfigIdentifier {
@@ -625,7 +824,7 @@ type PublishVersionRequest struct {
 
 func (x *PublishVersionRequest) Reset() {
 	*x = PublishVersionRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[7]
+	mi := &file_config_v1_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -637,7 +836,7 @@ func (x *PublishVersionRequest) String() string {
 func (*PublishVersionRequest) ProtoMessage() {}
 
 func (x *PublishVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[7]
+	mi := &file_config_v1_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,7 +849,7 @@ func (x *PublishVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishVersionRequest.ProtoReflect.Descriptor instead.
 func (*PublishVersionRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{7}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PublishVersionRequest) GetIdentifier() *ConfigIdentifier {
@@ -683,7 +882,7 @@ type DeleteConfigRequest struct {
 
 func (x *DeleteConfigRequest) Reset() {
 	*x = DeleteConfigRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[8]
+	mi := &file_config_v1_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +894,7 @@ func (x *DeleteConfigRequest) String() string {
 func (*DeleteConfigRequest) ProtoMessage() {}
 
 func (x *DeleteConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[8]
+	mi := &file_config_v1_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +907,7 @@ func (x *DeleteConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConfigRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConfigRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{8}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteConfigRequest) GetIdentifier() *ConfigIdentifier {
@@ -727,7 +926,7 @@ type GetConfigHistoryRequest struct {
 
 func (x *GetConfigHistoryRequest) Reset() {
 	*x = GetConfigHistoryRequest{}
-	mi := &file_config_v1_config_proto_msgTypes[9]
+	mi := &file_config_v1_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +938,7 @@ func (x *GetConfigHistoryRequest) String() string {
 func (*GetConfigHistoryRequest) ProtoMessage() {}
 
 func (x *GetConfigHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[9]
+	mi := &file_config_v1_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +951,7 @@ func (x *GetConfigHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{9}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetConfigHistoryRequest) GetIdentifier() *ConfigIdentifier {
@@ -771,7 +970,7 @@ type GetConfigHistoryResponse struct {
 
 func (x *GetConfigHistoryResponse) Reset() {
 	*x = GetConfigHistoryResponse{}
-	mi := &file_config_v1_config_proto_msgTypes[10]
+	mi := &file_config_v1_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +982,7 @@ func (x *GetConfigHistoryResponse) String() string {
 func (*GetConfigHistoryResponse) ProtoMessage() {}
 
 func (x *GetConfigHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_config_v1_config_proto_msgTypes[10]
+	mi := &file_config_v1_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -796,12 +995,108 @@ func (x *GetConfigHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_config_v1_config_proto_rawDescGZIP(), []int{10}
+	return file_config_v1_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetConfigHistoryResponse) GetVersions() []*ConfigVersion {
 	if x != nil {
 		return x.Versions
+	}
+	return nil
+}
+
+type ApplyConfigTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Template      *ConfigTemplate        `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
+	User          string                 `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyConfigTemplateRequest) Reset() {
+	*x = ApplyConfigTemplateRequest{}
+	mi := &file_config_v1_config_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyConfigTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyConfigTemplateRequest) ProtoMessage() {}
+
+func (x *ApplyConfigTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_v1_config_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyConfigTemplateRequest.ProtoReflect.Descriptor instead.
+func (*ApplyConfigTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_config_v1_config_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ApplyConfigTemplateRequest) GetTemplate() *ConfigTemplate {
+	if x != nil {
+		return x.Template
+	}
+	return nil
+}
+
+func (x *ApplyConfigTemplateRequest) GetUser() string {
+	if x != nil {
+		return x.User
+	}
+	return ""
+}
+
+type GetConfigTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConfigTemplateRequest) Reset() {
+	*x = GetConfigTemplateRequest{}
+	mi := &file_config_v1_config_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConfigTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConfigTemplateRequest) ProtoMessage() {}
+
+func (x *GetConfigTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_v1_config_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConfigTemplateRequest.ProtoReflect.Descriptor instead.
+func (*GetConfigTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_config_v1_config_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetConfigTemplateRequest) GetIdentifier() *ConfigIdentifier {
+	if x != nil {
+		return x.Identifier
 	}
 	return nil
 }
@@ -842,7 +1137,24 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\vScopeConfig\x12C\n" +
 	"\fversion_info\x18\x01 \x01(\v2 .vn.dsai.config.v1.ConfigVersionR\vversionInfo\x12'\n" +
 	"\x0fcurrent_version\x18\x02 \x01(\x05R\x0ecurrentVersion\x126\n" +
-	"\x06fields\x18\x03 \x03(\v2\x1e.vn.dsai.config.v1.ConfigFieldR\x06fields\"W\n" +
+	"\x06fields\x18\x03 \x03(\v2\x1e.vn.dsai.config.v1.ConfigFieldR\x06fields\"9\n" +
+	"\vValueOption\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xab\x02\n" +
+	"\x13ConfigFieldTemplate\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x120\n" +
+	"\x04type\x18\x04 \x01(\x0e2\x1c.vn.dsai.config.v1.FieldTypeR\x04type\x12#\n" +
+	"\rdefault_value\x18\x05 \x01(\tR\fdefaultValue\x127\n" +
+	"\n" +
+	"display_on\x18\x06 \x03(\x0e2\x18.vn.dsai.config.v1.ScopeR\tdisplayOn\x128\n" +
+	"\aoptions\x18\a \x03(\v2\x1e.vn.dsai.config.v1.ValueOptionR\aoptions\"\x95\x01\n" +
+	"\x0eConfigTemplate\x12C\n" +
+	"\n" +
+	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
+	"identifier\x12>\n" +
+	"\x06fields\x18\x02 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\"W\n" +
 	"\x10GetConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
@@ -873,7 +1185,14 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\"X\n" +
 	"\x18GetConfigHistoryResponse\x12<\n" +
-	"\bversions\x18\x01 \x03(\v2 .vn.dsai.config.v1.ConfigVersionR\bversions*\\\n" +
+	"\bversions\x18\x01 \x03(\v2 .vn.dsai.config.v1.ConfigVersionR\bversions\"o\n" +
+	"\x1aApplyConfigTemplateRequest\x12=\n" +
+	"\btemplate\x18\x01 \x01(\v2!.vn.dsai.config.v1.ConfigTemplateR\btemplate\x12\x12\n" +
+	"\x04user\x18\x02 \x01(\tR\x04user\"_\n" +
+	"\x18GetConfigTemplateRequest\x12C\n" +
+	"\n" +
+	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
+	"identifier*\\\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aDEFAULT\x10\x01\x12\n" +
@@ -890,7 +1209,7 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x05FLOAT\x10\x03\x12\v\n" +
 	"\aBOOLEAN\x10\x04\x12\b\n" +
 	"\x04JSON\x10\x05\x12\x10\n" +
-	"\fARRAY_STRING\x10\x062\x90\x05\n" +
+	"\fARRAY_STRING\x10\x062\xde\x06\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12V\n" +
 	"\x0fGetLatestConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12b\n" +
@@ -898,7 +1217,9 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x10GetConfigHistory\x12*.vn.dsai.config.v1.GetConfigHistoryRequest\x1a+.vn.dsai.config.v1.GetConfigHistoryResponse\x12V\n" +
 	"\fUpdateConfig\x12&.vn.dsai.config.v1.UpdateConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12\\\n" +
 	"\x0ePublishVersion\x12(.vn.dsai.config.v1.PublishVersionRequest\x1a .vn.dsai.config.v1.ConfigVersion\x12N\n" +
-	"\fDeleteConfig\x12&.vn.dsai.config.v1.DeleteConfigRequest\x1a\x16.google.protobuf.EmptyBGZEgithub.com/digitalsolutionsai/scope-config-service/config/v1;configv1b\x06proto3"
+	"\fDeleteConfig\x12&.vn.dsai.config.v1.DeleteConfigRequest\x1a\x16.google.protobuf.Empty\x12g\n" +
+	"\x13ApplyConfigTemplate\x12-.vn.dsai.config.v1.ApplyConfigTemplateRequest\x1a!.vn.dsai.config.v1.ConfigTemplate\x12c\n" +
+	"\x11GetConfigTemplate\x12+.vn.dsai.config.v1.GetConfigTemplateRequest\x1a!.vn.dsai.config.v1.ConfigTemplateBGZEgithub.com/digitalsolutionsai/scope-config-service/config/v1;configv1b\x06proto3"
 
 var (
 	file_config_v1_config_proto_rawDescOnce sync.Once
@@ -913,59 +1234,75 @@ func file_config_v1_config_proto_rawDescGZIP() []byte {
 }
 
 var file_config_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_config_v1_config_proto_goTypes = []any{
-	(Scope)(0),                        // 0: vn.dsai.config.v1.Scope
-	(FieldType)(0),                    // 1: vn.dsai.config.v1.FieldType
-	(*ConfigIdentifier)(nil),          // 2: vn.dsai.config.v1.ConfigIdentifier
-	(*ConfigVersion)(nil),             // 3: vn.dsai.config.v1.ConfigVersion
-	(*ConfigField)(nil),               // 4: vn.dsai.config.v1.ConfigField
-	(*ScopeConfig)(nil),               // 5: vn.dsai.config.v1.ScopeConfig
-	(*GetConfigRequest)(nil),          // 6: vn.dsai.config.v1.GetConfigRequest
-	(*GetConfigByVersionRequest)(nil), // 7: vn.dsai.config.v1.GetConfigByVersionRequest
-	(*UpdateConfigRequest)(nil),       // 8: vn.dsai.config.v1.UpdateConfigRequest
-	(*PublishVersionRequest)(nil),     // 9: vn.dsai.config.v1.PublishVersionRequest
-	(*DeleteConfigRequest)(nil),       // 10: vn.dsai.config.v1.DeleteConfigRequest
-	(*GetConfigHistoryRequest)(nil),   // 11: vn.dsai.config.v1.GetConfigHistoryRequest
-	(*GetConfigHistoryResponse)(nil),  // 12: vn.dsai.config.v1.GetConfigHistoryResponse
-	(*timestamppb.Timestamp)(nil),     // 13: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),             // 14: google.protobuf.Empty
+	(Scope)(0),                         // 0: vn.dsai.config.v1.Scope
+	(FieldType)(0),                     // 1: vn.dsai.config.v1.FieldType
+	(*ConfigIdentifier)(nil),           // 2: vn.dsai.config.v1.ConfigIdentifier
+	(*ConfigVersion)(nil),              // 3: vn.dsai.config.v1.ConfigVersion
+	(*ConfigField)(nil),                // 4: vn.dsai.config.v1.ConfigField
+	(*ScopeConfig)(nil),                // 5: vn.dsai.config.v1.ScopeConfig
+	(*ValueOption)(nil),                // 6: vn.dsai.config.v1.ValueOption
+	(*ConfigFieldTemplate)(nil),        // 7: vn.dsai.config.v1.ConfigFieldTemplate
+	(*ConfigTemplate)(nil),             // 8: vn.dsai.config.v1.ConfigTemplate
+	(*GetConfigRequest)(nil),           // 9: vn.dsai.config.v1.GetConfigRequest
+	(*GetConfigByVersionRequest)(nil),  // 10: vn.dsai.config.v1.GetConfigByVersionRequest
+	(*UpdateConfigRequest)(nil),        // 11: vn.dsai.config.v1.UpdateConfigRequest
+	(*PublishVersionRequest)(nil),      // 12: vn.dsai.config.v1.PublishVersionRequest
+	(*DeleteConfigRequest)(nil),        // 13: vn.dsai.config.v1.DeleteConfigRequest
+	(*GetConfigHistoryRequest)(nil),    // 14: vn.dsai.config.v1.GetConfigHistoryRequest
+	(*GetConfigHistoryResponse)(nil),   // 15: vn.dsai.config.v1.GetConfigHistoryResponse
+	(*ApplyConfigTemplateRequest)(nil), // 16: vn.dsai.config.v1.ApplyConfigTemplateRequest
+	(*GetConfigTemplateRequest)(nil),   // 17: vn.dsai.config.v1.GetConfigTemplateRequest
+	(*timestamppb.Timestamp)(nil),      // 18: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),              // 19: google.protobuf.Empty
 }
 var file_config_v1_config_proto_depIdxs = []int32{
 	0,  // 0: vn.dsai.config.v1.ConfigIdentifier.scope:type_name -> vn.dsai.config.v1.Scope
 	2,  // 1: vn.dsai.config.v1.ConfigVersion.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	13, // 2: vn.dsai.config.v1.ConfigVersion.created_at:type_name -> google.protobuf.Timestamp
-	13, // 3: vn.dsai.config.v1.ConfigVersion.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 2: vn.dsai.config.v1.ConfigVersion.created_at:type_name -> google.protobuf.Timestamp
+	18, // 3: vn.dsai.config.v1.ConfigVersion.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: vn.dsai.config.v1.ConfigField.type:type_name -> vn.dsai.config.v1.FieldType
 	3,  // 5: vn.dsai.config.v1.ScopeConfig.version_info:type_name -> vn.dsai.config.v1.ConfigVersion
 	4,  // 6: vn.dsai.config.v1.ScopeConfig.fields:type_name -> vn.dsai.config.v1.ConfigField
-	2,  // 7: vn.dsai.config.v1.GetConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	2,  // 8: vn.dsai.config.v1.GetConfigByVersionRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	2,  // 9: vn.dsai.config.v1.UpdateConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	4,  // 10: vn.dsai.config.v1.UpdateConfigRequest.fields:type_name -> vn.dsai.config.v1.ConfigField
-	2,  // 11: vn.dsai.config.v1.PublishVersionRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	2,  // 12: vn.dsai.config.v1.DeleteConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	2,  // 13: vn.dsai.config.v1.GetConfigHistoryRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	3,  // 14: vn.dsai.config.v1.GetConfigHistoryResponse.versions:type_name -> vn.dsai.config.v1.ConfigVersion
-	6,  // 15: vn.dsai.config.v1.ConfigService.GetConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
-	6,  // 16: vn.dsai.config.v1.ConfigService.GetLatestConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
-	7,  // 17: vn.dsai.config.v1.ConfigService.GetConfigByVersion:input_type -> vn.dsai.config.v1.GetConfigByVersionRequest
-	11, // 18: vn.dsai.config.v1.ConfigService.GetConfigHistory:input_type -> vn.dsai.config.v1.GetConfigHistoryRequest
-	8,  // 19: vn.dsai.config.v1.ConfigService.UpdateConfig:input_type -> vn.dsai.config.v1.UpdateConfigRequest
-	9,  // 20: vn.dsai.config.v1.ConfigService.PublishVersion:input_type -> vn.dsai.config.v1.PublishVersionRequest
-	10, // 21: vn.dsai.config.v1.ConfigService.DeleteConfig:input_type -> vn.dsai.config.v1.DeleteConfigRequest
-	5,  // 22: vn.dsai.config.v1.ConfigService.GetConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	5,  // 23: vn.dsai.config.v1.ConfigService.GetLatestConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	5,  // 24: vn.dsai.config.v1.ConfigService.GetConfigByVersion:output_type -> vn.dsai.config.v1.ScopeConfig
-	12, // 25: vn.dsai.config.v1.ConfigService.GetConfigHistory:output_type -> vn.dsai.config.v1.GetConfigHistoryResponse
-	5,  // 26: vn.dsai.config.v1.ConfigService.UpdateConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	3,  // 27: vn.dsai.config.v1.ConfigService.PublishVersion:output_type -> vn.dsai.config.v1.ConfigVersion
-	14, // 28: vn.dsai.config.v1.ConfigService.DeleteConfig:output_type -> google.protobuf.Empty
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	1,  // 7: vn.dsai.config.v1.ConfigFieldTemplate.type:type_name -> vn.dsai.config.v1.FieldType
+	0,  // 8: vn.dsai.config.v1.ConfigFieldTemplate.display_on:type_name -> vn.dsai.config.v1.Scope
+	6,  // 9: vn.dsai.config.v1.ConfigFieldTemplate.options:type_name -> vn.dsai.config.v1.ValueOption
+	2,  // 10: vn.dsai.config.v1.ConfigTemplate.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	7,  // 11: vn.dsai.config.v1.ConfigTemplate.fields:type_name -> vn.dsai.config.v1.ConfigFieldTemplate
+	2,  // 12: vn.dsai.config.v1.GetConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	2,  // 13: vn.dsai.config.v1.GetConfigByVersionRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	2,  // 14: vn.dsai.config.v1.UpdateConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	4,  // 15: vn.dsai.config.v1.UpdateConfigRequest.fields:type_name -> vn.dsai.config.v1.ConfigField
+	2,  // 16: vn.dsai.config.v1.PublishVersionRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	2,  // 17: vn.dsai.config.v1.DeleteConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	2,  // 18: vn.dsai.config.v1.GetConfigHistoryRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	3,  // 19: vn.dsai.config.v1.GetConfigHistoryResponse.versions:type_name -> vn.dsai.config.v1.ConfigVersion
+	8,  // 20: vn.dsai.config.v1.ApplyConfigTemplateRequest.template:type_name -> vn.dsai.config.v1.ConfigTemplate
+	2,  // 21: vn.dsai.config.v1.GetConfigTemplateRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	9,  // 22: vn.dsai.config.v1.ConfigService.GetConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
+	9,  // 23: vn.dsai.config.v1.ConfigService.GetLatestConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
+	10, // 24: vn.dsai.config.v1.ConfigService.GetConfigByVersion:input_type -> vn.dsai.config.v1.GetConfigByVersionRequest
+	14, // 25: vn.dsai.config.v1.ConfigService.GetConfigHistory:input_type -> vn.dsai.config.v1.GetConfigHistoryRequest
+	11, // 26: vn.dsai.config.v1.ConfigService.UpdateConfig:input_type -> vn.dsai.config.v1.UpdateConfigRequest
+	12, // 27: vn.dsai.config.v1.ConfigService.PublishVersion:input_type -> vn.dsai.config.v1.PublishVersionRequest
+	13, // 28: vn.dsai.config.v1.ConfigService.DeleteConfig:input_type -> vn.dsai.config.v1.DeleteConfigRequest
+	16, // 29: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:input_type -> vn.dsai.config.v1.ApplyConfigTemplateRequest
+	17, // 30: vn.dsai.config.v1.ConfigService.GetConfigTemplate:input_type -> vn.dsai.config.v1.GetConfigTemplateRequest
+	5,  // 31: vn.dsai.config.v1.ConfigService.GetConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	5,  // 32: vn.dsai.config.v1.ConfigService.GetLatestConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	5,  // 33: vn.dsai.config.v1.ConfigService.GetConfigByVersion:output_type -> vn.dsai.config.v1.ScopeConfig
+	15, // 34: vn.dsai.config.v1.ConfigService.GetConfigHistory:output_type -> vn.dsai.config.v1.GetConfigHistoryResponse
+	5,  // 35: vn.dsai.config.v1.ConfigService.UpdateConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	3,  // 36: vn.dsai.config.v1.ConfigService.PublishVersion:output_type -> vn.dsai.config.v1.ConfigVersion
+	19, // 37: vn.dsai.config.v1.ConfigService.DeleteConfig:output_type -> google.protobuf.Empty
+	8,  // 38: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
+	8,  // 39: vn.dsai.config.v1.ConfigService.GetConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
+	31, // [31:40] is the sub-list for method output_type
+	22, // [22:31] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_config_v1_config_proto_init() }
@@ -979,7 +1316,7 @@ func file_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_v1_config_proto_rawDesc), len(file_config_v1_config_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   11,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

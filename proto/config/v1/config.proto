@@ -21,7 +21,7 @@ service ConfigService {
   // Retrieves the version history for a configuration.
   rpc GetConfigHistory(GetConfigHistoryRequest) returns (GetConfigHistoryResponse);
 
-  // Updates or creates a new configuration set.
+  // Updates or creates a new configuration set. This will be validated against a template if one exists.
   rpc UpdateConfig(UpdateConfigRequest) returns (ScopeConfig);
 
   // Marks a specific version as "published" for client consumption.
@@ -29,6 +29,12 @@ service ConfigService {
 
   // Deletes a configuration set and all of its associated versions.
   rpc DeleteConfig(DeleteConfigRequest) returns (google.protobuf.Empty);
+
+  // Applies a configuration template (schema) to a config identifier.
+  rpc ApplyConfigTemplate(ApplyConfigTemplateRequest) returns (ConfigTemplate);
+
+  // Retrieves the configuration template for a given identifier.
+  rpc GetConfigTemplate(GetConfigTemplateRequest) returns (ConfigTemplate);
 }
 
 // === ENUMS ===
@@ -75,7 +81,7 @@ message ConfigVersion {
   string updated_by = 8;
 }
 
-// A specific configuration field.
+// A specific configuration field with its value.
 message ConfigField {
   string path = 1;          // The key of the config (e.g., "database.postgres.connection_string")
   string value = 2;         // The value, stored as a string
@@ -90,6 +96,32 @@ message ScopeConfig {
   int32 current_version = 2; // The version number of the accompanying fields
   repeated ConfigField fields = 3;
 }
+
+// === TEMPLATE MODELS ===
+
+// A predefined choice for a configuration field, used for creating dropdowns in UIs.
+message ValueOption {
+    string value = 1; // The actual value to be stored
+    string label = 2; // The human-readable label for the UI
+}
+
+// Defines the schema for a single configuration field.
+message ConfigFieldTemplate {
+    string path = 1;           // The key (e.g., "payment.provider.name")
+    string label = 2;          // The display name for UIs (e.g., "Payment Provider")
+    string description = 3;    // A helpful description for the user
+    FieldType type = 4;        // The data type (STRING, INT, etc.)
+    string default_value = 5;  // Default value for this field
+    repeated Scope display_on = 6; // Defines which scopes can set this value (STORE, PROJECT, etc.)
+    repeated ValueOption options = 7; // A list of predefined options for this field
+}
+
+// A container that groups all field templates for a specific service_name and group_id.
+message ConfigTemplate {
+    ConfigIdentifier identifier = 1; // Uniquely identifies the template (using service_name and group_id)
+    repeated ConfigFieldTemplate fields = 2;
+}
+
 
 // === REQUESTS & RESPONSES ===
 
@@ -124,4 +156,13 @@ message GetConfigHistoryRequest {
 
 message GetConfigHistoryResponse {
   repeated ConfigVersion versions = 1;
+}
+
+message ApplyConfigTemplateRequest {
+  ConfigTemplate template = 1;
+  string user = 2;
+}
+
+message GetConfigTemplateRequest {
+  ConfigIdentifier identifier = 1;
 }

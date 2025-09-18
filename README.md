@@ -1,140 +1,196 @@
-# Scope Configuration Service
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
+[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
+[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
+[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
+[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
+![Supported Go Versions](https://img.shields.io/badge/Go-1.21%2C%201.22-lightgrey.svg)
+[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
 
-This is a gRPC service for managing and retrieving versioned configurations for your applications. It provides a flexible and scalable way to handle configurations for different services, projects, and environments.
+# migrate
 
-## Features
+__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
 
-- **Versioned Configurations**: Every change to a configuration creates a new version, allowing you to track changes and roll back to previous versions.
-- **Published Versions**: You can mark a specific version of a configuration as "published", which is what your client services will consume.
-- **gRPC Interface**: The service uses a gRPC interface for high-performance, language-agnostic communication.
-- **Command-Line Interface (CLI)**: A CLI is provided for easy interaction with the service.
+* Migrate reads migrations from [sources](#migration-sources)
+   and applies them in correct order to a [database](#databases).
+* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
+   (Keeps the drivers lightweight, too.)
+* Database drivers don't assume things or try to correct user input. When in doubt, fail.
 
-## Getting Started
+Forked from [mattes/migrate](https://github.com/mattes/migrate)
 
-### Prerequisites
+## Databases
 
-- Go 1.18 or later
-- Docker and Docker Compose
-- For API changes: `buf`, `protoc-gen-go`, and `protoc-gen-go-grpc`
+Database drivers run migrations. [Add a new database?](database/driver.go)
 
-### Building the Service
+* [PostgreSQL](database/postgres)
+* [PGX v4](database/pgx)
+* [PGX v5](database/pgx/v5)
+* [Redshift](database/redshift)
+* [Ql](database/ql)
+* [Cassandra / ScyllaDB](database/cassandra)
+* [SQLite](database/sqlite)
+* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
+* [SQLCipher](database/sqlcipher)
+* [MySQL / MariaDB](database/mysql)
+* [Neo4j](database/neo4j)
+* [MongoDB](database/mongodb)
+* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
+* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
+* [Google Cloud Spanner](database/spanner)
+* [CockroachDB](database/cockroachdb)
+* [YugabyteDB](database/yugabytedb)
+* [ClickHouse](database/clickhouse)
+* [Firebird](database/firebird)
+* [MS SQL Server](database/sqlserver)
+* [rqlite](database/rqlite)
 
-You can build the gRPC server and the command-line interface (CLI) using the provided `Makefile`:
+### Database URLs
 
-```bash
-# Build the server
-make build-server
+Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
 
-# Build the CLI
-make build-cli
-```
+Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
 
-The generated binaries will be placed in the `bin/` directory.
+Explicitly, the following characters need to be escaped:
+`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
 
-### Protobuf & API Changes
-
-This project uses Protocol Buffers for its gRPC API. The generated Go code for the protobuf client (`*.pb.go`) is committed directly to the repository. This is standard practice in Go projects, as it means consumers of your repository do not need to install any tools to build and run the project.
-
-You only need to regenerate the client code if you make a change to the API definition in `proto/config/v1/config.proto`.
-
-**1. Install Generation Tools (First-Time Setup):**
-
-If you don't have them, install the necessary Go plugins for protobuf generation:
-
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
-
-**2. Regenerate the Client:**
-
-After modifying the `.proto` file, run the following command to regenerate the Go client:
-
-```bash
-make proto
-```
-
-This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit along with your changes to the `.proto` file.
-
-### Running with Docker Compose
-
-To run the service and the PostgreSQL database together, you can use Docker Compose. There are two files provided:
-
-- `compose.postgres.yml`: Defines the PostgreSQL service.
-- `compose.yml`: Defines the configuration service.
-
-Before running the service, you need to create a `.env` file from the `.env.example` file and update the values if necessary:
+It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
 
 ```bash
-cp .env.example .env
+$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
+String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
+FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
+$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
+String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
+FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
+$
 ```
 
-To run both services, use the following command:
+## Migration Sources
+
+Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
+
+* [Filesystem](source/file) - read from filesystem
+* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
+* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
+* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
+* [GitHub](source/github) - read from remote GitHub repositories
+* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
+* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
+* [Gitlab](source/gitlab) - read from remote Gitlab repositories
+* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
+* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
+
+## CLI usage
+
+* Simple wrapper around this library.
+* Handles ctrl+c (SIGINT) gracefully.
+* No config search paths, no config files, no magic ENV var injections.
+
+__[CLI Documentation](cmd/migrate)__
+
+### Basic usage
 
 ```bash
-docker compose -f compose.postgres.yml -f compose.yml up -d --build
+$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
 ```
 
-## User Guide: Managing Configurations
-
-This guide will walk you through the common workflow of creating, viewing, and publishing configurations using the CLI.
-
-### 1. Create a New, Unpublished Configuration
-
-The `set` command creates a new version of a configuration. If you provide new key-value pairs, they will be added to the configuration.
-
-In this example, we'''ll create a new configuration for a service named `test-service` in the `test` project. This will create version 2 of the configuration, but it will not be published yet.
+### Docker usage
 
 ```bash
-docker compose -f compose.yml exec config-service config set --service=test-service --scope=SYSTEM --project=test db.host=postgres db.port=5432 --user=gemini
+$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
+    -path=/migrations/ -database postgres://localhost:5432/database up 2
 ```
 
-### 2. View the Latest, Unpublished Configuration
+## Use in your Go project
 
-The `show` command displays the latest version of a configuration, including unpublished changes. This is useful for reviewing a configuration before publishing it.
+* API is stable and frozen for this release (v3 & v4).
+* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
+* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
+* Bring your own logger.
+* Uses `io.Reader` streams internally for low memory overhead.
+* Thread-safe and no goroutine leaks.
+
+__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
+
+```go
+import (
+    "github.com/golang-migrate/migrate/v4"
+    _ "github.com/golang-migrate/migrate/v4/database/postgres"
+    _ "github.com/golang-migrate/migrate/v4/source/github"
+)
+
+func main() {
+    m, err := migrate.New(
+        "github://mattes:personal-access-token@mattes/migrate_test",
+        "postgres://localhost:5432/database?sslmode=enable")
+    m.Steps(2)
+}
+```
+
+Want to use an existing database client?
+
+```go
+import (
+    "database/sql"
+    _ "github.com/lib/pq"
+    "github.com/golang-migrate/migrate/v4"
+    "github.com/golang-migrate/migrate/v4/database/postgres"
+    _ "github.com/golang-migrate/migrate/v4/source/file"
+)
+
+func main() {
+    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
+    driver, err := postgres.WithInstance(db, &postgres.Config{})
+    m, err := migrate.NewWithDatabaseInstance(
+        "file:///migrations",
+        "postgres", driver)
+    m.Up() // or m.Step(2) if you want to explicitly set the number of migrations to run
+}
+```
+
+## Getting started
+
+Go to [getting started](GETTING_STARTED.md)
+
+## Tutorials
+
+* [CockroachDB](database/cockroachdb/TUTORIAL.md)
+* [PostgreSQL](database/postgres/TUTORIAL.md)
+
+(more tutorials to come)
+
+## Migration files
+
+Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
 
 ```bash
-docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
+1481574547_create_users_table.up.sql
+1481574547_create_users_table.down.sql
 ```
 
-You should see an output similar to this:
+[Best practices: How to write migrations.](MIGRATIONS.md)
 
-```
-Latest Version: 2
-Published Version: 1
-Fields:
-  db.host: postgres
-  db.port: 5432
-```
+## Coming from another db migration tool?
 
-### 3. Publish the New Configuration
+Check out [migradaptor](https://github.com/musinit/migradaptor/).
+*Note: migradaptor is not affiliated or supported by this project*
 
-The `publish` command makes a specific version of a configuration the "published" version. This is the version that client services will consume when they request the configuration.
+## Versions
 
-```bash
-docker compose -f compose.yml exec config-service config publish 2 --service=test-service --scope=SYSTEM --project=test --user=gemini
-```
+Version | Supported? | Import | Notes
+--------|------------|--------|------
+**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
+**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
+**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
 
-### 4. Get the Published Configuration
+## Development and Contributing
 
-The `get` command retrieves a single value from the *published* configuration.
+Yes, please! [`Makefile`](Makefile) is your friend,
+read the [development guide](CONTRIBUTING.md).
 
-```bash
-docker compose -f compose.yml exec config-service config get db.host --service=test-service --scope=SYSTEM --project=test
-```
+Also have a look at the [FAQ](FAQ.md).
 
-This will return the value of the `db.host` key, which is `postgres`.
+---
 
-To view the entire published configuration, you can use the `show` command again. Since version 2 is now published, the output will reflect this:
-
-```bash
-docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
-```
-
-```
-Latest Version: 2
-Published Version: 2
-Fields:
-  db.host: postgres
-  db.port: 5432
-```
+Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).

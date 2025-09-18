@@ -20,13 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_GetConfig_FullMethodName          = "/vn.dsai.config.v1.ConfigService/GetConfig"
-	ConfigService_GetLatestConfig_FullMethodName    = "/vn.dsai.config.v1.ConfigService/GetLatestConfig"
-	ConfigService_GetConfigByVersion_FullMethodName = "/vn.dsai.config.v1.ConfigService/GetConfigByVersion"
-	ConfigService_GetConfigHistory_FullMethodName   = "/vn.dsai.config.v1.ConfigService/GetConfigHistory"
-	ConfigService_UpdateConfig_FullMethodName       = "/vn.dsai.config.v1.ConfigService/UpdateConfig"
-	ConfigService_PublishVersion_FullMethodName     = "/vn.dsai.config.v1.ConfigService/PublishVersion"
-	ConfigService_DeleteConfig_FullMethodName       = "/vn.dsai.config.v1.ConfigService/DeleteConfig"
+	ConfigService_GetConfig_FullMethodName           = "/vn.dsai.config.v1.ConfigService/GetConfig"
+	ConfigService_GetLatestConfig_FullMethodName     = "/vn.dsai.config.v1.ConfigService/GetLatestConfig"
+	ConfigService_GetConfigByVersion_FullMethodName  = "/vn.dsai.config.v1.ConfigService/GetConfigByVersion"
+	ConfigService_GetConfigHistory_FullMethodName    = "/vn.dsai.config.v1.ConfigService/GetConfigHistory"
+	ConfigService_UpdateConfig_FullMethodName        = "/vn.dsai.config.v1.ConfigService/UpdateConfig"
+	ConfigService_PublishVersion_FullMethodName      = "/vn.dsai.config.v1.ConfigService/PublishVersion"
+	ConfigService_DeleteConfig_FullMethodName        = "/vn.dsai.config.v1.ConfigService/DeleteConfig"
+	ConfigService_ApplyConfigTemplate_FullMethodName = "/vn.dsai.config.v1.ConfigService/ApplyConfigTemplate"
+	ConfigService_GetConfigTemplate_FullMethodName   = "/vn.dsai.config.v1.ConfigService/GetConfigTemplate"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -43,12 +45,16 @@ type ConfigServiceClient interface {
 	GetConfigByVersion(ctx context.Context, in *GetConfigByVersionRequest, opts ...grpc.CallOption) (*ScopeConfig, error)
 	// Retrieves the version history for a configuration.
 	GetConfigHistory(ctx context.Context, in *GetConfigHistoryRequest, opts ...grpc.CallOption) (*GetConfigHistoryResponse, error)
-	// Updates or creates a new configuration set.
+	// Updates or creates a new configuration set. This will be validated against a template if one exists.
 	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*ScopeConfig, error)
 	// Marks a specific version as "published" for client consumption.
 	PublishVersion(ctx context.Context, in *PublishVersionRequest, opts ...grpc.CallOption) (*ConfigVersion, error)
 	// Deletes a configuration set and all of its associated versions.
 	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Applies a configuration template (schema) to a config identifier.
+	ApplyConfigTemplate(ctx context.Context, in *ApplyConfigTemplateRequest, opts ...grpc.CallOption) (*ConfigTemplate, error)
+	// Retrieves the configuration template for a given identifier.
+	GetConfigTemplate(ctx context.Context, in *GetConfigTemplateRequest, opts ...grpc.CallOption) (*ConfigTemplate, error)
 }
 
 type configServiceClient struct {
@@ -129,6 +135,26 @@ func (c *configServiceClient) DeleteConfig(ctx context.Context, in *DeleteConfig
 	return out, nil
 }
 
+func (c *configServiceClient) ApplyConfigTemplate(ctx context.Context, in *ApplyConfigTemplateRequest, opts ...grpc.CallOption) (*ConfigTemplate, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigTemplate)
+	err := c.cc.Invoke(ctx, ConfigService_ApplyConfigTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) GetConfigTemplate(ctx context.Context, in *GetConfigTemplateRequest, opts ...grpc.CallOption) (*ConfigTemplate, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigTemplate)
+	err := c.cc.Invoke(ctx, ConfigService_GetConfigTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServiceServer is the server API for ConfigService service.
 // All implementations must embed UnimplementedConfigServiceServer
 // for forward compatibility.
@@ -143,12 +169,16 @@ type ConfigServiceServer interface {
 	GetConfigByVersion(context.Context, *GetConfigByVersionRequest) (*ScopeConfig, error)
 	// Retrieves the version history for a configuration.
 	GetConfigHistory(context.Context, *GetConfigHistoryRequest) (*GetConfigHistoryResponse, error)
-	// Updates or creates a new configuration set.
+	// Updates or creates a new configuration set. This will be validated against a template if one exists.
 	UpdateConfig(context.Context, *UpdateConfigRequest) (*ScopeConfig, error)
 	// Marks a specific version as "published" for client consumption.
 	PublishVersion(context.Context, *PublishVersionRequest) (*ConfigVersion, error)
 	// Deletes a configuration set and all of its associated versions.
 	DeleteConfig(context.Context, *DeleteConfigRequest) (*emptypb.Empty, error)
+	// Applies a configuration template (schema) to a config identifier.
+	ApplyConfigTemplate(context.Context, *ApplyConfigTemplateRequest) (*ConfigTemplate, error)
+	// Retrieves the configuration template for a given identifier.
+	GetConfigTemplate(context.Context, *GetConfigTemplateRequest) (*ConfigTemplate, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
 
@@ -179,6 +209,12 @@ func (UnimplementedConfigServiceServer) PublishVersion(context.Context, *Publish
 }
 func (UnimplementedConfigServiceServer) DeleteConfig(context.Context, *DeleteConfigRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteConfig not implemented")
+}
+func (UnimplementedConfigServiceServer) ApplyConfigTemplate(context.Context, *ApplyConfigTemplateRequest) (*ConfigTemplate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApplyConfigTemplate not implemented")
+}
+func (UnimplementedConfigServiceServer) GetConfigTemplate(context.Context, *GetConfigTemplateRequest) (*ConfigTemplate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfigTemplate not implemented")
 }
 func (UnimplementedConfigServiceServer) mustEmbedUnimplementedConfigServiceServer() {}
 func (UnimplementedConfigServiceServer) testEmbeddedByValue()                       {}
@@ -327,6 +363,42 @@ func _ConfigService_DeleteConfig_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_ApplyConfigTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyConfigTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ApplyConfigTemplate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ApplyConfigTemplate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ApplyConfigTemplate(ctx, req.(*ApplyConfigTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_GetConfigTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetConfigTemplate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetConfigTemplate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetConfigTemplate(ctx, req.(*GetConfigTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConfigService_ServiceDesc is the grpc.ServiceDesc for ConfigService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -361,6 +433,14 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteConfig",
 			Handler:    _ConfigService_DeleteConfig_Handler,
+		},
+		{
+			MethodName: "ApplyConfigTemplate",
+			Handler:    _ConfigService_ApplyConfigTemplate_Handler,
+		},
+		{
+			MethodName: "GetConfigTemplate",
+			Handler:    _ConfigService_GetConfigTemplate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
