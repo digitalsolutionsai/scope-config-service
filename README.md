@@ -14,47 +14,47 @@ This is a gRPC service for managing and retrieving versioned configurations for 
 ### Prerequisites
 
 - Go 1.18 or later
-- Protocol Buffers (protoc)
 - Docker and Docker Compose
+- For API changes: `buf`, `protoc-gen-go`, and `protoc-gen-go-grpc`
 
-### Generating Protobuf Clients
+### Building the Service
 
-This project uses `buf` to manage and generate the gRPC client from the `.proto` files. If you make changes to the `proto/config/v1/config.proto` file, you will need to regenerate the client.
+You can build the gRPC server and the command-line interface (CLI) using the provided `Makefile`:
 
-**1. Install Go Plugins:**
+```bash
+# Build the server
+make build-server
 
-First, you need to install the Go protobuf and gRPC plugins:
+# Build the CLI
+make build-cli
+```
+
+The generated binaries will be placed in the `bin/` directory.
+
+### Protobuf & API Changes
+
+This project uses Protocol Buffers for its gRPC API. The generated Go code for the protobuf client (`*.pb.go`) is committed directly to the repository. This is standard practice in Go projects, as it means consumers of your repository do not need to install any tools to build and run the project.
+
+You only need to regenerate the client code if you make a change to the API definition in `proto/config/v1/config.proto`.
+
+**1. Install Generation Tools (First-Time Setup):**
+
+If you don't have them, install the necessary Go plugins for protobuf generation:
 
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
 
-**2. Generate the Client:**
+**2. Regenerate the Client:**
 
-Next, run the `buf generate` command. You may need to prepend your Go binary path to the `PATH` to ensure `buf` can find the installed plugins.
-
-```bash
-# First, find your GOPATH
-GOPATH=$(go env GOPATH)
-
-# Then, run buf generate with the correct PATH
-PATH=$PATH:$GOPATH/bin buf generate
-```
-
-> **Note:** The generated Go code in `proto/config/v1` and `config/v1` is committed to the repository. This is to ensure that developers can build the project without needing to install `buf` and the protobuf plugins.
-
-### Building the Service
-
-You can build the gRPC server and the command-line interface (CLI) using the following commands:
+After modifying the `.proto` file, run the following command to regenerate the Go client:
 
 ```bash
-# Build the server
-go build -o bin/server ./cmd/server
-
-# Build the CLI
-go build -o bin/config ./cmd/cli
+make proto
 ```
+
+This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit along with your changes to the `.proto` file.
 
 ### Running with Docker Compose
 
