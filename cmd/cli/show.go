@@ -6,28 +6,28 @@ import (
 	"log"
 	"os"
 	"text/tabwriter"
-	"time"
-
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
-
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
 	history bool
+	limit   int
 )
 
 // showCmd represents the show command
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show the configuration history or the active/published versions",
-	Long:  `Displays the version history or compares the active (latest) and published configurations for a given scope.`,
-	Example: `  # Show the active and published versions for a project
-  config-cli show --service-name=my-app --scope=PROJECT --project-id=proj-abc
+	Short: "Show the configuration history or the latest/published versions",
+	Long:  `Displays the version history or compares the latest and published configurations for a given scope.`,
+	Example: `  # Show the latest and published versions for a project and group
+  config-cli show --service-name=my-app --scope=PROJECT --project-id=proj-abc --group-id=features
 
   # Show the full version history for a user's configuration
-  config-cli show --history --service-name=my-app --scope=USER --user-id=user-123`,
+  config-cli show --history --service-name=my-app --scope=USER --user-id=user-123 --group-id=settings
+
+  # Show the last 5 versions of the history
+  config-cli show --history --limit=5 --service-name=my-app --scope=USER --user-id=user-123 --group-id=settings`,
 	Run: func(cmd *cobra.Command, args []string) {
 		identifier, err := createIdentifier()
 		if err != nil {
@@ -44,7 +44,7 @@ var showCmd = &cobra.Command{
 		if history {
 			showHistory(c, identifier)
 		} else {
-			showActiveAndPublished(c, identifier)
+			showLatestAndPublished(c, identifier)
 		}
 	},
 }
@@ -62,11 +62,17 @@ func showHistory(client configv1.ConfigServiceClient, identifier *configv1.Confi
 	}
 
 	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 8, 2, '	', 0)
+	w.Init(os.Stdout, 0, 8, 2, '\t', 0)
 	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
-	for _, v := range resp.Versions {
-		status := ""
-		if v.PublishedVersion == v.LatestVersion {
+
+	versionsToShow := resp.Versions
+	if limit > 0 && len(versionsToShow) > limit {
+		versionsToShow = versionsToShow[:limit]
+	}
+
+	for _, v := range versionsToShow {
+		status := "Unpublished"
+		if v.GetPublishedVersion() == v.GetLatestVersion() {
 			status = "Published"
 		}
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", v.GetLatestVersion(), status, formatTimestamp(v.GetUpdatedAt()), v.GetUpdatedBy())
@@ -74,11 +80,11 @@ func showHistory(client configv1.ConfigServiceClient, identifier *configv1.Confi
 	w.Flush()
 }
 
-func showActiveAndPublished(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
-	// Get the active (latest) config
-	activeResp, err := client.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+func showLatestAndPublished(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
+	// Get the latest config
+	latestResp, err := client.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
 	if err != nil {
-		log.Fatalf("could not get active config: %v", err)
+		log.Fatalf("could not get latest config: %v", err)
 	}
 
 	// Get the published config
@@ -87,54 +93,18 @@ func showActiveAndPublished(client configv1.ConfigServiceClient, identifier *con
 		log.Fatalf("could not get published config: %v", err)
 	}
 
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 8, 2, '	', 0)
-	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
+	fmt.Println("--- Latest Configuration ---")
+	printGetResponse(latestResp)
 
-	// Active Version
-	activeStatus := ""
-	if activeResp.VersionInfo.PublishedVersion == activeResp.VersionInfo.LatestVersion {
-		activeStatus = "Published"
+	// Avoid printing the same details twice if latest is also published
+	if latestResp.GetCurrentVersion() != publishedResp.GetCurrentVersion() {
+		fmt.Println("\n--- Published Configuration ---")
+		printGetResponse(publishedResp)
 	}
-	fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", activeResp.CurrentVersion, activeStatus, formatTimestamp(activeResp.GetVersionInfo().GetUpdatedAt()), activeResp.GetVersionInfo().GetUpdatedBy())
-
-	// Published Version (if different)
-	if activeResp.CurrentVersion != publishedResp.CurrentVersion {
-		publishedStatus := "Published"
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", publishedResp.CurrentVersion, publishedStatus, formatTimestamp(publishedResp.GetVersionInfo().GetUpdatedAt()), publishedResp.GetVersionInfo().GetUpdatedBy())
-	}
-
-	w.Flush()
-
-	fmt.Println("\n--- Active Configuration (Latest) ---")
-	printConfigResponse(activeResp)
-
-	fmt.Println("\n--- Published Configuration ---")
-	printConfigResponse(publishedResp)
-}
-
-func printConfigResponse(resp *configv1.ScopeConfig) {
-	if resp == nil {
-		fmt.Println("No configuration found.")
-		return
-	}
-	fmt.Printf("Version: %d\n", resp.GetCurrentVersion())
-	fmt.Printf("Updated At: %s\n", formatTimestamp(resp.GetVersionInfo().GetUpdatedAt()))
-	fmt.Printf("Updated By: %s\n", resp.GetVersionInfo().GetUpdatedBy())
-	fmt.Println("Fields:")
-	for _, field := range resp.GetFields() {
-		fmt.Printf("  %s: %s\n", field.GetPath(), field.GetValue())
-	}
-}
-
-func formatTimestamp(ts *timestamppb.Timestamp) string {
-	if ts == nil {
-		return "N/A"
-	}
-	return ts.AsTime().Format(time.RFC3339)
 }
 
 func init() {
 	rootCmd.AddCommand(showCmd)
 	showCmd.Flags().BoolVar(&history, "history", false, "Show the entire version history")
+	showCmd.Flags().IntVar(&limit, "limit", 100, "Limit the number of history versions to show")
 }

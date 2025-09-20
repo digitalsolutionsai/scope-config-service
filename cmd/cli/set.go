@@ -16,14 +16,14 @@ var setCmd = &cobra.Command{
 	Use:   "set [key=value]...",
 	Short: "Set one or more configuration values",
 	Long:  `Set one or more configuration values for a given scope.`,
-	Example: `  # Set a single value for a project
-  config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 db.user=admin
+	Example: `  # Set a single value for a project and group
+  config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=db --user-name="John Doe" db.user=admin
 
-  # Set multiple values for a store
-  config-cli set --service-name=webapp --scope=STORE --store-id=store_789 stripe.key=pk_... stripe.secret=sk_...
+  # Set multiple values for a store and group
+  config-cli set --service-name=webapp --scope=STORE --store-id=store_789 --group-id=stripe --user-name="Jane Doe" stripe.key=pk_... stripe.secret=sk_...
 
-  # Set values with a user name for auditing
-  config-cli set --user-name="John Doe" --service-name=backend --scope=SYSTEM api.key=...`,
+  # Set values for the system scope
+  config-cli set --service-name=backend --scope=SYSTEM --user-name="Admin" api.key=...`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		identifier, err := createIdentifier()

@@ -16,10 +16,10 @@ var publishCmd = &cobra.Command{
 	Use:   "publish [version]",
 	Short: "Publish a specific version of a configuration",
 	Long:  `Marks a specific version of a configuration as 'published', making it the default version for clients.`,
-	Example: `  # Publish version 2 of a configuration for a project
-  config-cli publish 2 --service-name=api --scope=PROJECT --project-id=proj_123
+	Example: `  # Publish version 2 of a configuration for a project and group
+  config-cli publish 2 --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=db --user-name="John Doe"
 
-  # Publish a version with a user name for auditing
+  # Publish a version for the system scope
   config-cli publish 3 --user-name="Jane Smith" --service-name=backend --scope=SYSTEM`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {

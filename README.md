@@ -75,13 +75,14 @@ This guide walks you through managing configurations using the `config-cli`. All
 
 The `set` command creates a new, unpublished version of a configuration with the specified key-value pairs.
 
-In this example, we'''ll create a configuration for a service named `billing-service` within the `project-123` project.
+In this example, we'''ll create a configuration for a service named `billing-service` within the `project-123` project and the `stripe` group.
 
 ```bash
 docker compose exec config-service config-cli set \
     --service-name=billing-service \
     --scope=PROJECT \
     --project-id=project-123 \
+    --group-id=stripe \
     --user-name="John Doe" \
     stripe.apiKey=sk_test_... \
     stripe.apiVersion=2023-10-16
@@ -89,20 +90,21 @@ docker compose exec config-service config-cli set \
 
 This creates a new version of the configuration. It is not yet published.
 
-### 2. View Active and Published Configurations
+### 2. View Latest and Published Configurations
 
-The `show` command displays a summary of the active (latest) and published configurations, allowing you to review changes before publishing them.
+The `show` command displays a summary of the latest and published configurations, allowing you to review changes before publishing them.
 
 ```bash
 docker compose exec config-service config-cli show \
     --service-name=billing-service \
     --scope=PROJECT \
-    --project-id=project-123
+    --project-id=project-123 \
+    --group-id=stripe
 ```
 
 ### 3. Get a Specific Configuration Version
 
-The `get` command retrieves the full details of a configuration.
+The `get` command retrieves the full details of a configuration in a readable format.
 - By default, it fetches the **published** version.
 - Use `--latest` to get the most recent (possibly unpublished) version.
 - Use `--version` to get a specific version number.
@@ -114,7 +116,8 @@ To see the changes you just made, use `get --latest`:
 docker compose exec config-service config-cli get --latest \
     --service-name=billing-service \
     --scope=PROJECT \
-    --project-id=project-123
+    --project-id=project-123 \
+    --group-id=stripe
 ```
 
 To get a single key:
@@ -124,6 +127,7 @@ docker compose exec config-service config-cli get --latest \
     --service-name=billing-service \
     --scope=PROJECT \
     --project-id=project-123 \
+    --group-id=stripe \
     --path=stripe.apiKey
 ```
 
@@ -140,6 +144,7 @@ docker compose exec config-service config-cli publish 2 \
     --service-name=billing-service \
     --scope=PROJECT \
     --project-id=project-123 \
+    --group-id=stripe \
     --user-name="John Doe"
 ```
 
@@ -147,13 +152,22 @@ Now, running `get` without any flags will show that version 2 is the published v
 
 ### 5. Show Version History
 
-To see the full history of changes for a configuration, use `show --history`.
+To see the history of changes for a configuration, use `show --history`.
 
 ```bash
 docker compose exec config-service config-cli show --history \
     --service-name=billing-service \
     --scope=PROJECT \
-    --project-id=project-123
+    --project-id=project-123 \
+    --group-id=stripe
 ```
 
-This will display a table of all versions, who created them, and when.
+This will display a table of all versions, who created them, and when. By default, it shows the last 100 versions. You can change this with the `--limit` flag:
+
+```bash
+docker compose exec config-service config-cli show --history --limit=5 \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --group-id=stripe
+```
