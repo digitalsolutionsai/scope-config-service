@@ -5,52 +5,69 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-var getCmd = &cobra.Command{
-	Use:   "get [key]",
-	Short: "Get a configuration value",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		key := args[0]
+var (
+	configVersion int32
+	latest        bool
+)
 
-		// Set up a connection to the server.
-		conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+// getCmd represents the get command
+var getCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a configuration, optionally for a specific version or the latest",
+	Example: `  # Get the published configuration for a project
+  config-cli get --service-name=my-service --scope=PROJECT --project-id=proj_123
+
+  # Get the latest (active) configuration for a user
+  config-cli get --latest --service-name=my-service --scope=USER --user-id=user_456
+
+  # Get a specific version of a configuration for a store
+  config-cli get --version=3 --service-name=my-service --scope=STORE --store-id=store_789`,
+	Run: func(cmd *cobra.Command, args []string) {
+		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)
 
-		// Contact the server and print out its response.
-		r, err := c.GetConfig(context.Background(), &configv1.GetConfigRequest{
-			Identifier: &configv1.ConfigIdentifier{
-				ServiceName: serviceName,
-				ProjectId:   projectID,
-				StoreId:     storeID,
-				GroupId:     groupID,
-				Scope:       configv1.Scope(configv1.Scope_value[scope]),
-			},
-		})
+		identifier, err := createIdentifier()
+		if err != nil {
+			log.Fatalf("Error creating identifier: %v", err)
+		}
+
+		var resp *configv1.ScopeConfig
+
+		switch {
+		case latest:
+			resp, err = c.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+		case configVersion > 0:
+			resp, err = c.GetConfigByVersion(context.Background(), &configv1.GetConfigByVersionRequest{Identifier: identifier, Version: configVersion})
+		default:
+			resp, err = c.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+		}
 
 		if err != nil {
 			log.Fatalf("could not get config: %v", err)
 		}
 
-		for _, field := range r.Fields {
-			if field.Path == key {
-				fmt.Println(field.Value)
-				return
-			}
+		fmt.Printf("Version Info: %v\n", resp.VersionInfo)
+		fmt.Printf("Current Version: %d\n", resp.CurrentVersion)
+		for _, field := range resp.Fields {
+			fmt.Printf("  %s: %s\n", field.Path, field.Value)
 		}
-
-		fmt.Println("key not found")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(getCmd)
+	getCmd.Flags().BoolVar(&latest, "latest", false, "Get the latest version of the configuration")
+	getCmd.Flags().Int32Var(&configVersion, "version", 0, "Get a specific version of the configuration")
+	getCmd.MarkFlagsMutuallyExclusive("latest", "version")
 }

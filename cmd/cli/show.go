@@ -1,14 +1,15 @@
-
 package main
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"text/tabwriter"
 	"time"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,121 +20,102 @@ var (
 	history bool
 )
 
-// result is a container for the output of a goroutine fetching a config.
-type result struct {
-	config *configv1.ScopeConfig
-	err    error
-	label  string
-}
-
+// showCmd represents the show command
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show active and published configurations",
-	Long:  `Retrieves and displays the active (latest) and the currently published configurations. Use --history to see all versions.`,
+	Short: "Show the configuration history or the active/published versions",
+	Long:  `Displays the version history or compares the active (latest) and published configurations for a given scope.`,
+	Example: `  # Show the active and published versions for a project
+  config-cli show --service-name=my-app --scope=PROJECT --project-id=proj-abc
+
+  # Show the full version history for a user's configuration
+  config-cli show --history --service-name=my-app --scope=USER --user-id=user-123`,
 	Run: func(cmd *cobra.Command, args []string) {
+		identifier, err := createIdentifier()
+		if err != nil {
+			log.Fatalf("Error creating identifier: %v", err)
+		}
+
 		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			fmt.Printf("Failed to connect: %v\n", err)
-			return
+			log.Fatalf("did not connect: %v", err)
 		}
 		defer conn.Close()
-
-		client := configv1.NewConfigServiceClient(conn)
-
-		identifier := &configv1.ConfigIdentifier{
-			ServiceName: serviceName,
-			ProjectId:   projectID,
-			StoreId:     storeID,
-			GroupId:     groupID,
-			Scope:       configv1.Scope(configv1.Scope_value[scope]),
-		}
+		c := configv1.NewConfigServiceClient(conn)
 
 		if history {
-			runShowHistory(client, identifier)
+			showHistory(c, identifier)
 		} else {
-			runShowActiveAndPublished(client, identifier)
+			showActiveAndPublished(c, identifier)
 		}
 	},
 }
 
-func runShowHistory(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
+func showHistory(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
+	// Get the published config to identify the published version in the history
+	publishedResp, err := client.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+	var publishedVersion int32 = -1 // Use an impossible version number if no published version exists
+	if err == nil && publishedResp != nil {
+		publishedVersion = publishedResp.GetCurrentVersion()
+	} else {
+		log.Println("Could not retrieve published configuration to mark it in history.")
+	}
+
 	req := &configv1.GetConfigHistoryRequest{Identifier: identifier}
 	resp, err := client.GetConfigHistory(context.Background(), req)
 	if err != nil {
-		fmt.Printf("Error calling GetConfigHistory: %v\n", err)
-		return
+		log.Fatalf("could not get config history: %v", err)
 	}
 
 	if len(resp.Versions) == 0 {
-		fmt.Println("No version history found for the specified configuration.")
+		fmt.Println("No version history found.")
 		return
 	}
 
-	// We need to know the published version to mark it in the table.
-	// We can get this from the first entry in the history.
-	publishedVersion := resp.Versions[0].PublishedVersion
-
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 8, 2, '\t', 0)
-	fmt.Fprintln(w, "Version\tStatus\tCreated At\tCreated By")
-	fmt.Fprintln(w, "-------\t------\t----------\t----------")
-
+	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
 	for _, v := range resp.Versions {
 		status := ""
-		if v.Id == publishedVersion {
+		if v.GetLatestVersion() == publishedVersion {
 			status = "Published"
 		}
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", v.Id, status, formatTimestamp(v.CreatedAt), v.CreatedBy)
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", v.GetLatestVersion(), status, formatTimestamp(v.GetUpdatedAt()), v.GetUpdatedBy())
 	}
 	w.Flush()
 }
 
-func runShowActiveAndPublished(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
-	// Use a channel to receive results from goroutines
-	ch := make(chan result, 2)
-
-	// Get Active (Latest) Config
-	go func() {
-		req := &configv1.GetConfigRequest{Identifier: identifier}
-		resp, err := client.GetLatestConfig(context.Background(), req)
-		ch <- result{config: resp, err: err, label: "Active (Latest)"}
-	}()
-
-	// Get Published Config
-	go func() {
-		req := &configv1.GetConfigRequest{Identifier: identifier}
-		resp, err := client.GetConfig(context.Background(), req)
-		ch <- result{config: resp, err: err, label: "Published"}
-	}()
-
-	// Process results
-	results := make(map[string]result)
-	for i := 0; i < 2; i++ {
-		r := <-ch
-		results[r.label] = r
+func showActiveAndPublished(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
+	// Get the active (latest) config
+	activeResp, err := client.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+	if err != nil {
+		log.Fatalf("could not get active config: %v", err)
 	}
 
-	displayConfig(results["Active (Latest)"])
-	fmt.Println("---")
-	displayConfig(results["Published"])
+	// Get the published config
+	publishedResp, err := client.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+	if err != nil {
+		log.Fatalf("could not get published config: %v", err)
+	}
+
+	fmt.Println("--- Active Configuration (Latest) ---")
+	printConfigResponse(activeResp)
+
+	fmt.Println("\n--- Published Configuration ---")
+	printConfigResponse(publishedResp)
 }
 
-func displayConfig(r result) {
-	fmt.Printf("--- %s ---\n", r.label)
-	if r.err != nil {
-		fmt.Printf("Error: %v\n", r.err)
-		return
-	}
-	if r.config == nil {
+func printConfigResponse(resp *configv1.ScopeConfig) {
+	if resp == nil {
 		fmt.Println("No configuration found.")
 		return
 	}
-
-	fmt.Printf("Version: %d\n", r.config.CurrentVersion)
-	fmt.Printf("Published Version: %d\n", r.config.VersionInfo.PublishedVersion)
+	fmt.Printf("Version: %d\n", resp.GetCurrentVersion())
+	fmt.Printf("Updated At: %s\n", formatTimestamp(resp.GetVersionInfo().GetUpdatedAt()))
+	fmt.Printf("Updated By: %s\n", resp.GetVersionInfo().GetUpdatedBy())
 	fmt.Println("Fields:")
-	for _, field := range r.config.Fields {
-		fmt.Printf("  %s: %s\n", field.Path, field.Value)
+	for _, field := range resp.GetFields() {
+		fmt.Printf("  %s: %s\n", field.GetPath(), field.GetValue())
 	}
 }
 
@@ -144,8 +126,7 @@ func formatTimestamp(ts *timestamppb.Timestamp) string {
 	return ts.AsTime().Format(time.RFC3339)
 }
 
-
 func init() {
-	showCmd.Flags().BoolVar(&history, "history", false, "Show the entire version history")
 	rootCmd.AddCommand(showCmd)
+	showCmd.Flags().BoolVar(&history, "history", false, "Show the entire version history")
 }

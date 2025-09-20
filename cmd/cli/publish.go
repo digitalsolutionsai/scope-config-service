@@ -4,19 +4,36 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// publishCmd represents the publish command
 var publishCmd = &cobra.Command{
 	Use:   "publish [version]",
 	Short: "Publish a specific version of a configuration",
+	Long:  `Marks a specific version of a configuration as 'published', making it the default version for clients.`,
+	Example: `  # Publish version 2 of a configuration for a project
+  config-cli publish 2 --service-name=api --scope=PROJECT --project-id=proj_123
+
+  # Publish a version with a user name for auditing
+  config-cli publish 3 --user-name="Jane Smith" --service-name=backend --scope=SYSTEM`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		version := args[0]
+		identifier, err := createIdentifier()
+		if err != nil {
+			log.Fatalf("Error creating identifier: %v", err)
+		}
+
+		versionToPublish, err := strconv.ParseInt(args[0], 10, 32)
+		if err != nil {
+			log.Fatalf("Invalid version number: %v", err)
+		}
 
 		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -25,28 +42,18 @@ var publishCmd = &cobra.Command{
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)
 
-		// Convert the version string to an int32
-		var versionToPublish int32
-		fmt.Sscanf(version, "%d", &versionToPublish)
-
 		req := &configv1.PublishVersionRequest{
-			Identifier: &configv1.ConfigIdentifier{
-				ServiceName: serviceName,
-				ProjectId:   projectID,
-				StoreId:     storeID,
-				GroupId:     groupID,
-				Scope:       configv1.Scope(configv1.Scope_value[scope]),
-			},
-			VersionToPublish: versionToPublish,
+			Identifier:       identifier,
+			VersionToPublish: int32(versionToPublish),
 			User:             userName,
 		}
 
 		resp, err := c.PublishVersion(context.Background(), req)
 		if err != nil {
-			log.Fatalf("could not publish config: %v", err)
+			log.Fatalf("could not publish version: %v", err)
 		}
 
-		fmt.Printf("Successfully published version %d for %s\n", resp.PublishedVersion, resp.Identifier.ServiceName)
+		fmt.Printf("Successfully published version %d for service %s\n", resp.PublishedVersion, resp.Identifier.ServiceName)
 	},
 }
 

@@ -18,6 +18,7 @@
     pkgs.python311Packages.pip
     pkgs.gnumake
     pkgs.buf
+    pkgs.go-migrate
   ];
 
   services.docker.enable = true;

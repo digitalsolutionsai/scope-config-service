@@ -27,30 +27,27 @@ type Scope int32
 
 const (
 	Scope_SCOPE_UNSPECIFIED Scope = 0
-	Scope_DEFAULT           Scope = 1
-	Scope_SYSTEM            Scope = 2
-	Scope_SERVICE           Scope = 3
-	Scope_PROJECT           Scope = 4
-	Scope_STORE             Scope = 5
+	Scope_SYSTEM            Scope = 1 // System-wide default configuration. scope_id should be 'default'.
+	Scope_PROJECT           Scope = 2 // Project-specific configuration.
+	Scope_STORE             Scope = 3 // Store-specific configuration.
+	Scope_USER              Scope = 4 // User-specific configuration.
 )
 
 // Enum value maps for Scope.
 var (
 	Scope_name = map[int32]string{
 		0: "SCOPE_UNSPECIFIED",
-		1: "DEFAULT",
-		2: "SYSTEM",
-		3: "SERVICE",
-		4: "PROJECT",
-		5: "STORE",
+		1: "SYSTEM",
+		2: "PROJECT",
+		3: "STORE",
+		4: "USER",
 	}
 	Scope_value = map[string]int32{
 		"SCOPE_UNSPECIFIED": 0,
-		"DEFAULT":           1,
-		"SYSTEM":            2,
-		"SERVICE":           3,
-		"PROJECT":           4,
-		"STORE":             5,
+		"SYSTEM":            1,
+		"PROJECT":           2,
+		"STORE":             3,
+		"USER":              4,
 	}
 )
 
@@ -145,11 +142,12 @@ func (FieldType) EnumDescriptor() ([]byte, []int) {
 // A unique identifier for a configuration set.
 type ConfigIdentifier struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServiceName   string                 `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"` // Name of the service owning the config (e.g., "payment-service")
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`       // (Optional) Project ID
-	StoreId       string                 `protobuf:"bytes,3,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`             // (Optional) Store ID
-	GroupId       string                 `protobuf:"bytes,4,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`             // (Optional) Config group (e.g., "database", "api-keys")
-	Scope         Scope                  `protobuf:"varint,5,opt,name=scope,proto3,enum=vn.dsai.config.v1.Scope" json:"scope,omitempty"`  // The scope of the configuration
+	ServiceName   string                 `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"` // Required. Name of the service owning the config (e.g., "payment-service").
+	Scope         Scope                  `protobuf:"varint,2,opt,name=scope,proto3,enum=vn.dsai.config.v1.Scope" json:"scope,omitempty"`  // Required. The scope of the configuration.
+	GroupId       string                 `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`             // (Optional) Config group (e.g., "database", "api-keys").
+	ProjectId     string                 `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`       // (Optional) Project ID (max 20 chars).
+	StoreId       string                 `protobuf:"bytes,5,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`             // (Optional) Store ID (max 20 chars).
+	UserId        string                 `protobuf:"bytes,6,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`                // (Optional) User ID (max 36 chars, e.g., UUID).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,6 +189,20 @@ func (x *ConfigIdentifier) GetServiceName() string {
 	return ""
 }
 
+func (x *ConfigIdentifier) GetScope() Scope {
+	if x != nil {
+		return x.Scope
+	}
+	return Scope_SCOPE_UNSPECIFIED
+}
+
+func (x *ConfigIdentifier) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
 func (x *ConfigIdentifier) GetProjectId() string {
 	if x != nil {
 		return x.ProjectId
@@ -205,18 +217,11 @@ func (x *ConfigIdentifier) GetStoreId() string {
 	return ""
 }
 
-func (x *ConfigIdentifier) GetGroupId() string {
+func (x *ConfigIdentifier) GetUserId() string {
 	if x != nil {
-		return x.GroupId
+		return x.UserId
 	}
 	return ""
-}
-
-func (x *ConfigIdentifier) GetScope() Scope {
-	if x != nil {
-		return x.Scope
-	}
-	return Scope_SCOPE_UNSPECIFIED
 }
 
 // Represents a configuration version.
@@ -323,9 +328,9 @@ func (x *ConfigVersion) GetUpdatedBy() string {
 // A specific configuration field with its value.
 type ConfigField struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                     // The key of the config (e.g., "database.postgres.connection_string")
-	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`                                   // The value, stored as a string
-	Type          FieldType              `protobuf:"varint,3,opt,name=type,proto3,enum=vn.dsai.config.v1.FieldType" json:"type,omitempty"`   // Data type to help clients parse the value
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                     // The key of the config (e.g., "database.postgres.connection_string").
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`                                   // The value, stored as a string.
+	Type          FieldType              `protobuf:"varint,3,opt,name=type,proto3,enum=vn.dsai.config.v1.FieldType" json:"type,omitempty"`   // Data type to help clients parse the value.
 	DefaultValue  string                 `protobuf:"bytes,4,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"` // (Optional)
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`                       // (Optional)
 	unknownFields protoimpl.UnknownFields
@@ -401,7 +406,7 @@ func (x *ConfigField) GetDescription() string {
 type ScopeConfig struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	VersionInfo    *ConfigVersion         `protobuf:"bytes,1,opt,name=version_info,json=versionInfo,proto3" json:"version_info,omitempty"`
-	CurrentVersion int32                  `protobuf:"varint,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"` // The version number of the accompanying fields
+	CurrentVersion int32                  `protobuf:"varint,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"` // The version number of the accompanying fields.
 	Fields         []*ConfigField         `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -461,8 +466,8 @@ func (x *ScopeConfig) GetFields() []*ConfigField {
 // A predefined choice for a configuration field, used for creating dropdowns in UIs.
 type ValueOption struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"` // The actual value to be stored
-	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"` // The human-readable label for the UI
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"` // The actual value to be stored.
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"` // The human-readable label for the UI.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -514,13 +519,13 @@ func (x *ValueOption) GetLabel() string {
 // Defines the schema for a single configuration field.
 type ConfigFieldTemplate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                                                 // The key (e.g., "payment.provider.name")
-	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`                                                               // The display name for UIs (e.g., "Payment Provider")
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`                                                   // A helpful description for the user
-	Type          FieldType              `protobuf:"varint,4,opt,name=type,proto3,enum=vn.dsai.config.v1.FieldType" json:"type,omitempty"`                               // The data type (STRING, INT, etc.)
-	DefaultValue  string                 `protobuf:"bytes,5,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`                             // Default value for this field
-	DisplayOn     []Scope                `protobuf:"varint,6,rep,packed,name=display_on,json=displayOn,proto3,enum=vn.dsai.config.v1.Scope" json:"display_on,omitempty"` // Defines which scopes can set this value (STORE, PROJECT, etc.)
-	Options       []*ValueOption         `protobuf:"bytes,7,rep,name=options,proto3" json:"options,omitempty"`                                                           // A list of predefined options for this field
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                                                 // The key (e.g., "payment.provider.name").
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`                                                               // The display name for UIs (e.g., "Payment Provider").
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`                                                   // A helpful description for the user.
+	Type          FieldType              `protobuf:"varint,4,opt,name=type,proto3,enum=vn.dsai.config.v1.FieldType" json:"type,omitempty"`                               // The data type (STRING, INT, etc.).
+	DefaultValue  string                 `protobuf:"bytes,5,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`                             // Default value for this field.
+	DisplayOn     []Scope                `protobuf:"varint,6,rep,packed,name=display_on,json=displayOn,proto3,enum=vn.dsai.config.v1.Scope" json:"display_on,omitempty"` // Defines which scopes can set this value (STORE, PROJECT, etc.).
+	Options       []*ValueOption         `protobuf:"bytes,7,rep,name=options,proto3" json:"options,omitempty"`                                                           // A list of predefined options for this field.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -607,7 +612,7 @@ func (x *ConfigFieldTemplate) GetOptions() []*ValueOption {
 // A container that groups all field templates for a specific service_name and group_id.
 type ConfigTemplate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"` // Uniquely identifies the template (using service_name and group_id)
+	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"` // Uniquely identifies the template (using service_name and group_id).
 	Fields        []*ConfigFieldTemplate `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -757,7 +762,7 @@ type UpdateConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Fields        []*ConfigField         `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
-	User          string                 `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"` // The user making the change
+	User          string                 `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"` // The user making the change.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1105,14 +1110,15 @@ var File_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x16config/v1/config.proto\x12\x11vn.dsai.config.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xba\x01\n" +
+	"\x16config/v1/config.proto\x12\x11vn.dsai.config.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xd3\x01\n" +
 	"\x10ConfigIdentifier\x12!\n" +
-	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x12\x1d\n" +
+	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x12.\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x18.vn.dsai.config.v1.ScopeR\x05scope\x12\x19\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x19\n" +
-	"\bstore_id\x18\x03 \x01(\tR\astoreId\x12\x19\n" +
-	"\bgroup_id\x18\x04 \x01(\tR\agroupId\x12.\n" +
-	"\x05scope\x18\x05 \x01(\x0e2\x18.vn.dsai.config.v1.ScopeR\x05scope\"\xec\x02\n" +
+	"project_id\x18\x04 \x01(\tR\tprojectId\x12\x19\n" +
+	"\bstore_id\x18\x05 \x01(\tR\astoreId\x12\x17\n" +
+	"\auser_id\x18\x06 \x01(\tR\x06userId\"\xec\x02\n" +
 	"\rConfigVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12C\n" +
 	"\n" +
@@ -1192,15 +1198,14 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x18GetConfigTemplateRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
-	"identifier*\\\n" +
+	"identifier*L\n" +
 	"\x05Scope\x12\x15\n" +
-	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aDEFAULT\x10\x01\x12\n" +
+	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
-	"\x06SYSTEM\x10\x02\x12\v\n" +
-	"\aSERVICE\x10\x03\x12\v\n" +
-	"\aPROJECT\x10\x04\x12\t\n" +
-	"\x05STORE\x10\x05*p\n" +
+	"\x06SYSTEM\x10\x01\x12\v\n" +
+	"\aPROJECT\x10\x02\x12\t\n" +
+	"\x05STORE\x10\x03\x12\b\n" +
+	"\x04USER\x10\x04*p\n" +
 	"\tFieldType\x12\x1a\n" +
 	"\x16FIELD_TYPE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +

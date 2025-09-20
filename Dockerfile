@@ -1,5 +1,3 @@
-# Dockerfile for scope-config-service
-
 # ---- Builder Stage ----
 # Use the official Go image as a builder.
 FROM golang:1.24-alpine AS builder
@@ -7,31 +5,20 @@ FROM golang:1.24-alpine AS builder
 # Set the working directory inside the container.
 WORKDIR /app
 
-# Add Go's bin directory to the PATH.
-# This is necessary so that tools installed via `go install` are available.
-ENV PATH="/go/bin:${PATH}"
-
-# Install the build tools.
-RUN go install github.com/bufbuild/buf/cmd/buf@latest
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-# Copy Go module and sum files.
+# Copy the Go modules files.
 COPY go.mod go.sum ./
 
-# Download Go module dependencies.
+# Download the Go modules.
+# This is done as a separate step to leverage Docker layer caching.
 RUN go mod download
 
-# Copy the rest of the application source code.
+# Copy the rest of the source code.
 COPY . .
-
-# Generate the protobuf Go code.
-RUN buf generate
 
 # Build the application binaries.
 # CGO_ENABLED=0 is used to build a statically linked binary.
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/server ./cmd/server
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/config ./cmd/cli
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/config-cli ./cmd/cli
 
 # ---- Final Stage ----
 # Use a minimal base image for the final container.
@@ -48,10 +35,10 @@ COPY --from=builder /app/db/migrations ./db/migrations
 
 # Copy the binaries from the builder stage.
 COPY --from=builder /app/server /app/server
-COPY --from=builder /app/config /app/config
+COPY --from=builder /app/config-cli /app/config-cli
 
 # Create a symlink for the config CLI to make it available in the PATH.
-RUN ln -s /app/config /usr/local/bin/config
+RUN ln -s /app/config-cli /usr/local/bin/config-cli
 
 # This will run the server when the container starts.
 CMD ["/app/server"]

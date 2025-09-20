@@ -4,10 +4,11 @@ This is a gRPC service for managing and retrieving versioned configurations for 
 
 ## Features
 
+- **Flexible Scoping**: Identify configurations using a flexible `scope` (SYSTEM, PROJECT, STORE, USER, GROUP) and a corresponding ID, allowing for granular control.
 - **Versioned Configurations**: Every change to a configuration creates a new version, allowing you to track changes and roll back to previous versions.
-- **Published Versions**: You can mark a specific version of a configuration as "published", which is what your client services will consume.
+- **Published Versions**: You can mark a specific version of a configuration as "published", which is what your client services will consume by default.
 - **gRPC Interface**: The service uses a gRPC interface for high-performance, language-agnostic communication.
-- **Command-Line Interface (CLI)**: A CLI is provided for easy interaction with the service.
+- **Command-Line Interface (CLI)**: A CLI (`config-cli`) is provided for easy interaction with the service.
 
 ## Getting Started
 
@@ -33,13 +34,9 @@ The generated binaries will be placed in the `bin/` directory.
 
 ### Protobuf & API Changes
 
-This project uses Protocol Buffers for its gRPC API. The generated Go code for the protobuf client (`*.pb.go`) is committed directly to the repository. This is standard practice in Go projects, as it means consumers of your repository do not need to install any tools to build and run the project.
-
-You only need to regenerate the client code if you make a change to the API definition in `proto/config/v1/config.proto`.
+This project uses Protocol Buffers for its gRPC API. If you change the API definition in `proto/config/v1/config.proto`, you must regenerate the Go client code:
 
 **1. Install Generation Tools (First-Time Setup):**
-
-If you don't have them, install the necessary Go plugins for protobuf generation:
 
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go
@@ -48,28 +45,23 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 **2. Regenerate the Client:**
 
-After modifying the `.proto` file, run the following command to regenerate the Go client:
-
 ```bash
 make proto
 ```
 
-This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit along with your changes to the `.proto` file.
+This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit.
 
 ### Running with Docker Compose
 
-To run the service and the PostgreSQL database together, you can use Docker Compose. There are two files provided:
+To run the service and its PostgreSQL database, use Docker Compose.
 
-- `compose.postgres.yml`: Defines the PostgreSQL service.
-- `compose.yml`: Defines the configuration service.
-
-Before running the service, you need to create a `.env` file from the `.env.example` file and update the values if necessary:
+First, create a `.env` file:
 
 ```bash
 cp .env.example .env
 ```
 
-To run both services, use the following command:
+Then, run both services:
 
 ```bash
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
@@ -77,64 +69,78 @@ docker compose -f compose.postgres.yml -f compose.yml up -d --build
 
 ## User Guide: Managing Configurations
 
-This guide will walk you through the common workflow of creating, viewing, and publishing configurations using the CLI.
+This guide walks you through managing configurations using the `config-cli`. All commands require the `--service-name` flag.
 
-### 1. Create a New, Unpublished Configuration
+### 1. Set Configuration Values
 
-The `set` command creates a new version of a configuration. If you provide new key-value pairs, they will be added to the configuration.
+The `set` command creates a new, unpublished version of a configuration with the specified key-value pairs.
 
-In this example, we'''ll create a new configuration for a service named `test-service` in the `test` project. This will create version 2 of the configuration, but it will not be published yet.
-
-```bash
-docker compose -f compose.yml exec config-service config set --service=test-service --scope=SYSTEM --project=test db.host=postgres db.port=5432 --user=gemini
-```
-
-### 2. View the Latest, Unpublished Configuration
-
-The `show` command displays the latest version of a configuration, including unpublished changes. This is useful for reviewing a configuration before publishing it.
+In this example, we'''ll create a configuration for a service named `billing-service` within the `project-123` project.
 
 ```bash
-docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
+docker compose exec config-service config-cli set \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --user-name="John Doe" \
+    stripe.apiKey=sk_test_... \
+    stripe.apiVersion=2023-10-16
 ```
 
-You should see an output similar to this:
+This creates a new version of the configuration. It is not yet published.
 
-```
-Latest Version: 2
-Published Version: 1
-Fields:
-  db.host: postgres
-  db.port: 5432
-```
+### 2. View Active and Published Configurations
 
-### 3. Publish the New Configuration
-
-The `publish` command makes a specific version of a configuration the "published" version. This is the version that client services will consume when they request the configuration.
+The `show` command displays a summary of the active (latest) and published configurations, allowing you to review changes before publishing them.
 
 ```bash
-docker compose -f compose.yml exec config-service config publish 2 --service=test-service --scope=SYSTEM --project=test --user=gemini
+docker compose exec config-service config-cli show \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123
 ```
 
-### 4. Get the Published Configuration
+### 3. Get a Specific Configuration Version
 
-The `get` command retrieves a single value from the *published* configuration.
+The `get` command retrieves the full details of a configuration.
+- By default, it fetches the **published** version.
+- Use `--latest` to get the most recent (possibly unpublished) version.
+- Use `--version` to get a specific version number.
+
+To see the changes you just made, use `get --latest`:
 
 ```bash
-docker compose -f compose.yml exec config-service config get db.host --service=test-service --scope=SYSTEM --project=test
+docker compose exec config-service config-cli get --latest \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123
 ```
 
-This will return the value of the `db.host` key, which is `postgres`.
+### 4. Publish a New Configuration
 
-To view the entire published configuration, you can use the `show` command again. Since version 2 is now published, the output will reflect this:
+The `publish` command makes a specific version the "published" one. Clients requesting the configuration without specifying a version will receive this one.
+
+Let'''s say the `set` command created version `2`. We can now publish it:
 
 ```bash
-docker compose -f compose.yml exec config-service config show --service=test-service --scope=SYSTEM --project=test
+docker compose exec config-service config-cli publish 2 \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --user-name="John Doe"
 ```
 
+Now, running `get` without any flags will show that version 2 is the published version.
+
+### 5. Show Version History
+
+To see the full history of changes for a configuration, use `show --history`.
+
+```bash
+docker compose exec config-service config-cli show --history \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123
 ```
-Latest Version: 2
-Published Version: 2
-Fields:
-  db.host: postgres
-  db.port: 5432
-```
+
+This will display a table of all versions, who created them, and when.

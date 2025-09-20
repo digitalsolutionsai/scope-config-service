@@ -1,17 +1,18 @@
+CREATE TYPE scope_enum AS ENUM ('SYSTEM', 'PROJECT', 'STORE', 'USER');
+
 CREATE TABLE IF NOT EXISTS config_version (
     id SERIAL PRIMARY KEY,
     service_name VARCHAR(50) NOT NULL,
-    project_id VARCHAR(50),
-    store_id VARCHAR(50),
+    scope scope_enum NOT NULL,
+    scope_id VARCHAR(50) NOT NULL,
     group_id VARCHAR(50),
-    scope VARCHAR(20) NOT NULL,
     latest_version INTEGER NOT NULL DEFAULT 0,
     published_version INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by VARCHAR(50),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_by VARCHAR(50),
-    UNIQUE (service_name, project_id, store_id, group_id, scope)
+    UNIQUE (service_name, scope, scope_id, group_id)
 );
 
 CREATE TABLE IF NOT EXISTS config_field (
@@ -28,8 +29,8 @@ CREATE TABLE IF NOT EXISTS config_field (
 );
 
 CREATE INDEX IF NOT EXISTS idx_config_version_service_name ON config_version (service_name);
-CREATE INDEX IF NOT EXISTS idx_config_version_project_id ON config_version (project_id);
-CREATE INDEX IF NOT EXISTS idx_config_version_store_id ON config_version (store_id);
+CREATE INDEX IF NOT EXISTS idx_config_version_scope ON config_version (scope);
+CREATE INDEX IF NOT EXISTS idx_config_version_scope_id ON config_version (scope_id);
 CREATE INDEX IF NOT EXISTS idx_config_version_group_id ON config_version (group_id);
 
 CREATE TABLE IF NOT EXISTS config_template (
