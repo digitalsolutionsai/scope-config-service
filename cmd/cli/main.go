@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const cliVersion = "0.1.0"
@@ -60,6 +62,21 @@ func Execute() {
 
 func main() {
 	Execute()
+}
+
+// getGrpcConn creates a gRPC connection to the config service.
+// It uses the SERVER_URL environment variable for the server address,
+// defaulting to "localhost:50051".
+func getGrpcConn() (*grpc.ClientConn, error) {
+	serverURL := os.Getenv("SERVER_URL")
+	if serverURL == "" {
+		serverURL = "localhost:50051"
+	}
+	conn, err := grpc.Dial(serverURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("did not connect to server at %s: %v", serverURL, err)
+	}
+	return conn, nil
 }
 
 func init() {

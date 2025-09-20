@@ -11,8 +11,6 @@ import (
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -36,9 +34,9 @@ var showCmd = &cobra.Command{
 			log.Fatalf("Error creating identifier: %v", err)
 		}
 
-		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("did not connect: %v", err)
+			log.Fatalf("Error connecting to gRPC server: %v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)
@@ -73,7 +71,7 @@ func showHistory(client configv1.ConfigServiceClient, identifier *configv1.Confi
 	}
 
 	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 8, 2, '\t', 0)
+	w.Init(os.Stdout, 0, 8, 2, '	', 0)
 	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
 	for _, v := range resp.Versions {
 		status := ""

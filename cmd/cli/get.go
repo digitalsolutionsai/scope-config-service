@@ -8,8 +8,6 @@ import (
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -30,9 +28,9 @@ var getCmd = &cobra.Command{
   # Get a specific version of a configuration for a store
   config-cli get --version=3 --service-name=my-service --scope=STORE --store-id=store_789`,
 	Run: func(cmd *cobra.Command, args []string) {
-		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("did not connect: %v", err)
+			log.Fatalf("Error connecting to gRPC server: %v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)

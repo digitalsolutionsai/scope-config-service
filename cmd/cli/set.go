@@ -9,8 +9,6 @@ import (
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // setCmd represents the set command
@@ -42,9 +40,9 @@ var setCmd = &cobra.Command{
 			fields = append(fields, &configv1.ConfigField{Path: parts[0], Value: parts[1]})
 		}
 
-		conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("did not connect: %v", err)
+			log.Fatalf("Error connecting to gRPC server: %v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)
