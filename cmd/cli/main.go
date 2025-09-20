@@ -21,6 +21,7 @@ var (
 	storeID     string
 	userID      string
 	scope       string
+	groupID     string
 	userName    string
 )
 
@@ -36,17 +37,21 @@ This CLI allows you to manage the entire lifecycle of a configuration, from crea
 Global Flags:
   --service-name: (Required) The name of the service to which the configuration belongs.
   --scope:        (Required) The configuration scope (e.g., SYSTEM, PROJECT, STORE, USER).
+  --group-id:     (Required) The configuration group ID.
   --project-id:   The ID for the PROJECT scope.
   --store-id:     The ID for the STORE scope.
   --user-id:      The ID for the USER scope.
   --user-name:    The name of the user performing the action (for audit trails).
 
 Example:
-  config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 db.user=admin
+  config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=prod db.user=admin
 `,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if serviceName == "" {
 			return fmt.Errorf("--service-name is a required flag")
+		}
+		if groupID == "" {
+			return fmt.Errorf("--group-id is a required flag")
 		}
 		return nil
 	},
@@ -85,6 +90,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config-cli.yaml)")
 	rootCmd.PersistentFlags().StringVar(&projectID, "project-id", "", "ID for the PROJECT scope")
 	rootCmd.PersistentFlags().StringVar(&serviceName, "service-name", "", "Service name (required)")
+	rootCmd.PersistentFlags().StringVar(&groupID, "group-id", "", "Config group ID (required)")
 	rootCmd.PersistentFlags().StringVar(&storeID, "store-id", "", "ID for the STORE scope")
 	rootCmd.PersistentFlags().StringVar(&userID, "user-id", "", "ID for the USER scope")
 	rootCmd.PersistentFlags().StringVar(&scope, "scope", "", "Configuration scope (SYSTEM, PROJECT, STORE, USER)")
@@ -123,6 +129,7 @@ func createIdentifier() (*configv1.ConfigIdentifier, error) {
 	identifier := &configv1.ConfigIdentifier{
 		ServiceName: serviceName,
 		Scope:       configv1.Scope(scopeEnum),
+		GroupId:     groupID,
 	}
 
 	// Associate the correct ID with the scope

@@ -59,7 +59,7 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	var createdAt, updatedAt sql.NullTime
 
 	query := `SELECT id, latest_version, published_version, created_at, updated_at FROM config_version
-              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND COALESCE(group_id, '') = $4`
+              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
 	err = s.db.QueryRowContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
 		&cv.Id, &cv.LatestVersion, &publishedVersion, &createdAt, &updatedAt,
 	)
@@ -94,8 +94,16 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 		versionToFetch = cv.PublishedVersion
 	}
 
-	rows, err := s.db.QueryContext(ctx, `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`,
-		cv.Id, versionToFetch)
+	// Build the query for config fields
+	fieldQuery := `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`
+	args := []interface{}{cv.Id, versionToFetch}
+
+	if req.Path != "" {
+		fieldQuery += " AND path = $3"
+		args = append(args, req.Path)
+	}
+
+	rows, err := s.db.QueryContext(ctx, fieldQuery, args...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to query config fields: %v", err)
 	}
@@ -117,6 +125,8 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	}, nil
 }
 
+
+
 // GetConfig retrieves the published configuration for a given identifier.
 func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) (*configv1.ScopeConfig, error) {
 	return s.getConfig(ctx, req, 0) // 0 indicates to fetch the published version.
@@ -129,7 +139,7 @@ func (s *server) GetLatestConfig(ctx context.Context, req *configv1.GetConfigReq
 
 // GetConfigByVersion retrieves a specific version of a configuration.
 func (s *server) GetConfigByVersion(ctx context.Context, req *configv1.GetConfigByVersionRequest) (*configv1.ScopeConfig, error) {
-	getRequest := &configv1.GetConfigRequest{Identifier: req.Identifier}
+	getRequest := &configv1.GetConfigRequest{Identifier: req.Identifier, Path: req.Path}
 	return s.getConfig(ctx, getRequest, req.Version)
 }
 
@@ -151,7 +161,7 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 	newVersion := int32(1)
 
 	row := tx.QueryRowContext(ctx, `SELECT id, latest_version FROM config_version
-        WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND COALESCE(group_id, '') = $4 FOR UPDATE`,
+        WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4 FOR UPDATE`,
 		req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
 
 	if err = row.Scan(&configVersionID, &latestVersion); err == sql.ErrNoRows {
@@ -211,7 +221,7 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 	var createdAt, updatedAt sql.NullTime
 
 	query := `UPDATE config_version SET published_version = $1, updated_at = NOW(), updated_by = $2
-			  WHERE service_name = $3 AND scope = $4 AND scope_id = $5 AND COALESCE(group_id, '') = $6
+			  WHERE service_name = $3 AND scope = $4 AND scope_id = $5 AND group_id = $6
 			  RETURNING id, latest_version, published_version, created_at, updated_at`
 
 	err = s.db.QueryRowContext(ctx, query, req.VersionToPublish, req.User, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
@@ -243,7 +253,7 @@ func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHi
 	}
 
 	query := `SELECT id, latest_version, published_version, created_at, updated_at, updated_by FROM config_version
-              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND COALESCE(group_id, '') = $4
+              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4
               ORDER BY updated_at DESC`
 
 	rows, err := s.db.QueryContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
@@ -287,7 +297,7 @@ func (s *server) DeleteConfig(ctx context.Context, req *configv1.DeleteConfigReq
 		return nil, err
 	}
 
-	query := `DELETE FROM config_version WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND COALESCE(group_id, '') = $4`
+	query := `DELETE FROM config_version WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
 	result, err := s.db.ExecContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete config: %v", err)

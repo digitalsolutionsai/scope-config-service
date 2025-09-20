@@ -50,15 +50,6 @@ var showCmd = &cobra.Command{
 }
 
 func showHistory(client configv1.ConfigServiceClient, identifier *configv1.ConfigIdentifier) {
-	// Get the published config to identify the published version in the history
-	publishedResp, err := client.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
-	var publishedVersion int32 = -1 // Use an impossible version number if no published version exists
-	if err == nil && publishedResp != nil {
-		publishedVersion = publishedResp.GetCurrentVersion()
-	} else {
-		log.Println("Could not retrieve published configuration to mark it in history.")
-	}
-
 	req := &configv1.GetConfigHistoryRequest{Identifier: identifier}
 	resp, err := client.GetConfigHistory(context.Background(), req)
 	if err != nil {
@@ -75,7 +66,7 @@ func showHistory(client configv1.ConfigServiceClient, identifier *configv1.Confi
 	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
 	for _, v := range resp.Versions {
 		status := ""
-		if v.GetLatestVersion() == publishedVersion {
+		if v.PublishedVersion == v.LatestVersion {
 			status = "Published"
 		}
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", v.GetLatestVersion(), status, formatTimestamp(v.GetUpdatedAt()), v.GetUpdatedBy())
@@ -96,7 +87,26 @@ func showActiveAndPublished(client configv1.ConfigServiceClient, identifier *con
 		log.Fatalf("could not get published config: %v", err)
 	}
 
-	fmt.Println("--- Active Configuration (Latest) ---")
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 8, 2, '	', 0)
+	fmt.Fprintln(w, "Version\tStatus\tUpdated At\tUpdated By")
+
+	// Active Version
+	activeStatus := ""
+	if activeResp.VersionInfo.PublishedVersion == activeResp.VersionInfo.LatestVersion {
+		activeStatus = "Published"
+	}
+	fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", activeResp.CurrentVersion, activeStatus, formatTimestamp(activeResp.GetVersionInfo().GetUpdatedAt()), activeResp.GetVersionInfo().GetUpdatedBy())
+
+	// Published Version (if different)
+	if activeResp.CurrentVersion != publishedResp.CurrentVersion {
+		publishedStatus := "Published"
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", publishedResp.CurrentVersion, publishedStatus, formatTimestamp(publishedResp.GetVersionInfo().GetUpdatedAt()), publishedResp.GetVersionInfo().GetUpdatedBy())
+	}
+
+	w.Flush()
+
+	fmt.Println("\n--- Active Configuration (Latest) ---")
 	printConfigResponse(activeResp)
 
 	fmt.Println("\n--- Published Configuration ---")

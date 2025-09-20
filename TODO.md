@@ -1,27 +1,106 @@
-# TODO List
+###  **Problem Summary (AS-IS)**
 
-- [ ] **Proto Files:**
-    - [ ] Update `proto/config/v1/config.proto`:
-        - [ ] Ensure `service_name` is a required field in the `ConfigIdentifier` message.
-        - [ ] Update the `Scope` enum to `SYSTEM`, `PROJECT`, `STORE`, `USER`.
-        - [ ] Add `user_id` to the `ConfigIdentifier` message.
-        - [ ] Add comments detailing the length constraints for `project_id` (20), `store_id` (20), and `user_id` (35).
+The `group_id` is a critical part of a configuration's identity but is not currently enforced by the system. This leads to inconsistent data, inefficient `COALESCE` logic in SQL queries, and an incomplete API. The goal is to make **`group_id` a mandatory part of every configuration's identity.**
 
-- [ ] **Database:**
-    - [ ] Create a new migration script (`db/migrations/20250917100000_update_config_schema.up.sql`) to adjust the schema:
-        - [ ] The `config_version` table needs a `scope_id` column to store project, store, or user IDs.
-        - [ ] The `scope` column type should be updated to an `enum` (`SYSTEM`, `PROJECT`, `STORE`, `USER`).
-        - [ ] When `scope` is `SYSTEM`, `scope_id` must be 'default'.
-        - [ ] `service_name` remains a `NOT NULL` part of the primary key.
-        - [ ] Ensure queries on `path` and `scope_id` are case-sensitive.
+-----
 
-- [ ] **Backend (Go):**
-    - [ ] Regenerate Go code from the updated `.proto` file.
-    - [ ] Update `pkg/service/config.go` and `pkg/service/config_handlers.go` to handle the new `ConfigIdentifier` structure.
-    - [ ] Implement logic to map the correct ID (`project_id`, `store_id`, `user_id`) to the `scope_id` database column based on the `scope` field.
+<br>
 
-- [ ] **CLI:**
-    - [ ] Review all `cmd/cli/*.go` files to ensure they correctly use `service_name` as a required parameter and handle the updated `scope` options.
+###  **Action Plan & Files to Modify**
 
-- [ ] **Documentation:**
-    - [ ] Update `blueprint.md` and `README.md` to match the refined configuration identification strategy.
+Here is the precise checklist of files and the actions required, now with clearer examples.
+
+#### **1. Database Migration 🐘**
+
+  * **Files:** Create **two new migration files** in the `db/migrations/` directory.
+      * `YYYYMMDDHHMMSS_enforce_required_group_id.up.sql`
+          * **To-Do:** Alter `config_version` and `config_template` tables to make the `group_id` column `NOT NULL`. Add a composite index for performance.
+      * `YYYYMMDDHHMMSS_enforce_required_group_id.down.sql`
+          * **To-Do:** Add SQL to revert the changes.
+
+#### **2. Server Logic ⚙️**
+
+  * **Files:**
+      * `pkg/service/config_handlers.go`
+      * `pkg/service/template_handlers.go`
+  * **To-Do:** In both files, find every SQL query and **remove all `COALESCE` logic**. Modify the queries to use `group_id` as a direct, required parameter.
+
+#### **3. API & CLI Client 💻**
+
+  * **File:** `proto/config/v1/config.proto`
+      * **To-Do:** Update the comment for the `group_id` field to `// Required.` and run `make proto`.
+  * **File:** `cmd/cli/main.go`
+      * **To-Do:** Add the persistent `--group-id` flag, add validation to make it mandatory, and update the `createIdentifier` function.
+  * **Files:**
+      * `cmd/cli/get.go`
+      * `cmd/cli/set.go`
+      * `cmd/cli/publish.go`
+      * `cmd/cli/show.go`
+      * `cmd/cli/template.go`
+  * **To-Do:** Update the `Example:` string in each of these files to include the required `--group-id` flag.
+
+**Example for `set.go`:**
+
+  * **Before:**
+    `config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 db.user=admin`
+  * **After:**
+    `config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=database db.user=admin`
+
+**Example for `publish.go`:**
+
+  * **Before:**
+    `config-cli publish 2 --service-name=api --scope=PROJECT --project-id=proj_123`
+  * **After:**
+    `config-cli publish 2 --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=database`
+
+#### **4. Documentation 📖**
+
+  * **File:** `README.md`
+  * **To-Do:** Review and update all `config-cli` command examples. The new commands should clearly show `group_id` in action.
+
+**Example workflow to add to the README:**
+
+A user managing Stripe settings for the `billing-service` would now use the following commands:
+
+1.  **Set** the configuration values for the `stripe` group:
+    ```bash
+    docker compose exec config-service config-cli set \
+      --service-name=billing-service \
+      --scope=PROJECT \
+      --project-id=project-123 \
+      --group-id=stripe \
+      --user-name="John Doe" \
+      apiKey=sk_test_... \
+      apiVersion=2023-10-16
+    ```
+2.  **Show** the active vs. published versions for the `stripe` group:
+    ```bash
+    docker compose exec config-service config-cli show \
+      --service-name=billing-service \
+      --scope=PROJECT \
+      --project-id=project-123 \
+      --group-id=stripe
+    ```
+3.  **Publish** version 1 of the `stripe` group configuration:
+    ```bash
+    docker compose exec config-service config-cli publish 1 \
+      --service-name=billing-service \
+      --scope=PROJECT \
+      --project-id=project-123 \
+      --group-id=stripe \
+      --user-name="John Doe"
+    ```
+
+-----
+
+<br>
+
+###  **⚠️ A Critical Warning on Changes**
+
+This is a targeted **breaking change**. Your focus must be on implementing *only* the modifications listed above.
+
+  * **STICK TO THE PLAN:** Do not use this opportunity to perform unrelated refactoring.
+  * **DO NOT RENAME PACKAGES OR FUNCTIONS:** Avoid changing any existing package names, function names, or variable names unless it is a direct part of this task.
+  * **DO NOT REMOVE FUNCTIONS:** No functions should be removed.
+
+Introducing unrelated changes will significantly increase the risk of new bugs and make your work much harder to review and verify. Let's keep this change clean and focused.

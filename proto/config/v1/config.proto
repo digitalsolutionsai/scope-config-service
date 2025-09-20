@@ -63,7 +63,7 @@ enum FieldType {
 message ConfigIdentifier {
   string service_name = 1; // Required. Name of the service owning the config (e.g., "payment-service").
   Scope scope = 2;         // Required. The scope of the configuration.
-  string group_id = 3;     // (Optional) Config group (e.g., "database", "api-keys").
+  string group_id = 3;     // Required.
   string project_id = 4;   // (Optional) Project ID (max 20 chars).
   string store_id = 5;     // (Optional) Store ID (max 20 chars).
   string user_id = 6;      // (Optional) User ID (max 36 chars, e.g., UUID).
@@ -116,7 +116,7 @@ message ConfigFieldTemplate {
     repeated ValueOption options = 7; // A list of predefined options for this field.
 }
 
-// A container that groups all field templates for a specific service_name and group_id.
+// A container that a groups all field templates for a specific service_name and group_id.
 message ConfigTemplate {
     ConfigIdentifier identifier = 1; // Uniquely identifies the template (using service_name and group_id).
     repeated ConfigFieldTemplate fields = 2;
@@ -127,11 +127,17 @@ message ConfigTemplate {
 
 message GetConfigRequest {
   ConfigIdentifier identifier = 1;
+  // Optional: If specified, only the field with this path will be returned.
+  // If omitted, all fields for the group will be returned.
+  string path = 2;
 }
 
 message GetConfigByVersionRequest {
   ConfigIdentifier identifier = 1;
   int32 version = 2;
+  // Optional: If specified, only the field with this path will be returned.
+  // If omitted, all fields for the group will be returned.
+  string path = 3;
 }
 
 message UpdateConfigRequest {

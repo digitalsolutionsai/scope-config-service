@@ -106,6 +106,7 @@ The `get` command retrieves the full details of a configuration.
 - By default, it fetches the **published** version.
 - Use `--latest` to get the most recent (possibly unpublished) version.
 - Use `--version` to get a specific version number.
+- Use `--path` to get a single key from the configuration.
 
 To see the changes you just made, use `get --latest`:
 
@@ -115,6 +116,18 @@ docker compose exec config-service config-cli get --latest \
     --scope=PROJECT \
     --project-id=project-123
 ```
+
+To get a single key:
+
+```bash
+docker compose exec config-service config-cli get --latest \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --path=stripe.apiKey
+```
+
+This will return the value of the key, or `null` if it doesn'''t exist.
 
 ### 4. Publish a New Configuration
 

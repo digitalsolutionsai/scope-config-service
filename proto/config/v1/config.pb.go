@@ -144,7 +144,7 @@ type ConfigIdentifier struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ServiceName   string                 `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"` // Required. Name of the service owning the config (e.g., "payment-service").
 	Scope         Scope                  `protobuf:"varint,2,opt,name=scope,proto3,enum=vn.dsai.config.v1.Scope" json:"scope,omitempty"`  // Required. The scope of the configuration.
-	GroupId       string                 `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`             // (Optional) Config group (e.g., "database", "api-keys").
+	GroupId       string                 `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`             // Required.
 	ProjectId     string                 `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`       // (Optional) Project ID (max 20 chars).
 	StoreId       string                 `protobuf:"bytes,5,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`             // (Optional) Store ID (max 20 chars).
 	UserId        string                 `protobuf:"bytes,6,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`                // (Optional) User ID (max 36 chars, e.g., UUID).
@@ -609,7 +609,7 @@ func (x *ConfigFieldTemplate) GetOptions() []*ValueOption {
 	return nil
 }
 
-// A container that groups all field templates for a specific service_name and group_id.
+// A container that a groups all field templates for a specific service_name and group_id.
 type ConfigTemplate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"` // Uniquely identifies the template (using service_name and group_id).
@@ -663,8 +663,11 @@ func (x *ConfigTemplate) GetFields() []*ConfigFieldTemplate {
 }
 
 type GetConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Identifier *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	// Optional: If specified, only the field with this path will be returned.
+	// If omitted, all fields for the group will be returned.
+	Path          string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -706,10 +709,20 @@ func (x *GetConfigRequest) GetIdentifier() *ConfigIdentifier {
 	return nil
 }
 
+func (x *GetConfigRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
 type GetConfigByVersionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identifier    *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Version       int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Identifier *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Version    int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	// Optional: If specified, only the field with this path will be returned.
+	// If omitted, all fields for the group will be returned.
+	Path          string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -756,6 +769,13 @@ func (x *GetConfigByVersionRequest) GetVersion() int32 {
 		return x.Version
 	}
 	return 0
+}
+
+func (x *GetConfigByVersionRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
 }
 
 type UpdateConfigRequest struct {
@@ -1160,16 +1180,18 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\x12>\n" +
-	"\x06fields\x18\x02 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\"W\n" +
+	"\x06fields\x18\x02 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\"k\n" +
 	"\x10GetConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
-	"identifier\"z\n" +
+	"identifier\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\x8e\x01\n" +
 	"\x19GetConfigByVersionRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x05R\aversion\"\xa6\x01\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"\xa6\x01\n" +
 	"\x13UpdateConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +

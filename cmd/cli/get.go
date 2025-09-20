@@ -13,6 +13,7 @@ import (
 var (
 	configVersion int32
 	latest        bool
+	path          string
 )
 
 // getCmd represents the get command
@@ -21,6 +22,9 @@ var getCmd = &cobra.Command{
 	Short: "Get a configuration, optionally for a specific version or the latest",
 	Example: `  # Get the published configuration for a project
   config-cli get --service-name=my-service --scope=PROJECT --project-id=proj_123
+
+  # Get a single key from the published configuration
+  config-cli get --service-name=my-service --scope=PROJECT --project-id=proj_123 --path=my.key
 
   # Get the latest (active) configuration for a user
   config-cli get --latest --service-name=my-service --scope=USER --user-id=user_456
@@ -44,15 +48,24 @@ var getCmd = &cobra.Command{
 
 		switch {
 		case latest:
-			resp, err = c.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+			resp, err = c.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier, Path: path})
 		case configVersion > 0:
-			resp, err = c.GetConfigByVersion(context.Background(), &configv1.GetConfigByVersionRequest{Identifier: identifier, Version: configVersion})
+			resp, err = c.GetConfigByVersion(context.Background(), &configv1.GetConfigByVersionRequest{Identifier: identifier, Version: configVersion, Path: path})
 		default:
-			resp, err = c.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier})
+			resp, err = c.GetConfig(context.Background(), &configv1.GetConfigRequest{Identifier: identifier, Path: path})
 		}
 
 		if err != nil {
 			log.Fatalf("could not get config: %v", err)
+		}
+
+		if path != "" {
+			if len(resp.Fields) > 0 {
+				fmt.Println(resp.Fields[0].Value)
+			} else {
+				fmt.Println("null")
+			}
+			return
 		}
 
 		fmt.Printf("Version Info: %v\n", resp.VersionInfo)
@@ -67,5 +80,6 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	getCmd.Flags().BoolVar(&latest, "latest", false, "Get the latest version of the configuration")
 	getCmd.Flags().Int32Var(&configVersion, "version", 0, "Get a specific version of the configuration")
+	getCmd.Flags().StringVar(&path, "path", "", "Get a single key from the configuration")
 	getCmd.MarkFlagsMutuallyExclusive("latest", "version")
 }

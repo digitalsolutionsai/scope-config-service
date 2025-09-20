@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS config_version (
     service_name VARCHAR(50) NOT NULL,
     scope scope_enum NOT NULL,
     scope_id VARCHAR(50) NOT NULL,
-    group_id VARCHAR(50),
+    group_id VARCHAR(50) NOT NULL,
     latest_version INTEGER NOT NULL DEFAULT 0,
     published_version INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS config_field (
 CREATE INDEX IF NOT EXISTS idx_config_version_service_name ON config_version (service_name);
 CREATE INDEX IF NOT EXISTS idx_config_version_scope ON config_version (scope);
 CREATE INDEX IF NOT EXISTS idx_config_version_scope_id ON config_version (scope_id);
-CREATE INDEX IF NOT EXISTS idx_config_version_group_id ON config_version (group_id);
 
 CREATE TABLE IF NOT EXISTS config_template (
     id SERIAL PRIMARY KEY,
