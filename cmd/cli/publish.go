@@ -21,7 +21,7 @@ var publishCmd = &cobra.Command{
 
   # Publish a version for the system scope
   config-cli publish 3 --user-name="Jane Smith" --service-name=backend --scope=SYSTEM`,
-	Args:  cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		identifier, err := createIdentifier()
 		if err != nil {
@@ -35,7 +35,7 @@ var publishCmd = &cobra.Command{
 
 		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("Error connecting to gRPC server: %v", err)
+			log.Fatalf("%v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)

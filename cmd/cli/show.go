@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"text/tabwriter"
-	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -36,7 +36,7 @@ var showCmd = &cobra.Command{
 
 		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("Error connecting to gRPC server: %v", err)
+			log.Fatalf("%v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)

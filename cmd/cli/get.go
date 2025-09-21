@@ -38,7 +38,7 @@ var getCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("Error connecting to gRPC server: %v", err)
+			log.Fatalf("%v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)

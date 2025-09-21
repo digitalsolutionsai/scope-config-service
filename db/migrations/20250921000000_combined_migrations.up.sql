@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS config_field (
     UNIQUE (config_version_id, version, path)
 );
 
-CREATE INDEX IF NOT EXISTS idx_config_version_service_name ON config_version (service_name);
-CREATE INDEX IF NOT EXISTS idx_config_version_scope ON config_version (scope);
-CREATE INDEX IF NOT EXISTS idx_config_version_scope_id ON config_version (scope_id);
+-- The name clearly states its purpose: to quickly find a configuration by its unique identifier.
+CREATE INDEX IF NOT EXISTS idx_config_version_identifier ON config_version (service_name, scope, scope_id, group_id);
+
 
 CREATE TABLE IF NOT EXISTS config_template (
     id SERIAL PRIMARY KEY,

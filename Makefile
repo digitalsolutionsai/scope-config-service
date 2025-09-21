@@ -12,7 +12,7 @@ proto:
 # ====================================================================================
 build-cli:
 	@echo "Building CLI..."
-	@go build -o bin/config ./cmd/cli
+	@go build -o bin/config-cli ./cmd/cli
 
 build-server:
 	@echo "Building server..."

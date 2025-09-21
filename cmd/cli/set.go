@@ -24,7 +24,7 @@ var setCmd = &cobra.Command{
 
   # Set values for the system scope
   config-cli set --service-name=backend --scope=SYSTEM --user-name="Admin" api.key=...`,
-	Args:  cobra.MinimumNArgs(1),
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		identifier, err := createIdentifier()
 		if err != nil {
@@ -42,7 +42,7 @@ var setCmd = &cobra.Command{
 
 		conn, err := getGrpcConn()
 		if err != nil {
-			log.Fatalf("Error connecting to gRPC server: %v", err)
+			log.Fatalf("%v", err)
 		}
 		defer conn.Close()
 		c := configv1.NewConfigServiceClient(conn)

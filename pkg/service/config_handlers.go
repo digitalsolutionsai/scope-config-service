@@ -125,8 +125,6 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	}, nil
 }
 
-
-
 // GetConfig retrieves the published configuration for a given identifier.
 func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) (*configv1.ScopeConfig, error) {
 	return s.getConfig(ctx, req, 0) // 0 indicates to fetch the published version.

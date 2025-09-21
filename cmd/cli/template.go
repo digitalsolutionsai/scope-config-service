@@ -24,9 +24,9 @@ var templateCmd = &cobra.Command{
 
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
-	Use:     "apply -f [file]",
-	Short:   "Apply a configuration template",
-	Long:    `Applies a configuration template from a YAML file to the specified scope.`,
+	Use:   "apply -f [file]",
+	Short: "Apply a configuration template",
+	Long:  `Applies a configuration template from a YAML file to the specified scope.`,
 	Example: `  # Apply a template to a project
   config-cli template apply -f ./template.yaml --service-name=my-app --scope=PROJECT --project-id=proj-123
 

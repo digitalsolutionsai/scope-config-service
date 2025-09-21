@@ -77,10 +77,12 @@ func getGrpcConn() (*grpc.ClientConn, error) {
 	if serverURL == "" {
 		serverURL = "localhost:50051"
 	}
+
 	conn, err := grpc.Dial(serverURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, fmt.Errorf("did not connect to server at %s: %v", serverURL, err)
+		return nil, fmt.Errorf("gRPC connection failed: could not connect to %s. Please verify the SERVER_URL environment variable. Error: %v", serverURL, err)
 	}
+
 	return conn, nil
 }
 
