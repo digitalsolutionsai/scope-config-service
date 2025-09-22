@@ -1,0 +1,116 @@
+service:
+  id: "payment"
+  label: "Payment Service"
+
+groups:
+  - id: "payment-methods"
+    label: "Payment Methods"
+    description: "Configuration for available payment methods."
+    fields:
+      - path: "methods.credit-card"
+        label: "Credit Card"
+        description: "Credit card payment method"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+      - path: "methods.paypal"
+        label: "PayPal"
+        description: "PayPal payment method"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+      - path: "methods.stripe"
+        label: "Stripe"
+        description: "Stripe payment method"
+        type: "BOOLEAN"
+        defaultValue: "false"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+
+  - id: "server-config"
+    label: "Server Configuration"
+    description: "Payment gateway server settings and API configurations."
+    fields:
+      - path: "api.timeout"
+        label: "API Timeout"
+        description: "Timeout for payment API calls in seconds"
+        type: "INT"
+        defaultValue: "30"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "api.retry-attempts"
+        label: "Retry Attempts"
+        description: "Number of retry attempts for failed payments"
+        type: "INT"
+        defaultValue: "3"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "security.require-ssl"
+        label: "Require SSL"
+        description: "Require SSL for all payment transactions"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "logging.level"
+        label: "Logging Level"
+        description: "Payment service logging level"
+        type: "STRING"
+        defaultValue: "INFO"
+        options: ["DEBUG", "INFO", "WARN", "ERROR"]
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+
+  - id: "transaction-settings"
+    label: "Transaction Settings"
+    description: "Transaction processing and validation rules."
+    fields:
+      - path: "limits.max-amount"
+        label: "Maximum Amount"
+        description: "Maximum transaction amount allowed"
+        type: "FLOAT"
+        defaultValue: "10000.0"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "limits.min-amount"
+        label: "Minimum Amount"
+        description: "Minimum transaction amount allowed"
+        type: "FLOAT"
+        defaultValue: "1.0"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "currency.default"
+        label: "Default Currency"
+        description: "Default currency for transactions"
+        type: "STRING"
+        defaultValue: "USD"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "currency.supported"
+        label: "Supported Currencies"
+        description: "List of supported currencies"
+        type: "ARRAY_STRING"
+        defaultValue: "USD,EUR,GBP"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "webhook.config"
+        label: "Webhook Configuration"
+        description: "Webhook settings for payment notifications"
+        type: "JSON"
+        defaultValue: '{"url": "", "secret": "", "events": ["payment.completed"]}'
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"

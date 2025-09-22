@@ -35,17 +35,6 @@ func getIdentifier(identifier *configv1.ConfigIdentifier) (scope configv1.Scope,
 	return scope, scopeID, nil
 }
 
-// setIdentifier populates the correct ID field in the identifier based on the scope.
-func setIdentifier(baseIdentifier *configv1.ConfigIdentifier, scope configv1.Scope, scopeID string) {
-	switch scope {
-	case configv1.Scope_PROJECT:
-		baseIdentifier.ProjectId = scopeID
-	case configv1.Scope_STORE:
-		baseIdentifier.StoreId = scopeID
-	case configv1.Scope_USER:
-		baseIdentifier.UserId = scopeID
-	}
-}
 
 // getConfig retrieves a configuration from the database by a specific version number.
 func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, version int32) (*configv1.ScopeConfig, error) {
