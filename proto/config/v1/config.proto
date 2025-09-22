@@ -86,8 +86,6 @@ message ConfigField {
   string path = 1;          // The key of the config (e.g., "database.postgres.connection_string").
   string value = 2;         // The value, stored as a string.
   FieldType type = 3;       // Data type to help clients parse the value.
-  string default_value = 4; // (Optional)
-  string description = 5;   // (Optional)
 }
 
 // Represents a complete configuration set at a specific version.
@@ -118,8 +116,11 @@ message ConfigFieldTemplate {
 
 // A container that a groups all field templates for a specific service_name and group_id.
 message ConfigTemplate {
-    ConfigIdentifier identifier = 1; // Uniquely identifies the template (using service_name and group_id).
-    repeated ConfigFieldTemplate fields = 2;
+    ConfigIdentifier identifier = 1;
+    string service_label = 2;
+    string group_label = 3;
+    string group_description = 4;
+    repeated ConfigFieldTemplate fields = 5;
 }
 
 
@@ -158,10 +159,17 @@ message DeleteConfigRequest {
 
 message GetConfigHistoryRequest {
   ConfigIdentifier identifier = 1;
+  int32 limit = 2;
+}
+
+message VersionHistoryEntry {
+    int32 version = 1;
+    google.protobuf.Timestamp created_at = 2;
+    string created_by = 3;
 }
 
 message GetConfigHistoryResponse {
-  repeated ConfigVersion versions = 1;
+  repeated VersionHistoryEntry history = 1;
 }
 
 message ApplyConfigTemplateRequest {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"google.golang.org/grpc/codes"
@@ -34,7 +35,6 @@ func getIdentifier(identifier *configv1.ConfigIdentifier) (scope configv1.Scope,
 	}
 	return scope, scopeID, nil
 }
-
 
 // getConfig retrieves a configuration from the database by a specific version number.
 func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, version int32) (*configv1.ScopeConfig, error) {
@@ -167,6 +167,13 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 		return nil, status.Errorf(codes.Internal, "failed to upsert config version: %v", err)
 	}
 
+	// Add to history
+	_, err = tx.ExecContext(ctx, `INSERT INTO config_version_history (config_version_id, version, created_by) VALUES ($1, $2, $3)`,
+		configVersionID, newVersion, req.User)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to insert into config version history: %v", err)
+	}
+
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO config_field (config_version_id, version, path, value, type) VALUES ($1, $2, $3, $4, 'STRING')`)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to prepare field insert statement: %v", err)
@@ -239,42 +246,42 @@ func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHi
 		return nil, err
 	}
 
-	query := `SELECT id, latest_version, published_version, created_at, updated_at, updated_by FROM config_version
-              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4
-              ORDER BY updated_at DESC`
+	var configVersionID int32
+	query := `SELECT id FROM config_version
+              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
+	err = s.db.QueryRowContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(&configVersionID)
+	if err == sql.ErrNoRows {
+		return &configv1.GetConfigHistoryResponse{}, nil // No history if config doesn't exist
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query config version id: %v", err)
+	}
 
-	rows, err := s.db.QueryContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10 // Default limit
+	}
+
+	historyQuery := `SELECT version, created_at, created_by FROM config_version_history
+                     WHERE config_version_id = $1 ORDER BY created_at DESC LIMIT $2`
+	rows, err := s.db.QueryContext(ctx, historyQuery, configVersionID, limit)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to query config history: %v", err)
 	}
 	defer rows.Close()
 
-	var versions []*configv1.ConfigVersion
+	var history []*configv1.VersionHistoryEntry
 	for rows.Next() {
-		cv := &configv1.ConfigVersion{Identifier: req.Identifier}
-		var publishedVersion sql.NullInt32
-		var createdAt, updatedAt sql.NullTime
-		var updatedBy sql.NullString
-
-		if err := rows.Scan(&cv.Id, &cv.LatestVersion, &publishedVersion, &createdAt, &updatedAt, &updatedBy); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to scan config version: %v", err)
+		entry := &configv1.VersionHistoryEntry{}
+		var createdAt time.Time
+		if err := rows.Scan(&entry.Version, &createdAt, &entry.CreatedBy); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to scan history entry: %v", err)
 		}
-		if publishedVersion.Valid {
-			cv.PublishedVersion = publishedVersion.Int32
-		}
-		if createdAt.Valid {
-			cv.CreatedAt = timestamppb.New(createdAt.Time)
-		}
-		if updatedAt.Valid {
-			cv.UpdatedAt = timestamppb.New(updatedAt.Time)
-		}
-		if updatedBy.Valid {
-			cv.UpdatedBy = updatedBy.String
-		}
-		versions = append(versions, cv)
+		entry.CreatedAt = timestamppb.New(createdAt)
+		history = append(history, entry)
 	}
 
-	return &configv1.GetConfigHistoryResponse{Versions: versions}, nil
+	return &configv1.GetConfigHistoryResponse{History: history}, nil
 }
 
 // DeleteConfig deletes a configuration.

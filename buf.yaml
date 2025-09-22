@@ -1,0 +1,4 @@
+version: v1
+name: buf.build/getstrm/public-tmp
+roots:
+  - proto

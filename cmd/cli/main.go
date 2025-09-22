@@ -46,15 +46,6 @@ Global Flags:
 Example:
   config-cli set --service-name=api --scope=PROJECT --project-id=proj_123 --group-id=prod db.user=admin
 `,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if serviceName == "" {
-			return fmt.Errorf("--service-name is a required flag")
-		}
-		if groupID == "" {
-			return fmt.Errorf("--group-id is a required flag")
-		}
-		return nil
-	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -89,10 +80,11 @@ func getGrpcConn() (*grpc.ClientConn, error) {
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	// These flags are persistent for all commands, but we will only enforce the ones we need on a per-command basis.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config-cli.yaml)")
 	rootCmd.PersistentFlags().StringVar(&projectID, "project-id", "", "ID for the PROJECT scope")
-	rootCmd.PersistentFlags().StringVar(&serviceName, "service-name", "", "Service name (required)")
-	rootCmd.PersistentFlags().StringVar(&groupID, "group-id", "", "Config group ID (required)")
+	rootCmd.PersistentFlags().StringVar(&serviceName, "service-name", "", "Service name")
+	rootCmd.PersistentFlags().StringVar(&groupID, "group-id", "", "Config group ID")
 	rootCmd.PersistentFlags().StringVar(&storeID, "store-id", "", "ID for the STORE scope")
 	rootCmd.PersistentFlags().StringVar(&userID, "user-id", "", "ID for the USER scope")
 	rootCmd.PersistentFlags().StringVar(&scope, "scope", "", "Configuration scope (SYSTEM, PROJECT, STORE, USER)")
@@ -119,6 +111,12 @@ func initConfig() {
 }
 
 func createIdentifier() (*configv1.ConfigIdentifier, error) {
+	if serviceName == "" {
+		return nil, fmt.Errorf("--service-name is a required flag")
+	}
+	if groupID == "" {
+		return nil, fmt.Errorf("--group-id is a required flag")
+	}
 	if scope == "" {
 		return nil, fmt.Errorf("--scope is a required flag")
 	}

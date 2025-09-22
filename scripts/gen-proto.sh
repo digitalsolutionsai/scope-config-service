@@ -1,6 +1,6 @@
 #!/bin/bash
-# This script handles the protobuf generation.
-# It first checks for required dependencies and then runs the generation command.
+# This script handles the protobuf generation for both Go and Python.
+# It first checks for required dependencies and then runs the generation commands.
 
 set -e
 
@@ -20,34 +20,55 @@ if ! command -v go &> /dev/null; then
     exit 1
 fi
 
-# We need to check for protoc-gen-go and protoc-gen-go-grpc.
-# These are typically installed in GOPATH/bin.
+# Check for protoc-gen-go and protoc-gen-go-grpc.
 GOPATH_VAL=$(go env GOPATH)
 GO_BIN_PATH="$GOPATH_VAL/bin"
 
-# Check for protoc-gen-go by checking the user's PATH first, then GOPATH/bin
 if ! command -v protoc-gen-go &> /dev/null && [ ! -f "$GO_BIN_PATH/protoc-gen-go" ]; then
     echo "Error: 'protoc-gen-go' is not installed or not in your PATH."
-    echo "Install it by running: go install google.golang.org/protobuf/cmd/protoc-gen-go"
+    echo "Install it by running: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest"
     exit 1
 fi
 
-# Check for protoc-gen-go-grpc by checking the user's PATH first, then GOPATH/bin
 if ! command -v protoc-gen-go-grpc &> /dev/null && [ ! -f "$GO_BIN_PATH/protoc-gen-go-grpc" ]; then
     echo "Error: 'protoc-gen-go-grpc' is not installed or not in your PATH."
-    echo "Install it by running: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+    echo "Install it by running: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest"
+    exit 1
+fi
+
+# Check for the grpcio-tools Python package.
+if ! python3 -c "import grpc_tools.protoc" &> /dev/null; then
+    echo "Error: 'grpcio-tools' Python package is not installed."
+    echo "Install it by running: pip install grpcio-tools"
     exit 1
 fi
 
 echo "All required tools are available."
 # --- End Dependency Check ---
 
-
 # Add the Go bin directory to the PATH to ensure buf can find the plugins.
-# This is crucial for environments where GOPATH/bin is not in the default PATH.
 export PATH="$PATH:$GO_BIN_PATH"
 
-# Generate the protobuf code.
-echo "Generating protobuf code..."
+# --- Go Protobuf Generation ---
+echo "Generating Go protobuf code..."
 buf generate
-echo "Protobuf code generated successfully."
+echo "Go protobuf code generated successfully."
+
+# --- Python Protobuf Generation ---
+echo "Generating Python protobuf code..."
+
+# Create the Python output directory
+PYTHON_OUTPUT_DIR="./sdks/python/gen"
+mkdir -p "$PYTHON_OUTPUT_DIR"
+
+# Define the proto file path
+PROTO_FILE="./proto/config/v1/config_service.proto"
+INCLUDE_DIR="./proto"
+
+python3 -m grpc_tools.protoc \
+    -I="$INCLUDE_DIR" \
+    --python_out="$PYTHON_OUTPUT_DIR" \
+    --grpc_python_out="$PYTHON_OUTPUT_DIR" \
+    "$PROTO_FILE"
+
+echo "Python protobuf code generated successfully in $PYTHON_OUTPUT_DIR."

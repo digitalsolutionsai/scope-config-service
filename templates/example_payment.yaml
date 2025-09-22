@@ -65,7 +65,16 @@ groups:
         description: "Payment service logging level"
         type: "STRING"
         defaultValue: "INFO"
-        options: ["DEBUG", "INFO", "WARN", "ERROR"]
+        options:
+          - value: "DEBUG"
+            label: "DEBUG"
+          - value: "INFO"
+            label: "INFO"
+          - value: "WARN"
+            label: "WARN"
+          - value: "ERROR"
+            label: "ERROR"
+
         displayOn:
           - "SYSTEM"
           - "PROJECT"

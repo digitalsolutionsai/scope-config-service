@@ -77,35 +77,7 @@ Update the gRPC handlers in `pkg/service/` to work with the new database schema 
 
 Modify the command-line interface and the YAML templates to support the new, richer data model.
 
-  * **3.1. Update YAML Template Format (`templates/*.yaml`)**
-
-      * Modify your existing `.yaml` files to match the new structure, which separates service-level metadata from group-level metadata. The `template apply` command will now expect this format.
-
-      * **Example `payment.yaml`:**
-
-        ```yaml
-        service:
-          id: "payment"
-          label: "Payment Service"
-
-        groups:
-          - id: "payment-methods"
-            label: "Payment Methods"
-            description: "Configuration for available payment methods."
-            fields:
-              - path: "methods.credit-card"
-                label: "Credit Card"
-                type: "BOOLEAN"
-                defaultValue: "true"
-                # ... other fields
-          - id: "server-config"
-            label: "Server Configuration"
-            description: "Payment gateway server settings."
-            fields:
-              # ... other fields
-        ```
-
-  * **3.2. Refactor Template CLI (`cmd/cli/template.go`)**
+  * **3.1. Refactor Template CLI (`cmd/cli/template.go`)**
 
       * **Update YAML Parsing:** The current code unmarshals the entire file into a single `ConfigTemplate`, which is now incorrect.
       * Define new Go structs that mirror the new YAML structure (`service`, `groups` list).
@@ -114,23 +86,23 @@ Modify the command-line interface and the YAML templates to support the new, ric
           * Loop through each `group` in the parsed file.
           * Inside the loop, for each group, construct a `configv1.ApplyConfigTemplateRequest` and make a separate gRPC call to `ApplyConfigTemplate`. This ensures each group's template is applied individually.
 
-  * **3.3. Update History Display (`cmd/cli/show.go`)**
+      * 3.2 Implement the `history` Command and Refactor `show`
 
-      * In the `showHistory` function, adapt the logic to handle the new `GetConfigHistoryResponse` with its `repeated VersionHistoryEntry`.
-      * Update the `tabwriter` output to display the new, simpler history columns: `Version`, `Created At`, `Created By`.
+        This task is now split into two parts: creating the new `history` command and cleaning up the old `show` command.
 
------
+        **Part A: Create New `history` Command (`cmd/cli/history.go`)**
 
-### Phase 4: Update Supporting Assets
+        * Create a new file named `cmd/cli/history.go`.
+        * Inside this file, define a **new Cobra command** called `historyCmd`.
+        * The command's `Run` function should:
+            * Call the `GetConfigHistory` gRPC endpoint.
+            * Adapt the logic to handle the new `GetConfigHistoryResponse` with its `repeated VersionHistoryEntry`.
+            * Update the `tabwriter` output to display the new, simpler history columns: **Version**, **Created At**, and **Created By**.
+        * Register the new `historyCmd` in `cmd/cli/main.go`.
 
-Ensure clients and documentation are up-to-date.
+        **Part B: Clean Up `show` Command (`cmd/cli/show.go`)**
 
-  * **4.1. Update Python SDK (`sdks/python/`)**
-
-      * If the Python client code is generated from the `.proto` file, regenerate it to incorporate the contract changes.
-      * If the client is handwritten, update it manually to reflect the message changes (e.g., in `ConfigField`, `ConfigTemplate`, `GetConfigHistoryResponse`).
-
-  * **4.2. Update Documentation and Examples**
-
-      * Review all CLI command examples in `*.go` files (`Example:` sections) and update them to reflect the new reality (especially `template apply`).
-      * Update `README.md` and any other developer documentation with the new template YAML format and command usage.
+        * **Remove all history-related logic** from the `showCmd`.
+        * Delete the `showHistory` function entirely.
+        * Remove the `--history` and `--limit` flags from the command's `init()` function.
+        * Ensure the `showCmd`'s `Run` function now only handles fetching and displaying the latest and published configurations.
