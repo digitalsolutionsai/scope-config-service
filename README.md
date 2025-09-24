@@ -1,196 +1,209 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
-[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
-[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
-[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
-[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.21%2C%201.22-lightgrey.svg)
-[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
+# Scope Configuration Service
 
-# migrate
+This is a gRPC service for managing and retrieving versioned, schema-driven configurations for your applications. It provides a flexible and scalable way to handle configurations for different services, projects, and environments.
 
-__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
+-----
 
-* Migrate reads migrations from [sources](#migration-sources)
-   and applies them in correct order to a [database](#databases).
-* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
-   (Keeps the drivers lightweight, too.)
-* Database drivers don't assume things or try to correct user input. When in doubt, fail.
+## Core Concepts
 
-Forked from [mattes/migrate](https://github.com/mattes/migrate)
+Before using the service, it's helpful to understand two key concepts:
 
-## Databases
+1.  **Templates (The Schema):** A template defines the *structure* of your configuration. It specifies all the possible keys (`path`), their data types, default values, and descriptive text for UIs (`label`, `description`). Templates are defined in YAML files and applied to the service once.
 
-Database drivers run migrations. [Add a new database?](database/driver.go)
+2.  **Configurations (The Values):** A configuration is an *instance* of a template. It stores the actual values for a specific scope (e.g., for `project-123`). When you request a configuration, the service uses the template to provide default values for any keys that haven't been explicitly set.
 
-* [PostgreSQL](database/postgres)
-* [PGX v4](database/pgx)
-* [PGX v5](database/pgx/v5)
-* [Redshift](database/redshift)
-* [Ql](database/ql)
-* [Cassandra / ScyllaDB](database/cassandra)
-* [SQLite](database/sqlite)
-* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
-* [SQLCipher](database/sqlcipher)
-* [MySQL / MariaDB](database/mysql)
-* [Neo4j](database/neo4j)
-* [MongoDB](database/mongodb)
-* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
-* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
-* [Google Cloud Spanner](database/spanner)
-* [CockroachDB](database/cockroachdb)
-* [YugabyteDB](database/yugabytedb)
-* [ClickHouse](database/clickhouse)
-* [Firebird](database/firebird)
-* [MS SQL Server](database/sqlserver)
-* [rqlite](database/rqlite)
+-----
 
-### Database URLs
+## Features
 
-Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
+  - **Schema-Driven Configurations**: Define a clear schema for your configurations using YAML templates, complete with types, default values, and descriptions.
+  - **Flexible Scoping**: Apply configurations at different levels: `SYSTEM`, `PROJECT`, `STORE`, or `USER`.
+  - **Versioned Configurations**: Every change to a configuration creates a new, auditable version, allowing you to track changes and roll back if needed.
+  - **Published Versions**: Mark a specific version as "published" to ensure stability for client consumption, while still being able to work on a newer, unpublished version.
+  - **gRPC Interface**: A high-performance, language-agnostic gRPC interface.
+  - **Command-Line Interface (CLI)**: A powerful CLI (`config-cli`) for easy interaction with the service.
 
-Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
+-----
 
-Explicitly, the following characters need to be escaped:
-`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
+## Getting Started
 
-It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
+### Prerequisites
+
+- Go 1.18 or later
+- Docker and Docker Compose
+- For API changes: `buf`, `protoc-gen-go`, and `protoc-gen-go-grpc`
+
+### Building the Service
+
+You can build the gRPC server and the command-line interface (CLI) using the provided `Makefile`:
 
 ```bash
-$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$
+# Build the server
+make build-server
+
+# Build the CLI
+make build-cli
 ```
 
-## Migration Sources
+The generated binaries will be placed in the `bin/` directory.
 
-Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
+### Protobuf & API Changes
 
-* [Filesystem](source/file) - read from filesystem
-* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
-* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
-* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
-* [GitHub](source/github) - read from remote GitHub repositories
-* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
-* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
-* [Gitlab](source/gitlab) - read from remote Gitlab repositories
-* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
-* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
+This project uses Protocol Buffers for its gRPC API. If you change the API definition in `proto/config/v1/config.proto`, you must regenerate the Go client code:
 
-## CLI usage
-
-* Simple wrapper around this library.
-* Handles ctrl+c (SIGINT) gracefully.
-* No config search paths, no config files, no magic ENV var injections.
-
-__[CLI Documentation](cmd/migrate)__
-
-### Basic usage
+**1. Install Generation Tools (First-Time Setup):**
 
 ```bash
-$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
+go install google.golang.org/protobuf/cmd/protoc-gen-go
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
 
-### Docker usage
+**2. Regenerate the Client:**
 
 ```bash
-$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
-    -path=/migrations/ -database postgres://localhost:5432/database up 2
+make proto
 ```
 
-## Use in your Go project
+This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit.
 
-* API is stable and frozen for this release (v3 & v4).
-* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
-* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
-* Bring your own logger.
-* Uses `io.Reader` streams internally for low memory overhead.
-* Thread-safe and no goroutine leaks.
+### Running with Docker Compose
 
-__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
+To run the service and its PostgreSQL database, use Docker Compose.
 
-```go
-import (
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/github"
-)
-
-func main() {
-    m, err := migrate.New(
-        "github://mattes:personal-access-token@mattes/migrate_test",
-        "postgres://localhost:5432/database?sslmode=enable")
-    m.Steps(2)
-}
-```
-
-Want to use an existing database client?
-
-```go
-import (
-    "database/sql"
-    _ "github.com/lib/pq"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
-)
-
-func main() {
-    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
-    driver, err := postgres.WithInstance(db, &postgres.Config{})
-    m, err := migrate.NewWithDatabaseInstance(
-        "file:///migrations",
-        "postgres", driver)
-    m.Up() // or m.Step(2) if you want to explicitly set the number of migrations to run
-}
-```
-
-## Getting started
-
-Go to [getting started](GETTING_STARTED.md)
-
-## Tutorials
-
-* [CockroachDB](database/cockroachdb/TUTORIAL.md)
-* [PostgreSQL](database/postgres/TUTORIAL.md)
-
-(more tutorials to come)
-
-## Migration files
-
-Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
+First, create a `.env` file:
 
 ```bash
-1481574547_create_users_table.up.sql
-1481574547_create_users_table.down.sql
+cp .env.example .env
 ```
 
-[Best practices: How to write migrations.](MIGRATIONS.md)
+Then, run both services:
 
-## Coming from another db migration tool?
+```bash
+docker compose -f compose.postgres.yml -f compose.yml up -d --build
+```
 
-Check out [migradaptor](https://github.com/musinit/migradaptor/).
-*Note: migradaptor is not affiliated or supported by this project*
+-----
 
-## Versions
+## User Guide: A Typical Workflow
 
-Version | Supported? | Import | Notes
---------|------------|--------|------
-**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
-**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
+This guide walks you through the complete lifecycle of a configuration using the `config-cli`.
 
-## Development and Contributing
+### Step 1: Define and Apply a Template (Admin Task)
 
-Yes, please! [`Makefile`](Makefile) is your friend,
-read the [development guide](CONTRIBUTING.md).
+First, define the schema for your configuration in a YAML file. This is typically done once when setting up a new service.
 
-Also have a look at the [FAQ](FAQ.md).
+**Example `payment-template.yaml`:**
 
----
+```yaml
+service:
+  id: "payment"
+  label: "Payment Service"
 
-Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).
+groups:
+  - id: "payment-methods"
+    label: "Payment Methods"
+    description: "Configuration for available payment methods."
+    fields:
+      - path: "methods.credit-card"
+        label: "Credit Card"
+        description: "Credit card payment method"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+      - path: "methods.paypal"
+        label: "PayPal"
+        description: "PayPal payment method"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+      - path: "methods.stripe"
+        label: "Stripe"
+        description: "Stripe payment method"
+        type: "BOOLEAN"
+        defaultValue: "false"
+        displayOn:
+          - "SYSTEM"
+          - "USER"
+
+  - id: "server-config"
+    label: "Server Configuration"
+    description: "Payment gateway server settings and API configurations."
+    fields:
+      - path: "api.timeout"
+        label: "API Timeout"
+        description: "Timeout for payment API calls in seconds"
+        type: "INT"
+        defaultValue: "30"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+```
+
+Next, use the `template apply` command to upload this schema to the service.
+
+```bash
+# Make sure your template file is accessible inside the container or use `docker cp`
+docker compose exec config-service config-cli template apply -f /path/to/payment-template.yaml
+```
+
+### Step 2: Set Configuration Values
+
+Now that a template exists, you can set values for a specific scope. The `set` command creates a new, unpublished version of a configuration.
+
+```bash
+docker compose exec config-service config-cli set \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --group-id=stripe \
+    --user-name="John Doe" \
+    stripe.apiKey=sk_test_...
+```
+
+### Step 3: Get a Specific Configuration
+
+The `get` command retrieves the configuration. It will merge the values you explicitly set with the default values from the template.
+
+  - By default, it fetches the **published** version.
+  - Use `--latest` to get the most recent (possibly unpublished) version.
+
+<!-- end list -->
+
+```bash
+docker compose exec config-service config-cli get --latest \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --group-id=stripe
+```
+
+### Step 4: Publish a New Configuration
+
+The `publish` command makes a specific version the "live" one.
+
+Let's say the `set` command created version `1`. We can now publish it:
+
+```bash
+docker compose exec config-service config-cli publish 1 \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --group-id=stripe \
+    --user-name="John Doe"
+```
+
+### Step 5: Show Version History
+
+To see the audit log of changes, use the dedicated `history` command. This displays a clean record of when each version was created and by whom.
+
+```bash
+docker compose exec config-service config-cli history \
+    --service-name=billing-service \
+    --scope=PROJECT \
+    --project-id=project-123 \
+    --group-id=stripe
+```

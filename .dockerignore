@@ -6,7 +6,7 @@ Dockerfile
 
 # Exclude binaries, as they are built in the container
 bin/
-
+*.md
 # Exclude configuration files
 configs/
 
@@ -17,3 +17,4 @@ blueprint.md
 
 # Exclude IDE specific files
 .idx/
+.venv/

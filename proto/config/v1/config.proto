@@ -41,11 +41,10 @@ service ConfigService {
 
 enum Scope {
   SCOPE_UNSPECIFIED = 0;
-  DEFAULT = 1;
-  SYSTEM = 2;
-  SERVICE = 3;
-  PROJECT = 4;
-  STORE = 5;
+  SYSTEM = 1;   // System-wide default configuration. scope_id should be 'default'.
+  PROJECT = 2;  // Project-specific configuration.
+  STORE = 3;    // Store-specific configuration.
+  USER = 4;     // User-specific configuration.
 }
 
 enum FieldType {
@@ -62,11 +61,12 @@ enum FieldType {
 
 // A unique identifier for a configuration set.
 message ConfigIdentifier {
-  string service_name = 1; // Name of the service owning the config (e.g., "payment-service")
-  string project_id = 2;   // (Optional) Project ID
-  string store_id = 3;     // (Optional) Store ID
-  string group_id = 4;     // (Optional) Config group (e.g., "database", "api-keys")
-  Scope scope = 5;         // The scope of the configuration
+  string service_name = 1; // Required. Name of the service owning the config (e.g., "payment-service").
+  Scope scope = 2;         // Required. The scope of the configuration.
+  string group_id = 3;     // Required.
+  string project_id = 4;   // (Optional) Project ID (max 20 chars).
+  string store_id = 5;     // (Optional) Store ID (max 20 chars).
+  string user_id = 6;      // (Optional) User ID (max 36 chars, e.g., UUID).
 }
 
 // Represents a configuration version.
@@ -83,17 +83,15 @@ message ConfigVersion {
 
 // A specific configuration field with its value.
 message ConfigField {
-  string path = 1;          // The key of the config (e.g., "database.postgres.connection_string")
-  string value = 2;         // The value, stored as a string
-  FieldType type = 3;       // Data type to help clients parse the value
-  string default_value = 4; // (Optional)
-  string description = 5;   // (Optional)
+  string path = 1;          // The key of the config (e.g., "database.postgres.connection_string").
+  string value = 2;         // The value, stored as a string.
+  FieldType type = 3;       // Data type to help clients parse the value.
 }
 
 // Represents a complete configuration set at a specific version.
 message ScopeConfig {
   ConfigVersion version_info = 1;
-  int32 current_version = 2; // The version number of the accompanying fields
+  int32 current_version = 2; // The version number of the accompanying fields.
   repeated ConfigField fields = 3;
 }
 
@@ -101,25 +99,28 @@ message ScopeConfig {
 
 // A predefined choice for a configuration field, used for creating dropdowns in UIs.
 message ValueOption {
-    string value = 1; // The actual value to be stored
-    string label = 2; // The human-readable label for the UI
+    string value = 1; // The actual value to be stored.
+    string label = 2; // The human-readable label for the UI.
 }
 
 // Defines the schema for a single configuration field.
 message ConfigFieldTemplate {
-    string path = 1;           // The key (e.g., "payment.provider.name")
-    string label = 2;          // The display name for UIs (e.g., "Payment Provider")
-    string description = 3;    // A helpful description for the user
-    FieldType type = 4;        // The data type (STRING, INT, etc.)
-    string default_value = 5;  // Default value for this field
-    repeated Scope display_on = 6; // Defines which scopes can set this value (STORE, PROJECT, etc.)
-    repeated ValueOption options = 7; // A list of predefined options for this field
+    string path = 1;           // The key (e.g., "payment.provider.name").
+    string label = 2;          // The display name for UIs (e.g., "Payment Provider").
+    string description = 3;    // A helpful description for the user.
+    FieldType type = 4;        // The data type (STRING, INT, etc.).
+    string default_value = 5;  // Default value for this field.
+    repeated Scope display_on = 6; // Defines which scopes can set this value (STORE, PROJECT, etc.).
+    repeated ValueOption options = 7; // A list of predefined options for this field.
 }
 
-// A container that groups all field templates for a specific service_name and group_id.
+// A container that a groups all field templates for a specific service_name and group_id.
 message ConfigTemplate {
-    ConfigIdentifier identifier = 1; // Uniquely identifies the template (using service_name and group_id)
-    repeated ConfigFieldTemplate fields = 2;
+    ConfigIdentifier identifier = 1;
+    string service_label = 2;
+    string group_label = 3;
+    string group_description = 4;
+    repeated ConfigFieldTemplate fields = 5;
 }
 
 
@@ -127,17 +128,23 @@ message ConfigTemplate {
 
 message GetConfigRequest {
   ConfigIdentifier identifier = 1;
+  // Optional: If specified, only the field with this path will be returned.
+  // If omitted, all fields for the group will be returned.
+  string path = 2;
 }
 
 message GetConfigByVersionRequest {
   ConfigIdentifier identifier = 1;
   int32 version = 2;
+  // Optional: If specified, only the field with this path will be returned.
+  // If omitted, all fields for the group will be returned.
+  string path = 3;
 }
 
 message UpdateConfigRequest {
   ConfigIdentifier identifier = 1;
   repeated ConfigField fields = 2;
-  string user = 3; // The user making the change
+  string user = 3; // The user making the change.
 }
 
 message PublishVersionRequest {
@@ -152,10 +159,17 @@ message DeleteConfigRequest {
 
 message GetConfigHistoryRequest {
   ConfigIdentifier identifier = 1;
+  int32 limit = 2;
+}
+
+message VersionHistoryEntry {
+    int32 version = 1;
+    google.protobuf.Timestamp created_at = 2;
+    string created_by = 3;
 }
 
 message GetConfigHistoryResponse {
-  repeated ConfigVersion versions = 1;
+  repeated VersionHistoryEntry history = 1;
 }
 
 message ApplyConfigTemplateRequest {

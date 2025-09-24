@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"github.com/lib/pq"
@@ -25,16 +26,18 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 
 	var templateID int32
 	upsertQuery := `
-        INSERT INTO config_template (service_name, group_id, created_by, updated_by)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (service_name, group_id) DO UPDATE
-        SET updated_at = NOW(), updated_by = $4
-        RETURNING id`
+		INSERT INTO config_template (service_name, group_id, service_label, group_label, group_description, created_by, updated_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $6)
+		ON CONFLICT (service_name, group_id) DO UPDATE
+		SET service_label = $3, group_label = $4, group_description = $5, updated_at = NOW(), updated_by = $6
+		RETURNING id`
 
 	err = tx.QueryRowContext(ctx, upsertQuery,
 		template.Identifier.ServiceName,
 		template.Identifier.GroupId,
-		req.User,
+		template.ServiceLabel,
+		template.GroupLabel,
+		template.GroupDescription,
 		req.User,
 	).Scan(&templateID)
 
@@ -50,8 +53,8 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 
 	// Prepare statement for inserting new fields.
 	stmt, err := tx.PrepareContext(ctx, `
-        INSERT INTO config_template_field (config_template_id, path, label, description, type, default_value, display_on)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)`)
+		INSERT INTO config_template_field (config_template_id, path, label, description, type, default_value, display_on, options)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to prepare field template insert: %v", err)
 	}
@@ -64,7 +67,18 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 			displayOn[i] = scope.String()
 		}
 
-		_, err := stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, pq.Array(displayOn))
+		// Marshal options to JSONB
+		var optionsJSON []byte
+		if len(field.Options) > 0 {
+			optionsJSON, err = json.Marshal(field.Options)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to marshal options for field '%s': %v", field.Path, err)
+			}
+		} else {
+			optionsJSON = []byte("null")
+		}
+
+		_, err := stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, pq.Array(displayOn), optionsJSON)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to insert template field '%s': %v", field.Path, err)
 		}
@@ -84,10 +98,19 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 		return nil, status.Error(codes.InvalidArgument, "identifier cannot be nil")
 	}
 
-	// Find the template ID.
+	template := &configv1.ConfigTemplate{
+		Identifier: identifier,
+	}
 	var templateID int32
-	query := `SELECT id FROM config_template WHERE service_name = $1 AND group_id = $2`
-	err := s.db.QueryRowContext(ctx, query, identifier.ServiceName, identifier.GroupId).Scan(&templateID)
+
+	// Find the template and its metadata
+	query := `SELECT id, service_label, group_label, group_description FROM config_template WHERE service_name = $1 AND group_id = $2`
+	err := s.db.QueryRowContext(ctx, query, identifier.ServiceName, identifier.GroupId).Scan(
+		&templateID,
+		&template.ServiceLabel,
+		&template.GroupLabel,
+		&template.GroupDescription,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, status.Errorf(codes.NotFound, "template not found for service '%s' and group '%s'", identifier.ServiceName, identifier.GroupId)
@@ -98,7 +121,7 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 
 	// Fetch the fields for the found template.
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT path, label, description, type, default_value, display_on
+		SELECT path, label, description, type, default_value, display_on, options
 		FROM config_template_field WHERE config_template_id = $1 ORDER BY path ASC`, templateID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to query template fields: %v", err)
@@ -110,9 +133,17 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 		field := &configv1.ConfigFieldTemplate{}
 		var fieldType string
 		var displayOn []string
+		var optionsJSON sql.NullString // Use sql.NullString to handle NULL JSONB
 
-		if err := rows.Scan(&field.Path, &field.Label, &field.Description, &fieldType, &field.DefaultValue, pq.Array(&displayOn)); err != nil {
+		if err := rows.Scan(&field.Path, &field.Label, &field.Description, &fieldType, &field.DefaultValue, pq.Array(&displayOn), &optionsJSON); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to scan template field: %v", err)
+		}
+
+		// Unmarshal options from JSONB
+		if optionsJSON.Valid {
+			if err := json.Unmarshal([]byte(optionsJSON.String), &field.Options); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to unmarshal options for field '%s': %v", field.Path, err)
+			}
 		}
 
 		// Convert string type from DB to enum type for proto.
@@ -121,18 +152,20 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 		}
 
 		// Convert string array from DB to repeated enum scope for proto.
-		field.DisplayOn = make([]configv1.Scope, len(displayOn))
-		for i, s := range displayOn {
-			if val, ok := configv1.Scope_value[s]; ok {
-				field.DisplayOn[i] = configv1.Scope(val)
+		if displayOn != nil {
+			field.DisplayOn = make([]configv1.Scope, len(displayOn))
+			for i, s := range displayOn {
+				if val, ok := configv1.Scope_value[s]; ok {
+					field.DisplayOn[i] = configv1.Scope(val)
+				}
 			}
+		} else {
+			field.DisplayOn = make([]configv1.Scope, 0)
 		}
 
 		fields = append(fields, field)
 	}
+	template.Fields = fields
 
-	return &configv1.ConfigTemplate{
-		Identifier: identifier,
-		Fields:     fields,
-	}, nil
+	return template, nil
 }

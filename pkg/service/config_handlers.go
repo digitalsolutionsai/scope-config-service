@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"google.golang.org/grpc/codes"
@@ -11,20 +12,44 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// GetConfig retrieves the published configuration for a given identifier.
-func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) (*configv1.ScopeConfig, error) {
-	identifier := req.Identifier
+// getIdentifier extracts the scope and scope_id from the request identifier.
+func getIdentifier(identifier *configv1.ConfigIdentifier) (scope configv1.Scope, scopeID string, err error) {
 	if identifier == nil {
-		return nil, status.Error(codes.InvalidArgument, "identifier cannot be nil")
+		return configv1.Scope_SCOPE_UNSPECIFIED, "", status.Error(codes.InvalidArgument, "identifier cannot be nil")
+	}
+	scope = identifier.Scope
+	switch scope {
+	case configv1.Scope_SYSTEM:
+		scopeID = "system" // Or any other singleton value
+	case configv1.Scope_PROJECT:
+		scopeID = identifier.ProjectId
+	case configv1.Scope_STORE:
+		scopeID = identifier.StoreId
+	case configv1.Scope_USER:
+		scopeID = identifier.UserId
+	default:
+		return configv1.Scope_SCOPE_UNSPECIFIED, "", status.Errorf(codes.InvalidArgument, "unsupported scope: %s", scope)
+	}
+	if scopeID == "" {
+		return configv1.Scope_SCOPE_UNSPECIFIED, "", status.Errorf(codes.InvalidArgument, "scope_id for %s cannot be empty", scope)
+	}
+	return scope, scopeID, nil
+}
+
+// getConfig retrieves a configuration from the database by a specific version number.
+func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, version int32) (*configv1.ScopeConfig, error) {
+	scope, scopeID, err := getIdentifier(req.Identifier)
+	if err != nil {
+		return nil, err
 	}
 
-	cv := &configv1.ConfigVersion{Identifier: identifier}
+	cv := &configv1.ConfigVersion{Identifier: req.Identifier}
 	var publishedVersion sql.NullInt32
 	var createdAt, updatedAt sql.NullTime
 
 	query := `SELECT id, latest_version, published_version, created_at, updated_at FROM config_version
-              WHERE service_name = $1 AND COALESCE(project_id, '') = $2 AND COALESCE(store_id, '') = $3 AND COALESCE(group_id, '') = $4 AND scope = $5`
-	err := s.db.QueryRowContext(ctx, query, identifier.ServiceName, identifier.ProjectId, identifier.StoreId, identifier.GroupId, identifier.Scope.String()).Scan(
+              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
+	err = s.db.QueryRowContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
 		&cv.Id, &cv.LatestVersion, &publishedVersion, &createdAt, &updatedAt,
 	)
 
@@ -44,13 +69,30 @@ func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) 
 
 	if publishedVersion.Valid {
 		cv.PublishedVersion = publishedVersion.Int32
-	} else {
-		// No version is published, return the version info but no fields.
-		return &configv1.ScopeConfig{VersionInfo: cv, CurrentVersion: 0, Fields: []*configv1.ConfigField{}}, nil
 	}
 
-	rows, err := s.db.QueryContext(ctx, `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`,
-		cv.Id, cv.PublishedVersion)
+	var versionToFetch int32
+	if version > 0 {
+		versionToFetch = version
+	} else if version == -1 { // Fetch latest version
+		versionToFetch = cv.LatestVersion
+	} else { // Fetch published version by default
+		if !publishedVersion.Valid {
+			return &configv1.ScopeConfig{VersionInfo: cv, CurrentVersion: 0, Fields: []*configv1.ConfigField{}}, nil
+		}
+		versionToFetch = cv.PublishedVersion
+	}
+
+	// Build the query for config fields
+	fieldQuery := `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`
+	args := []interface{}{cv.Id, versionToFetch}
+
+	if req.Path != "" {
+		fieldQuery += " AND path = $3"
+		args = append(args, req.Path)
+	}
+
+	rows, err := s.db.QueryContext(ctx, fieldQuery, args...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to query config fields: %v", err)
 	}
@@ -67,74 +109,32 @@ func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) 
 
 	return &configv1.ScopeConfig{
 		VersionInfo:    cv,
-		CurrentVersion: cv.PublishedVersion,
+		CurrentVersion: versionToFetch,
 		Fields:         fields,
 	}, nil
+}
+
+// GetConfig retrieves the published configuration for a given identifier.
+func (s *server) GetConfig(ctx context.Context, req *configv1.GetConfigRequest) (*configv1.ScopeConfig, error) {
+	return s.getConfig(ctx, req, 0) // 0 indicates to fetch the published version.
 }
 
 // GetLatestConfig retrieves the latest configuration for a given identifier.
 func (s *server) GetLatestConfig(ctx context.Context, req *configv1.GetConfigRequest) (*configv1.ScopeConfig, error) {
-	identifier := req.Identifier
-	if identifier == nil {
-		return nil, status.Error(codes.InvalidArgument, "identifier cannot be nil")
-	}
+	return s.getConfig(ctx, req, -1) // -1 indicates to fetch the latest version.
+}
 
-	cv := &configv1.ConfigVersion{Identifier: identifier}
-	var publishedVersion sql.NullInt32
-	var createdAt, updatedAt sql.NullTime
-
-	query := `SELECT id, latest_version, published_version, created_at, updated_at FROM config_version
-              WHERE service_name = $1 AND COALESCE(project_id, '') = $2 AND COALESCE(store_id, '') = $3 AND COALESCE(group_id, '') = $4 AND scope = $5`
-	err := s.db.QueryRowContext(ctx, query, identifier.ServiceName, identifier.ProjectId, identifier.StoreId, identifier.GroupId, identifier.Scope.String()).Scan(
-		&cv.Id, &cv.LatestVersion, &publishedVersion, &createdAt, &updatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return &configv1.ScopeConfig{VersionInfo: cv, Fields: []*configv1.ConfigField{}}, nil
-	}
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to query config version: %v", err)
-	}
-
-	if createdAt.Valid {
-		cv.CreatedAt = timestamppb.New(createdAt.Time)
-	}
-	if updatedAt.Valid {
-		cv.UpdatedAt = timestamppb.New(updatedAt.Time)
-	}
-
-	if publishedVersion.Valid {
-		cv.PublishedVersion = publishedVersion.Int32
-	}
-
-	rows, err := s.db.QueryContext(ctx, `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`,
-		cv.Id, cv.LatestVersion)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to query config fields: %v", err)
-	}
-	defer rows.Close()
-
-	var fields []*configv1.ConfigField
-	for rows.Next() {
-		var path, value string
-		if err := rows.Scan(&path, &value); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to scan config field: %v", err)
-		}
-		fields = append(fields, &configv1.ConfigField{Path: path, Value: value})
-	}
-
-	return &configv1.ScopeConfig{
-		VersionInfo:    cv,
-		CurrentVersion: cv.LatestVersion,
-		Fields:         fields,
-	}, nil
+// GetConfigByVersion retrieves a specific version of a configuration.
+func (s *server) GetConfigByVersion(ctx context.Context, req *configv1.GetConfigByVersionRequest) (*configv1.ScopeConfig, error) {
+	getRequest := &configv1.GetConfigRequest{Identifier: req.Identifier, Path: req.Path}
+	return s.getConfig(ctx, getRequest, req.Version)
 }
 
 // UpdateConfig creates a new version of a configuration.
 func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigRequest) (*configv1.ScopeConfig, error) {
-	identifier := req.Identifier
-	if identifier == nil {
-		return nil, status.Error(codes.InvalidArgument, "identifier cannot be nil")
+	scope, scopeID, err := getIdentifier(req.Identifier)
+	if err != nil {
+		return nil, err
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -148,13 +148,13 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 	newVersion := int32(1)
 
 	row := tx.QueryRowContext(ctx, `SELECT id, latest_version FROM config_version
-        WHERE service_name = $1 AND COALESCE(project_id, '') = $2 AND COALESCE(store_id, '') = $3 AND COALESCE(group_id, '') = $4 AND scope = $5 FOR UPDATE`,
-		identifier.ServiceName, identifier.ProjectId, identifier.StoreId, identifier.GroupId, identifier.Scope.String())
+        WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4 FOR UPDATE`,
+		req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
 
 	if err = row.Scan(&configVersionID, &latestVersion); err == sql.ErrNoRows {
-		err = tx.QueryRowContext(ctx, `INSERT INTO config_version (service_name, project_id, store_id, group_id, scope, latest_version, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-			identifier.ServiceName, identifier.ProjectId, identifier.StoreId, identifier.GroupId, identifier.Scope.String(), newVersion, req.User, req.User,
+		err = tx.QueryRowContext(ctx, `INSERT INTO config_version (service_name, scope, scope_id, group_id, latest_version, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+			req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId, newVersion, req.User, req.User,
 		).Scan(&configVersionID)
 
 	} else if err == nil {
@@ -165,6 +165,13 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to upsert config version: %v", err)
+	}
+
+	// Add to history
+	_, err = tx.ExecContext(ctx, `INSERT INTO config_version_history (config_version_id, version, created_by) VALUES ($1, $2, $3)`,
+		configVersionID, newVersion, req.User)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to insert into config version history: %v", err)
 	}
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO config_field (config_version_id, version, path, value, type) VALUES ($1, $2, $3, $4, 'STRING')`)
@@ -186,7 +193,7 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 	return &configv1.ScopeConfig{
 		VersionInfo: &configv1.ConfigVersion{
 			Id:            configVersionID,
-			Identifier:    identifier,
+			Identifier:    req.Identifier,
 			LatestVersion: newVersion,
 			CreatedAt:     timestamppb.Now(),
 			UpdatedAt:     timestamppb.Now(),
@@ -198,20 +205,20 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 
 // PublishVersion marks a specific version as "published".
 func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersionRequest) (*configv1.ConfigVersion, error) {
-	identifier := req.Identifier
-	if identifier == nil {
-		return nil, status.Error(codes.InvalidArgument, "identifier cannot be nil")
+	scope, scopeID, err := getIdentifier(req.Identifier)
+	if err != nil {
+		return nil, err
 	}
 
 	var cv configv1.ConfigVersion
-	cv.Identifier = identifier
+	cv.Identifier = req.Identifier
 	var createdAt, updatedAt sql.NullTime
 
 	query := `UPDATE config_version SET published_version = $1, updated_at = NOW(), updated_by = $2
-			  WHERE service_name = $3 AND COALESCE(project_id, '') = $4 AND COALESCE(store_id, '') = $5 AND COALESCE(group_id, '') = $6 AND scope = $7
+			  WHERE service_name = $3 AND scope = $4 AND scope_id = $5 AND group_id = $6
 			  RETURNING id, latest_version, published_version, created_at, updated_at`
 
-	err := s.db.QueryRowContext(ctx, query, req.VersionToPublish, req.User, identifier.ServiceName, identifier.ProjectId, identifier.StoreId, identifier.GroupId, identifier.Scope.String()).Scan(
+	err = s.db.QueryRowContext(ctx, query, req.VersionToPublish, req.User, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
 		&cv.Id, &cv.LatestVersion, &cv.PublishedVersion, &createdAt, &updatedAt,
 	)
 
@@ -232,14 +239,70 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 	return &cv, nil
 }
 
-func (s *server) GetConfigByVersion(ctx context.Context, req *configv1.GetConfigByVersionRequest) (*configv1.ScopeConfig, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetConfigByVersion not implemented")
-}
-
+// GetConfigHistory retrieves the version history of a configuration.
 func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHistoryRequest) (*configv1.GetConfigHistoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetConfigHistory not implemented")
+	scope, scopeID, err := getIdentifier(req.Identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	var configVersionID int32
+	query := `SELECT id FROM config_version
+              WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
+	err = s.db.QueryRowContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(&configVersionID)
+	if err == sql.ErrNoRows {
+		return &configv1.GetConfigHistoryResponse{}, nil // No history if config doesn't exist
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query config version id: %v", err)
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10 // Default limit
+	}
+
+	historyQuery := `SELECT version, created_at, created_by FROM config_version_history
+                     WHERE config_version_id = $1 ORDER BY created_at DESC LIMIT $2`
+	rows, err := s.db.QueryContext(ctx, historyQuery, configVersionID, limit)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query config history: %v", err)
+	}
+	defer rows.Close()
+
+	var history []*configv1.VersionHistoryEntry
+	for rows.Next() {
+		entry := &configv1.VersionHistoryEntry{}
+		var createdAt time.Time
+		if err := rows.Scan(&entry.Version, &createdAt, &entry.CreatedBy); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to scan history entry: %v", err)
+		}
+		entry.CreatedAt = timestamppb.New(createdAt)
+		history = append(history, entry)
+	}
+
+	return &configv1.GetConfigHistoryResponse{History: history}, nil
 }
 
+// DeleteConfig deletes a configuration.
 func (s *server) DeleteConfig(ctx context.Context, req *configv1.DeleteConfigRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteConfig not implemented")
+	scope, scopeID, err := getIdentifier(req.Identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `DELETE FROM config_version WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
+	result, err := s.db.ExecContext(ctx, query, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete config: %v", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get rows affected: %v", err)
+	}
+	if rowsAffected == 0 {
+		return nil, status.Error(codes.NotFound, "config not found")
+	}
+
+	return &emptypb.Empty{}, nil
 }

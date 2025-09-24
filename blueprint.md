@@ -8,10 +8,10 @@ This project, the Scope Config Service, is a centralized, schema-driven, version
 
 | Component                 | Technology      | Status & Notes                                                                                                                                                                                                                                                                                                  |
 | ------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **gRPC API**              | Protobuf v3     | **EVOLVED**. The API contract in `config.proto` has been updated to support a schema-driven approach. New messages (`ConfigTemplate`, `ConfigFieldTemplate`) and RPCs (`ApplyConfigTemplate`, `GetConfigTemplate`) have been added.                                                                            |
-| **Server**                | Go, gRPC-Go     | **IN PROGRESS**. Server-side stubs for the new template RPCs have been created in `pkg/service/config.go`. The server currently compiles but awaits the implementation of the core template logic.                                                                                                                |
-| **CLI Client**            | Go, Cobra       | **FUNCTIONAL**. The CLI works for the core value-based commands. It needs to be extended with a new command to support applying YAML-based configuration templates.                                                                                                                                        |
-| **Database**              | PostgreSQL      | **NEEDS UPDATE**. The database schema requires new tables to store the configuration templates and their field definitions. Migrations need to be created.                                                                                                                                                   |
+| **gRPC API**              | Protobuf v3     | **EVOLVED**. The API contract in `config.proto` has been updated to support a more flexible identification strategy using `scope` and `scope_id`.                                                                                                                                                              |
+| **Server**                | Go, gRPC-Go     | **IN PROGRESS**. The server has been updated to use the new identification strategy. The core logic for handling configurations has been refactored to be more efficient and maintainable.                                                                                                                              |
+| **CLI Client**            | Go, Cobra       | **FUNCTIONAL**. The CLI has been updated to use the new `scope` and `scope_id` flags. The `service-name` flag is now required.                                                                                                                                                                           |
+| **Database**              | PostgreSQL      | **UPDATED**. The database schema has been updated to use `scope` and `scope_id` for resource identification.                                                                                                                                                                                                   |
 | **Tooling & Automation**  | Makefile, Shell | **COMPLETE & ROBUST**. The `Makefile` and `scripts/gen-proto.sh` provide a solid foundation for development and code generation. This will be extended for SDK generation.                                                                                                                                        |
 | **Containerization**      | Docker          | **READY**. `docker-compose.yml` files are in place for local development.                                                                                                                                                                                                                                     |
 
@@ -22,13 +22,13 @@ This project, the Scope Config Service, is a centralized, schema-driven, version
 This is the highest priority. The goal is to allow users to define a configuration schema using YAML, which the service will then enforce. The template defines *what* can be configured, while the existing config messages define the *values*.
 
 1.  **Database Migrations**: Create and run new database migration files to add tables for storing template data.
-    *   A `config_template` table to hold the schema, uniquely identified by `service_name` and `group_id`.
+    *   A `config_template` table to hold the schema, uniquely identified by `service_name` and a combination of `scope` and `scope_id`.
     *   A `config_field_template` table to store the details for each field within a template (path, label, description, type, `display_on` scopes, etc.).
 
 2.  **Implement `ApplyConfigTemplate` RPC**:
     *   The server-side logic will parse the incoming request from the CLI.
     *   It will use an **"insert on duplicate key update" (upsert)** strategy to save the template data into the new tables.
-    *   The unique key for a template (and therefore the target for the upsert) is the combination of `service_name` and `group_id`.
+    *   The unique key for a template (and therefore the target for the upsert) is the combination of `service_name`, `scope`, and `scope_id`.
 
 3.  **Implement `GetConfigTemplate` RPC**:
     *   This RPC will fetch the stored template definition from the database. This is critical for clients (like a future web UI) to dynamically build configuration forms.
@@ -39,7 +39,7 @@ This is the highest priority. The goal is to allow users to define a configurati
 
 5.  **Validation Logic in `UpdateConfig`**:
     *   Enhance the existing `UpdateConfig` RPC.
-    *   When a user tries to save a configuration value, the RPC must first check if a template exists for that `service_name` and `group_id`.
+    *   When a user tries to save a configuration value, the RPC must first check if a template exists for that `service_name`, `scope`, and `scope_id`.
     *   If a template exists, `UpdateConfig` must validate the incoming data against the schema (e.g., is the scope allowed based on `display_on`? Is the value one of the predefined `options`?).
 
 ### Phase 2: Client SDK Generation

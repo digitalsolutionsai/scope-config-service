@@ -1,9 +1,9 @@
-.PHONY: proto build-cli build-server run-server up down migrate-up migrate-down
+.PHONY: proto-gen build-cli build-server run-server up down migrate-up migrate-down
 
 # ====================================================================================
 # PROTO
 # ====================================================================================
-proto:
+proto-gen:
 	@echo "Generating gRPC code from proto files..."
 	@./scripts/gen-proto.sh
 
@@ -12,11 +12,13 @@ proto:
 # ====================================================================================
 build-cli:
 	@echo "Building CLI..."
-	@go build -o bin/config ./cmd/cli
-
+	@go build -o bin/config-cli ./cmd/cli
+	@echo "Building CLI done."
 build-server:
 	@echo "Building server..."
 	@go build -o bin/server ./cmd/server
+	@echo "Building server done."
+
 
 # ====================================================================================
 # RUN
