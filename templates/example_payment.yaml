@@ -7,7 +7,7 @@ groups:
     label: "Payment Methods"
     description: "Configuration for available payment methods."
     fields:
-      - path: "methods.credit-card"
+      - path: "methods/credit-card"
         label: "Credit Card"
         description: "Credit card payment method"
         type: "BOOLEAN"
@@ -15,7 +15,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "USER"
-      - path: "methods.paypal"
+      - path: "methods/paypal"
         label: "PayPal"
         description: "PayPal payment method"
         type: "BOOLEAN"
@@ -23,7 +23,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "USER"
-      - path: "methods.stripe"
+      - path: "methods/stripe"
         label: "Stripe"
         description: "Stripe payment method"
         type: "BOOLEAN"
@@ -36,7 +36,7 @@ groups:
     label: "Server Configuration"
     description: "Payment gateway server settings and API configurations."
     fields:
-      - path: "api.timeout"
+      - path: "api/timeout"
         label: "API Timeout"
         description: "Timeout for payment API calls in seconds"
         type: "INT"
@@ -44,7 +44,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "api.retry-attempts"
+      - path: "api/retry-attempts"
         label: "Retry Attempts"
         description: "Number of retry attempts for failed payments"
         type: "INT"
@@ -52,7 +52,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "security.require-ssl"
+      - path: "security/require-ssl"
         label: "Require SSL"
         description: "Require SSL for all payment transactions"
         type: "BOOLEAN"
@@ -60,7 +60,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "logging.level"
+      - path: "logging/level"
         label: "Logging Level"
         description: "Payment service logging level"
         type: "STRING"
@@ -83,7 +83,7 @@ groups:
     label: "Transaction Settings"
     description: "Transaction processing and validation rules."
     fields:
-      - path: "limits.max-amount"
+      - path: "limits/max-amount"
         label: "Maximum Amount"
         description: "Maximum transaction amount allowed"
         type: "FLOAT"
@@ -91,7 +91,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "limits.min-amount"
+      - path: "limits/min-amount"
         label: "Minimum Amount"
         description: "Minimum transaction amount allowed"
         type: "FLOAT"
@@ -99,7 +99,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "currency.default"
+      - path: "currency/default"
         label: "Default Currency"
         description: "Default currency for transactions"
         type: "STRING"
@@ -107,7 +107,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "currency.supported"
+      - path: "currency/supported"
         label: "Supported Currencies"
         description: "List of supported currencies"
         type: "ARRAY_STRING"
@@ -115,7 +115,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "PROJECT"
-      - path: "webhook.config"
+      - path: "webhook/config"
         label: "Webhook Configuration"
         description: "Webhook settings for payment notifications"
         type: "JSON"

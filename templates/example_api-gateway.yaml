@@ -1,0 +1,178 @@
+service:
+  id: "api-gateway"
+  label: "API Gateway Service"
+
+groups:
+  - id: "default-rate-limit"
+    label: "Default Rate Limiting"
+    description: "Global rate limiting configuration for all API endpoints."
+    fields:
+      - path: "url-pattern"
+        label: "URL Pattern"
+        description: "URL pattern to apply rate limiting (e.g., /** for all endpoints)"
+        type: "STRING"
+        defaultValue: "/**"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "capacity"
+        label: "Token Bucket Capacity"
+        description: "Maximum number of tokens in the bucket"
+        type: "INT"
+        defaultValue: "1000"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "refill-tokens"
+        label: "Refill Tokens"
+        description: "Number of tokens to add during each refill"
+        type: "INT"
+        defaultValue: "100"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "refill-duration-in-seconds"
+        label: "Refill Duration (seconds)"
+        description: "Duration between token refills in seconds"
+        type: "INT"
+        defaultValue: "10"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "excluded-ips"
+        label: "Excluded IP Addresses"
+        description: "IP addresses exempt from rate limiting"
+        type: "ARRAY_STRING"
+        defaultValue: ""
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "is-active"
+        label: "Enable Rate Limiting"
+        description: "Enable or disable rate limiting"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+
+  - id: "rate-limit-rules"
+    label: "Specific Rate Limit Rules"
+    description: "Custom rate limiting rules for specific API endpoints."
+    fields:
+      - path: "rules"
+        label: "Rate Limit Rules"
+        description: "JSON configuration for endpoint-specific rate limiting rules"
+        type: "JSON"
+        defaultValue: '[{"url-pattern": "/api/v2/auth/**", "capacity": 500, "refill-tokens": 60, "refill-duration-in-seconds": 10, "excluded-ips": [], "is-active": true}]'
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+
+  - id: "cloudfront-origin-verify-secrets"
+    label: "CloudFront Origin Verification"
+    description: "Secret keys for verifying CloudFront origin requests."
+    fields:
+      - path: "keys"
+        label: "Verification Keys"
+        description: "List of secret keys for CloudFront origin verification"
+        type: "ARRAY_STRING"
+        defaultValue: "your-very-strong-and-random-secret-key-a,a-newer-strong-and-random-secret-key-b"
+        displayOn:
+          - "SYSTEM"
+
+  - id: "cors-rules"
+    label: "CORS Configuration"
+    description: "Cross-Origin Resource Sharing rules and settings."
+    fields:
+      - path: "rules"
+        label: "CORS Rules"
+        description: "JSON configuration for CORS rules"
+        type: "JSON"
+        defaultValue: '[{"path-pattern": "/**", "allowed-origins": ["http://localhost:4200"], "allowed-methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow-credentials": true, "allowed-headers": ["Authorization", "Content-Type"], "exposed-headers": [], "max-age": 3600}]'
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+
+  - id: "gateway-settings"
+    label: "Gateway Settings"
+    description: "General API gateway configuration settings."
+    fields:
+      - path: "timeout/connect"
+        label: "Connection Timeout"
+        description: "Connection timeout for upstream services in milliseconds"
+        type: "INT"
+        defaultValue: "5000"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "timeout/read"
+        label: "Read Timeout"
+        description: "Read timeout for upstream services in milliseconds"
+        type: "INT"
+        defaultValue: "30000"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "retry/attempts"
+        label: "Retry Attempts"
+        description: "Number of retry attempts for failed requests"
+        type: "INT"
+        defaultValue: "3"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "logging/level"
+        label: "Logging Level"
+        description: "Gateway logging level"
+        type: "STRING"
+        defaultValue: "INFO"
+        options:
+          - value: "DEBUG"
+            label: "DEBUG"
+          - value: "INFO"
+            label: "INFO"
+          - value: "WARN"
+            label: "WARN"
+          - value: "ERROR"
+            label: "ERROR"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "metrics/enabled"
+        label: "Enable Metrics"
+        description: "Enable gateway metrics collection"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+
+  - id: "security-settings"
+    label: "Security Settings"
+    description: "Security-related gateway configurations."
+    fields:
+      - path: "headers/security"
+        label: "Security Headers"
+        description: "JSON configuration for security headers"
+        type: "JSON"
+        defaultValue: '{"x-frame-options": "DENY", "x-content-type-options": "nosniff", "x-xss-protection": "1; mode=block"}'
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "auth/required"
+        label: "Authentication Required"
+        description: "Require authentication for all requests"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "ssl/redirect"
+        label: "Force HTTPS Redirect"
+        description: "Redirect HTTP requests to HTTPS"
+        type: "BOOLEAN"
+        defaultValue: "true"
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"

@@ -43,7 +43,7 @@ groups:
     label: "Delivery Settings"
     description: "Configuration for how notifications are delivered."
     fields:
-      - path: "email.enabled"
+      - path: "email/enabled"
         label: "Email Notifications"
         description: "Enable email notifications"
         type: "BOOLEAN"
@@ -51,7 +51,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "USER"
-      - path: "push.enabled"
+      - path: "push/enabled"
         label: "Push Notifications"
         description: "Enable push notifications"
         type: "BOOLEAN"
@@ -59,7 +59,7 @@ groups:
         displayOn:
           - "SYSTEM"
           - "USER"
-      - path: "sms.enabled"
+      - path: "sms/enabled"
         label: "SMS Notifications"
         description: "Enable SMS notifications"
         type: "BOOLEAN"
@@ -72,21 +72,21 @@ groups:
     label: "System Configuration"
     description: "System-wide notification settings."
     fields:
-      - path: "retry.attempts"
+      - path: "retry/attempts"
         label: "Retry Attempts"
         description: "Number of retry attempts for failed notifications"
         type: "INT"
         defaultValue: "3"
         displayOn:
           - "SYSTEM"
-      - path: "rate.limit"
+      - path: "rate/limit"
         label: "Rate Limit"
         description: "Maximum notifications per hour per user"
         type: "INT"
         defaultValue: "100"
         displayOn:
           - "SYSTEM"
-      - path: "template.default"
+      - path: "template/default"
         label: "Default Template"
         description: "Default notification template"
         type: "STRING"

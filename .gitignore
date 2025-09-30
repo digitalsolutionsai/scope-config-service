@@ -26,3 +26,4 @@ bin/
 # Configuration files
 configs/
 .venv
+*.log 
