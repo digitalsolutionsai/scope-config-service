@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  - remote: buf.build/community/timostamm-protobuf-ts 
+    out: src/gen
+    opt:
+      - long_type_string
