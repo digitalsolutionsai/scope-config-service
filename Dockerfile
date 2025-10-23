@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/config-cli ./cmd/cli
 
 # ---- Final Stage ----
 # Use a minimal base image for the final container.
-FROM alpine:3
+FROM alpine:3.22
 
 # Add ca-certificates to make TLS connections.
 RUN apk add --no-cache ca-certificates

@@ -1,4 +1,4 @@
-version: v1
-name: buf.build/getstrm/public-tmp
-roots:
-  - proto
+version: v2
+modules:
+  - path: proto
+    name: buf.build/getstrm/public-tmp

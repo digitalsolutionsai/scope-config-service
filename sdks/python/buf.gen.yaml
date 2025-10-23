@@ -1,6 +1,10 @@
-version: v1
+version: v2
 plugins:
-  - plugin: buf.build/protocolbuffers/python
+  - local: protoc-gen-python
     out: gen
-  - plugin: buf.build/grpc/python
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-grpc-python
     out: gen
+    opt:
+      - paths=source_relative

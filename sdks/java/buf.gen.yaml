@@ -1,0 +1,10 @@
+version: v2
+plugins:
+  - local: protoc-gen-java
+    out: src/main/java
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-grpc-java
+    out: src/main/java
+    opt:
+      - paths=source_relative
