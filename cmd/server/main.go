@@ -22,7 +22,7 @@ func main() {
 	// Use the DATABASE_URL from the environment, with a fallback for local development.
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://user:password@localhost:5432/config_db?sslmode=disable"
+		dbURL = "postgres://user:password@localhost:5555/config_db?sslmode=disable"
 	}
 
 	// Run database migrations before connecting.
