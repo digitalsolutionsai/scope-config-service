@@ -54,7 +54,12 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	)
 
 	if err == sql.ErrNoRows {
-		return &configv1.ScopeConfig{VersionInfo: cv, Fields: []*configv1.ConfigField{}}, nil
+		// No config exists, try to get template default values
+		templateFields, err := s.getTemplateDefaultFields(ctx, req.Identifier.ServiceName, req.Identifier.GroupId, req.Path, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &configv1.ScopeConfig{VersionInfo: cv, Fields: templateFields}, nil
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to query config version: %v", err)
@@ -72,44 +77,62 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	}
 
 	var versionToFetch int32
+	var shouldUseTemplateFallback bool
 	if version > 0 {
 		versionToFetch = version
 	} else if version == -1 { // Fetch latest version
 		versionToFetch = cv.LatestVersion
 	} else { // Fetch published version by default
 		if !publishedVersion.Valid {
-			return &configv1.ScopeConfig{VersionInfo: cv, CurrentVersion: 0, Fields: []*configv1.ConfigField{}}, nil
+			// No published version exists, we'll use template fallback if available
+			shouldUseTemplateFallback = true
+		} else {
+			versionToFetch = cv.PublishedVersion
 		}
-		versionToFetch = cv.PublishedVersion
 	}
-
-	// Build the query for config fields
-	fieldQuery := `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`
-	args := []interface{}{cv.Id, versionToFetch}
-
-	if req.Path != "" {
-		fieldQuery += " AND path = $3"
-		args = append(args, req.Path)
-	}
-
-	rows, err := s.db.QueryContext(ctx, fieldQuery, args...)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to query config fields: %v", err)
-	}
-	defer rows.Close()
 
 	var fields []*configv1.ConfigField
-	for rows.Next() {
-		var path, value string
-		if err := rows.Scan(&path, &value); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to scan config field: %v", err)
+
+	// If we should use template fallback, try to get template default values
+	if shouldUseTemplateFallback {
+		templateFields, err := s.getTemplateDefaultFields(ctx, req.Identifier.ServiceName, req.Identifier.GroupId, req.Path, scope)
+		if err != nil {
+			return nil, err
 		}
-		fields = append(fields, &configv1.ConfigField{Path: path, Value: value})
+		fields = templateFields
+	} else {
+		// Build the query for config fields
+		fieldQuery := `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`
+		args := []interface{}{cv.Id, versionToFetch}
+
+		if req.Path != "" {
+			fieldQuery += " AND path = $3"
+			args = append(args, req.Path)
+		}
+
+		rows, err := s.db.QueryContext(ctx, fieldQuery, args...)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to query config fields: %v", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var path, value string
+			if err := rows.Scan(&path, &value); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to scan config field: %v", err)
+			}
+			fields = append(fields, &configv1.ConfigField{Path: path, Value: value})
+		}
+	}
+
+	currentVersion := versionToFetch
+	if shouldUseTemplateFallback {
+		currentVersion = 0 // Indicate this is using template defaults, not a real version
 	}
 
 	return &configv1.ScopeConfig{
 		VersionInfo:    cv,
-		CurrentVersion: versionToFetch,
+		CurrentVersion: currentVersion,
 		Fields:         fields,
 	}, nil
 }
@@ -305,4 +328,54 @@ func (s *server) DeleteConfig(ctx context.Context, req *configv1.DeleteConfigReq
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+// getTemplateDefaultFields retrieves default values from config template fields
+// when no published configuration exists
+func (s *server) getTemplateDefaultFields(ctx context.Context, serviceName, groupId, pathFilter string, scope configv1.Scope) ([]*configv1.ConfigField, error) {
+	var templateID int32
+
+	// Check if template exists for this service and group
+	query := `SELECT id FROM config_template WHERE service_name = $1 AND group_id = $2`
+	err := s.db.QueryRowContext(ctx, query, serviceName, groupId).Scan(&templateID)
+
+	if err == sql.ErrNoRows {
+		// No template exists, return empty fields
+		return []*configv1.ConfigField{}, nil
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query config template: %v", err)
+	}
+
+	// Build the query for template fields with default values
+	// Only include fields that are displayable for the current scope
+	fieldQuery := `SELECT path, default_value 
+	               FROM config_template_field 
+	               WHERE config_template_id = $1 
+	               AND default_value IS NOT NULL 
+	               AND default_value != '' 
+	               AND ($2 = ANY(display_on) OR 'SYSTEM' = ANY(display_on))`
+	args := []interface{}{templateID, scope.String()}
+
+	if pathFilter != "" {
+		fieldQuery += " AND path = $3"
+		args = append(args, pathFilter)
+	}
+
+	rows, err := s.db.QueryContext(ctx, fieldQuery, args...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query template fields: %v", err)
+	}
+	defer rows.Close()
+
+	var fields []*configv1.ConfigField
+	for rows.Next() {
+		var path, defaultValue string
+		if err := rows.Scan(&path, &defaultValue); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to scan template field: %v", err)
+		}
+		fields = append(fields, &configv1.ConfigField{Path: path, Value: defaultValue})
+	}
+
+	return fields, nil
 }

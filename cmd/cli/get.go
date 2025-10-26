@@ -77,25 +77,45 @@ var getCmd = &cobra.Command{
 }
 
 func printGetResponse(resp *configv1.ScopeConfig) {
-	if resp == nil || resp.GetCurrentVersion() == 0 {
+	if resp == nil {
+		fmt.Println("No configuration found.")
+		return
+	}
+
+	// Check if this is a template fallback response (CurrentVersion = 0 but has fields)
+	isTemplateFallback := resp.GetCurrentVersion() == 0 && len(resp.GetFields()) > 0
+
+	if resp.GetCurrentVersion() == 0 && !isTemplateFallback {
 		fmt.Println("No configuration found.")
 		return
 	}
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 8, 2, '\t', 0)
-	fmt.Fprintf(w, "Version:\t%d\n", resp.GetCurrentVersion())
-	status := "Unpublished"
-	if resp.GetVersionInfo().GetPublishedVersion() == resp.GetCurrentVersion() {
-		status = "Published"
+
+	if isTemplateFallback {
+		fmt.Fprintf(w, "Version:\tTemplate Fallback\n")
+		fmt.Fprintf(w, "Status:\tUsing Template Defaults\n")
+		fmt.Fprintf(w, "Updated At:\t%s\n", formatTimestamp(resp.GetVersionInfo().GetUpdatedAt()))
+		fmt.Fprintf(w, "Updated By:\t%s\n", resp.GetVersionInfo().GetUpdatedBy())
+	} else {
+		fmt.Fprintf(w, "Version:\t%d\n", resp.GetCurrentVersion())
+		status := "Unpublished"
+		if resp.GetVersionInfo().GetPublishedVersion() == resp.GetCurrentVersion() {
+			status = "Published"
+		}
+		fmt.Fprintf(w, "Status:\t%s\n", status)
+		fmt.Fprintf(w, "Updated At:\t%s\n", formatTimestamp(resp.GetVersionInfo().GetUpdatedAt()))
+		fmt.Fprintf(w, "Updated By:\t%s\n", resp.GetVersionInfo().GetUpdatedBy())
 	}
-	fmt.Fprintf(w, "Status:\t%s\n", status)
-	fmt.Fprintf(w, "Updated At:\t%s\n", formatTimestamp(resp.GetVersionInfo().GetUpdatedAt()))
-	fmt.Fprintf(w, "Updated By:\t%s\n", resp.GetVersionInfo().GetUpdatedBy())
 	w.Flush()
 
 	if len(resp.GetFields()) > 0 {
-		fmt.Println("\nFields:")
+		if isTemplateFallback {
+			fmt.Println("\nTemplate Default Fields:")
+		} else {
+			fmt.Println("\nFields:")
+		}
 		for _, field := range resp.GetFields() {
 			fmt.Printf("  %s: %s\n", field.GetPath(), field.GetValue())
 		}
