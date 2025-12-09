@@ -7,12 +7,9 @@ services:
     env_file:
       - .env
     environment:
-      # Keycloak authentication (uncomment and configure for production)
-      # - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
-      # - KEYCLOAK_CLIENT=dsai-console
-      # - KEYCLOAK_ROLES=ROLE_ADMIN
       - GRPC_PORT=50051
       - HTTP_PORT=8080
+      # Authentication is handled at the API Gateway level
     ports:
       - "50051:50051"  # gRPC port
       - "8080:8080"    # HTTP port

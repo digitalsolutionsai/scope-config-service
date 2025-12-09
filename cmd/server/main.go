@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
@@ -117,40 +116,10 @@ func startHTTPGateway(grpcPort, httpPort string) {
 	// Create gRPC client
 	client := configv1.NewConfigServiceClient(conn)
 
-	// Get Keycloak configuration
-	keycloakPublicKey := os.Getenv("KEYCLOAK_PUBLIC_KEY")
-	keycloakClient := os.Getenv("KEYCLOAK_CLIENT")
-	if keycloakClient == "" {
-		keycloakClient = "dsai-console"
-	}
-	keycloakRoles := os.Getenv("KEYCLOAK_ROLES")
-	if keycloakRoles == "" {
-		keycloakRoles = "ROLE_ADMIN"
-	}
-
-	// Setup authentication middleware
-	var authMiddleware *httpgateway.AuthMiddleware
-	if keycloakPublicKey != "" {
-		log.Println("Keycloak authentication enabled")
-		log.Printf("  Client: %s", keycloakClient)
-		log.Printf("  Required roles: %s", keycloakRoles)
-		
-		roles := strings.Split(keycloakRoles, ",")
-		authMiddleware, err = httpgateway.NewAuthMiddleware(keycloakPublicKey, keycloakClient, roles)
-		if err != nil {
-			log.Fatalf("Failed to create auth middleware: %v", err)
-		}
-	} else {
-		log.Println("⚠️  WARNING: Running without authentication (KEYCLOAK_PUBLIC_KEY not set)")
-		log.Println("⚠️  This should only be used for development/testing!")
-		authMiddleware, _ = httpgateway.NewAuthMiddleware("", "", nil)
-	}
-
-	// Create HTTP router with authentication
-	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
-		Client:         client,
-		AuthMiddleware: authMiddleware,
-	})
+	// Create HTTP router without authentication
+	// Authentication is handled at the API Gateway level (e.g., Spring Gateway)
+	log.Println("HTTP service is public - authentication handled at gateway level")
+	router := httpgateway.NewRouter(client)
 
 	// Create HTTP server
 	server := &http.Server{

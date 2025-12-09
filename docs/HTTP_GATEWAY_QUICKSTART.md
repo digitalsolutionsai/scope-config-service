@@ -16,75 +16,49 @@ docker compose -f compose.postgres.yml -f compose.yml up -d --build
 curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
 ```
 
-## 🔐 Production Setup (With Keycloak)
+## 🔐 Production Setup (With API Gateway)
 
-### Step 1: Get Your Keycloak Public Key
+**Authentication is handled at the API Gateway level** (e.g., Spring Cloud Gateway, Kong, Nginx).
 
-1. Log into your Keycloak Admin Console
-2. Navigate to: **Realm Settings** → **Keys** tab
-3. Find the active **RS256** key (Status: Active)
-4. Click the **Public key** button
-5. Copy the base64 string that appears
+### Architecture
 
-### Step 2: Configure Environment Variables
-
-Create or update your `.env` file:
-
-```bash
-# Copy from example
-cp .env.example .env
-
-# Edit .env and add:
-KEYCLOAK_PUBLIC_KEY=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
-KEYCLOAK_CLIENT=dsai-console
-KEYCLOAK_ROLES=ROLE_ADMIN
+```
+Client → API Gateway (Auth) → Config Service (Public APIs)
 ```
 
-### Step 3: Update Docker Compose
+### Setup Steps
 
-Edit `compose.yml` and uncomment the Keycloak variables:
+1. **Deploy Config Service** as shown in Quick Start above
+2. **Configure API Gateway** to:
+   - Handle JWT token validation
+   - Enforce role-based access control
+   - Route requests to config service
+   - Optionally pass user info in headers
+
+3. **Example API Gateway Configuration** (Spring Cloud Gateway):
 
 ```yaml
-http-gateway:
-  environment:
-    - GRPC_SERVER_ADDRESS=config-service:50051
-    - HTTP_PORT=8080
-    - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
-    - KEYCLOAK_CLIENT=dsai-console
-    - KEYCLOAK_ROLES=ROLE_ADMIN
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: config-service
+          uri: http://config-service:8080
+          predicates:
+            - Path=/api/v1/config/**
+          filters:
+            - TokenRelay
+            - name: RequestRateLimiter
 ```
 
-### Step 4: Start the Services
+4. **Client requests go through gateway**:
 
 ```bash
-docker compose -f compose.postgres.yml -f compose.yml up -d --build
-```
+# Client calls API Gateway (with authentication)
+curl -X GET "https://gateway.example.com/api/v1/config/payment-service/template?groupId=stripe" \
+  -H "Authorization: Bearer $JWT_TOKEN"
 
-### Step 5: Get a JWT Token
-
-Log in through your Keycloak login page or use the Keycloak API to get a token:
-
-```bash
-# Example using Keycloak token endpoint
-curl -X POST "https://auth.dsai.vn/realms/sso/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "client_id=dsai-console" \
-  -d "username=your.email@dsai.vn" \
-  -d "password=your-password" \
-  -d "grant_type=password"
-```
-
-Extract the `access_token` from the response.
-
-### Step 6: Make Authenticated Requests
-
-```bash
-# Store your token
-export TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-# Make authenticated request
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
-  -H "Authorization: Bearer $TOKEN"
+# Gateway validates token and forwards to service
 ```
 
 ## 📝 Common API Examples
@@ -93,7 +67,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupI
 
 ```bash
 curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
-  -H "Authorization: Bearer $TOKEN"
+ 
 ```
 
 **Use Case:** Frontend fetches this to know which fields to display and what types they are.
@@ -102,7 +76,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupI
 
 ```bash
 curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?groupId=stripe&projectId=proj-123" \
-  -H "Authorization: Bearer $TOKEN"
+ 
 ```
 
 **Use Case:** Get the active configuration that's currently in use.
@@ -111,7 +85,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?g
 
 ```bash
 curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/latest?groupId=stripe&projectId=proj-123" \
-  -H "Authorization: Bearer $TOKEN"
+ 
 ```
 
 **Use Case:** Preview changes that haven't been published yet.
@@ -120,7 +94,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/l
 
 ```bash
 curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/history?groupId=stripe&projectId=proj-123&limit=10" \
-  -H "Authorization: Bearer $TOKEN"
+ 
 ```
 
 **Use Case:** Show audit trail of who changed what and when.
@@ -129,7 +103,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/h
 
 ```bash
 curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/publish?groupId=stripe" \
-  -H "Authorization: Bearer $TOKEN" \
+  \
   -H "Content-Type: application/json" \
   -d '{
     "version": 5,
@@ -148,7 +122,6 @@ Here's a typical workflow for a configuration management UI:
 const template = await fetch(
   'http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe',
   {
-    headers: { 'Authorization': `Bearer ${token}` }
   }
 ).then(r => r.json());
 
@@ -167,7 +140,6 @@ template.fields.forEach(field => {
 const config = await fetch(
   'http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?groupId=stripe&projectId=proj-123',
   {
-    headers: { 'Authorization': `Bearer ${token}` }
   }
 ).then(r => r.json());
 
@@ -184,7 +156,6 @@ await fetch(
   {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -197,53 +168,42 @@ await fetch(
 
 ## 🔧 Troubleshooting
 
-### "missing Authorization header"
+### "userName is required"
 
-**Problem:** You forgot to include the Authorization header.
+**Problem:** You didn't provide userName in the publish request.
 
-**Solution:** Add `-H "Authorization: Bearer $TOKEN"` to your curl command.
+**Solution:** Include `"userName": "user@example.com"` in the request body for audit trail purposes.
 
-### "invalid token: token signature is invalid"
+### Connection refused
 
-**Problem:** The public key doesn't match the token, or the token is from a different realm.
+**Problem:** The service is not running or not accessible.
 
 **Solution:** 
-1. Verify you copied the correct public key from the right realm
-2. Make sure the token is from the same Keycloak realm
-3. Check that the token hasn't expired
+1. Verify service is running: `docker compose ps`
+2. Check service logs: `docker compose logs config-service`
+3. Ensure ports 50051 (gRPC) and 8080 (HTTP) are not in use
 
-### "insufficient permissions"
+### Template or config not found
 
-**Problem:** Your user doesn't have the `ROLE_ADMIN` role in the `dsai-console` client.
+**Problem:** The requested service/group doesn't exist in the database.
 
-**Solution:** In Keycloak Admin Console:
-1. Go to **Users** → Find your user
-2. Go to **Role Mappings** tab
-3. Select `dsai-console` from **Client Roles** dropdown
-4. Assign `ROLE_ADMIN` to the user
-5. Get a new token
-
-### "userName is required when authentication is disabled"
-
-**Problem:** You're running without authentication and didn't provide userName in the publish request.
-
-**Solution:** Either:
-- Enable authentication by setting `KEYCLOAK_PUBLIC_KEY`
-- OR include `"userName": "your-email@example.com"` in the request body
+**Solution:** 
+1. Apply templates using the CLI tool
+2. Verify service name and groupId are correct
+3. Check database has template records
 
 ## 📚 More Information
 
 - **Full API Documentation**: [HTTP_GATEWAY.md](./HTTP_GATEWAY.md)
 - **Main README**: [../README.md](../README.md)
-- **Keycloak Setup**: See [Authentication section](./HTTP_GATEWAY.md#authentication) in the full documentation
+- **API Gateway Setup**: See [Authentication section](./HTTP_GATEWAY.md#authentication) for gateway integration
 
 ## 💡 Tips
 
-1. **Save Your Token**: Store the JWT token in a variable for easy reuse
-2. **Check Token Expiry**: JWT tokens expire (typically after 1 hour). Get a new one when needed.
-3. **Use .env for Keys**: Never commit your `KEYCLOAK_PUBLIC_KEY` to git
-4. **Test in Development Mode**: Start without auth for initial testing, then add security
-5. **Scope Hierarchy**: Remember that configs cascade: SYSTEM → PROJECT → STORE → USER
+1. **Authentication at Gateway**: Configure authentication in your API Gateway (Spring, Kong, etc.)
+2. **Direct Access**: Service APIs are public - use only behind an authenticated gateway in production
+3. **Audit Trail**: Always provide userName in publish requests for proper audit logging
+4. **Scope Hierarchy**: Remember that configs cascade: SYSTEM → PROJECT → STORE → USER
 
 ---
 
