@@ -21,6 +21,7 @@ Before using the service, it's helpful to understand two key concepts:
   - **Versioned Configurations**: Every change to a configuration creates a new, auditable version, allowing you to track changes and roll back if needed.
   - **Published Versions**: Mark a specific version as "published" to ensure stability for client consumption, while still being able to work on a newer, unpublished version.
   - **gRPC Interface**: A high-performance, language-agnostic gRPC interface.
+  - **HTTP REST API Gateway**: A lightweight HTTP/JSON wrapper for easy frontend integration. See [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
   - **Command-Line Interface (CLI)**: A powerful CLI (`config-cli`) for easy interaction with the service.
 
 -----
@@ -35,11 +36,14 @@ Before using the service, it's helpful to understand two key concepts:
 
 ### Building the Service
 
-You can build the gRPC server and the command-line interface (CLI) using the provided `Makefile`:
+You can build the gRPC server, HTTP gateway, and the command-line interface (CLI) using the provided `Makefile`:
 
 ```bash
-# Build the server
+# Build the gRPC server
 make build-server
+
+# Build the HTTP gateway
+make build-httpgateway
 
 # Build the CLI
 make build-cli
@@ -68,7 +72,7 @@ This will run `buf generate` and update the necessary `*.pb.go` files, which you
 
 ### Running with Docker Compose
 
-To run the service and its PostgreSQL database, use Docker Compose.
+To run the complete stack (PostgreSQL database, gRPC service, and HTTP gateway), use Docker Compose.
 
 First, create a `.env` file:
 
@@ -76,11 +80,17 @@ First, create a `.env` file:
 cp .env.example .env
 ```
 
-Then, run both services:
+Then, run all services:
 
 ```bash
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 ```
+
+The services will be available at:
+- **gRPC Service**: `localhost:50051`
+- **HTTP Gateway**: `http://localhost:8080`
+
+For detailed HTTP API documentation and examples, see the [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
 
 -----
 

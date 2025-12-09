@@ -12,6 +12,22 @@ services:
       - postgres_network
       - gateway_shared_network
 
+  http-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.httpgateway
+    restart: unless-stopped
+    environment:
+      - GRPC_SERVER_ADDRESS=config-service:50051
+      - HTTP_PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - config-service
+    networks:
+      - postgres_network
+      - gateway_shared_network
+
 networks:
   postgres_network:
     driver: bridge
