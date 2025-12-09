@@ -166,11 +166,6 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserName == "" {
-		WriteError(w, &validationError{message: "userName is required"})
-		return
-	}
-
 	scope, err := parseScope(scopeStr)
 	if err != nil {
 		WriteError(w, err)
@@ -183,6 +178,18 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use authenticated user email if userName not provided in request body
+	userName := req.UserName
+	if userName == "" {
+		userName = GetUserEmail(r.Context())
+	}
+	
+	// If still empty (no auth), require it
+	if userName == "" {
+		WriteError(w, &validationError{message: "userName is required when authentication is disabled"})
+		return
+	}
+
 	identifier := &configv1.ConfigIdentifier{
 		ServiceName: serviceName,
 		Scope:       scope,
@@ -190,12 +197,6 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		ProjectId:   req.ProjectId,
 		StoreId:     req.StoreId,
 		UserId:      req.UserId,
-	}
-
-	// Use authenticated user email if userName not provided
-	userName := req.UserName
-	if userName == "" {
-		userName = GetUserEmail(r.Context())
 	}
 	
 	publishResp, err := g.client.PublishVersion(r.Context(), &configv1.PublishVersionRequest{

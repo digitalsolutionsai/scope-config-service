@@ -450,7 +450,7 @@ Publishes a specific version of the configuration, making it the active version 
 
 **Request Body Fields:**
 - `version` (required): The version number to publish
-- `userName` (required): Name or email of the user publishing
+- `userName` (optional): Name or email of the user publishing. If not provided and authentication is enabled, the email from the JWT token will be used automatically.
 - `projectId`, `storeId`, `userId` (conditional): Based on scope
 
 **Example Request:**
