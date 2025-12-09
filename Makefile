@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server run-server up down migrate-up migrate-down
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down
 
 # ====================================================================================
 # PROTO
@@ -19,6 +19,11 @@ build-server:
 	@go build -o bin/server ./cmd/server
 	@echo "Building server done."
 
+build-httpgateway:
+	@echo "Building HTTP gateway..."
+	@go build -o bin/httpgateway ./cmd/httpgateway
+	@echo "Building HTTP gateway done."
+
 
 # ====================================================================================
 # RUN
@@ -26,6 +31,10 @@ build-server:
 run-server: build-server
 	@echo "Running server..."
 	@./bin/server
+
+run-httpgateway: build-httpgateway
+	@echo "Running HTTP gateway..."
+	@./bin/httpgateway
 
 # ====================================================================================
 # DOCKER
