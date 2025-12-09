@@ -17,6 +17,7 @@ COPY . .
 
 # Build the application binaries.
 # CGO_ENABLED=0 is used to build a statically linked binary.
+# The server now includes both gRPC and HTTP gateway
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/server ./cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/config-cli ./cmd/cli
 

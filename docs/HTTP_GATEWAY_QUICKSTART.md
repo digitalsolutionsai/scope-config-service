@@ -2,12 +2,14 @@
 
 This guide will help you quickly get started with the HTTP Gateway for the Scope Configuration Service.
 
+**Note:** The service now runs both gRPC and HTTP in a **single container**. The HTTP gateway internally connects to the local gRPC service on localhost.
+
 ## 🚀 Quick Start (Development Mode - No Auth)
 
 For quick local testing without authentication:
 
 ```bash
-# 1. Start the services
+# 1. Start the services (runs both gRPC and HTTP in one container)
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 
 # 2. Test the API (no authentication required in development mode)

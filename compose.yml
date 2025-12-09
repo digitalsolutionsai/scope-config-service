@@ -6,28 +6,16 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "50051:50051"
-    networks:
-      - postgres_network
-      - gateway_shared_network
-
-  http-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile.httpgateway
-    restart: unless-stopped
     environment:
-      - GRPC_SERVER_ADDRESS=config-service:50051
-      - HTTP_PORT=8080
       # Keycloak authentication (uncomment and configure for production)
       # - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
       # - KEYCLOAK_CLIENT=dsai-console
       # - KEYCLOAK_ROLES=ROLE_ADMIN
+      - GRPC_PORT=50051
+      - HTTP_PORT=8080
     ports:
-      - "8080:8080"
-    depends_on:
-      - config-service
+      - "50051:50051"  # gRPC port
+      - "8080:8080"    # HTTP port
     networks:
       - postgres_network
       - gateway_shared_network

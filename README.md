@@ -72,7 +72,7 @@ This will run `buf generate` and update the necessary `*.pb.go` files, which you
 
 ### Running with Docker Compose
 
-To run the complete stack (PostgreSQL database, gRPC service, and HTTP gateway), use Docker Compose.
+To run the complete stack (PostgreSQL database and config service with both gRPC and HTTP), use Docker Compose.
 
 First, create a `.env` file:
 
@@ -86,7 +86,7 @@ Then, run all services:
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 ```
 
-The services will be available at:
+The config service runs both gRPC and HTTP in a single container and will be available at:
 - **gRPC Service**: `localhost:50051`
 - **HTTP Gateway**: `http://localhost:8080`
 

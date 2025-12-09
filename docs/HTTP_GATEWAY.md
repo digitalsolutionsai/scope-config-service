@@ -19,35 +19,40 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
 
 ## Getting Started
 
-### Running the HTTP Gateway
+### Running the Service
+
+The config service now runs both gRPC and HTTP in a **single container**. The HTTP gateway internally connects to the local gRPC service.
 
 #### With Docker Compose (Recommended)
 
 ```bash
-# Start all services (database, gRPC service, HTTP gateway)
+# Start all services (database and unified config service with both gRPC and HTTP)
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 ```
 
-The HTTP gateway will be available at `http://localhost:8080`
+Both endpoints will be available from the same container:
+- **gRPC**: `localhost:50051`
+- **HTTP**: `http://localhost:8080`
 
 #### Standalone (Local Development)
 
 ```bash
-# First, ensure the gRPC service is running on localhost:50051
-# Then build and run the HTTP gateway
-make build-httpgateway
-./bin/httpgateway
+# Build and run the unified server (includes both gRPC and HTTP)
+make build-server
+./bin/server
 
 # Or use make
-make run-httpgateway
+make run-server
 ```
+
+The server will start both gRPC (port 50051) and HTTP (port 8080) services.
 
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRPC_SERVER_ADDRESS` | `localhost:50051` | Address of the gRPC config service |
-| `HTTP_PORT` | `8080` | Port for the HTTP gateway to listen on |
+| `GRPC_PORT` | `50051` | Port for the gRPC service |
+| `HTTP_PORT` | `8080` | Port for the HTTP gateway |
 | `KEYCLOAK_PUBLIC_KEY` | _(none)_ | RSA public key from Keycloak for JWT validation (PEM or base64 format). If not set, authentication is disabled. |
 | `KEYCLOAK_CLIENT` | `dsai-console` | Keycloak client name to check for roles |
 | `KEYCLOAK_ROLES` | `ROLE_ADMIN` | Comma-separated list of required roles (user needs at least one) |
@@ -650,8 +655,9 @@ The gateway doesn't currently expose a health endpoint, but you can verify it's 
 
 ## Architecture Notes
 
-- **No Modification to gRPC Service**: The HTTP gateway is a pure wrapper. It doesn't modify the existing gRPC service.
-- **Stateless**: The gateway maintains no state; it simply forwards requests to the gRPC service.
+- **Unified Service**: Both gRPC and HTTP run in the same container/process. The HTTP gateway connects to the gRPC service on localhost.
+- **No Modification to gRPC Service**: The HTTP gateway is a pure wrapper. It doesn't modify the existing gRPC service implementation.
+- **Stateless**: The gateway maintains no state; it simply forwards requests to the local gRPC service.
 - **Error Translation**: gRPC errors are automatically translated to appropriate HTTP status codes.
 - **JSON Only**: All requests and responses use JSON format.
 - **Lightweight**: Built with Chi router for minimal overhead.
