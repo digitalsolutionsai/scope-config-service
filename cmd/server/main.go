@@ -164,7 +164,7 @@ func startHTTPGateway(grpcPort, httpPort string) {
 	// Start HTTP server
 	log.Printf("HTTP Gateway listening on port %s", httpPort)
 	log.Println("Available endpoints:")
-	log.Println("  GET  /api/v1/templates/{serviceName}?groupId={groupId}")
+	log.Println("  GET  /api/v1/config/{serviceName}/template?groupId={groupId}")
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}?groupId={groupId}&...")
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/latest?groupId={groupId}&...")
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/history?groupId={groupId}&...")

@@ -13,7 +13,7 @@ For quick local testing without authentication:
 docker compose -f compose.postgres.yml -f compose.yml up -d --build
 
 # 2. Test the API (no authentication required in development mode)
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
 ```
 
 ## 🔐 Production Setup (With Keycloak)
@@ -83,7 +83,7 @@ Extract the `access_token` from the response.
 export TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 # Make authenticated request
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -92,7 +92,7 @@ curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stri
 ### 1. Get Template (For Building Dynamic UI Forms)
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -146,7 +146,7 @@ Here's a typical workflow for a configuration management UI:
 ```javascript
 // 1. Fetch template to build the form
 const template = await fetch(
-  'http://localhost:8080/api/v1/templates/payment-service?groupId=stripe',
+  'http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe',
   {
     headers: { 'Authorization': `Bearer ${token}` }
   }

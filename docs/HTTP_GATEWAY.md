@@ -120,7 +120,7 @@ The key can be in either format:
 ### Example Authenticated Request
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
@@ -128,7 +128,7 @@ curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stri
 
 **Missing Token:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
 ```
 
 Response (401 Unauthorized):
@@ -142,7 +142,7 @@ Response (401 Unauthorized):
 
 **Invalid Token:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe" \
   -H "Authorization: Bearer invalid.token.here"
 ```
 
@@ -210,7 +210,7 @@ You'll see a warning:
 
 Retrieves the template (schema) for a specific service and group. This is essential for **rendering dynamic UI forms** where users can set configuration values.
 
-**Endpoint:** `GET /api/v1/templates/{serviceName}`
+**Endpoint:** `GET /api/v1/config/{serviceName}/template`
 
 **Query Parameters:**
 - `groupId` (required): The configuration group ID
@@ -220,7 +220,7 @@ Retrieves the template (schema) for a specific service and group. This is essent
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
 ```
 
 **Example Response:**
@@ -517,7 +517,7 @@ The HTTP Gateway translates gRPC errors to appropriate HTTP status codes with JS
 
 **Missing Required Parameter:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service"
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template"
 ```
 
 Response (400 Bad Request):
@@ -545,7 +545,7 @@ Response (400 Bad Request):
 
 **Template Not Found:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/unknown-service?groupId=unknown"
+curl -X GET "http://localhost:8080/api/v1/config/unknown-service/template?groupId=unknown"
 ```
 
 Response (404 Not Found):
@@ -568,7 +568,7 @@ This workflow demonstrates how a frontend application would use the API to rende
 **Step 1: Fetch the template to understand available fields**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
 ```
 
 The response tells you:
@@ -644,7 +644,7 @@ curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/USER?grou
 
 You can use the provided examples with `curl`, or use tools like:
 - **Postman**: Import the examples as a collection
-- **HTTPie**: `http GET localhost:8080/api/v1/templates/payment-service groupId==stripe`
+- **HTTPie**: `http GET localhost:8080/api/v1/config/payment-service/template groupId==stripe`
 - **Browser**: For GET requests, simply paste the URL
 
 ### Health Check

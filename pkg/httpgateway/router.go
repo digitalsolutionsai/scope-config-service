@@ -36,16 +36,17 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 		r.Use(config.AuthMiddleware.Middleware)
 	}
 
-	// API routes
-	r.Route("/api/v1", func(r chi.Router) {
-		// Template routes
-		r.Get("/templates/{serviceName}", gateway.GetTemplate)
+	// API routes - all under /api/v1/config/{serviceName} for consistent path-based routing
+	// Each service has one template, so template is nested under service path
+	r.Route("/api/v1/config/{serviceName}", func(r chi.Router) {
+		// Template route - get template for this service
+		r.Get("/template", gateway.GetTemplate)
 
-		// Config routes
-		r.Get("/config/{serviceName}/scope/{scope}", gateway.GetConfig)
-		r.Get("/config/{serviceName}/scope/{scope}/latest", gateway.GetLatestConfig)
-		r.Get("/config/{serviceName}/scope/{scope}/history", gateway.GetConfigHistory)
-		r.Post("/config/{serviceName}/scope/{scope}/publish", gateway.PublishConfig)
+		// Config routes - manage configurations for this service
+		r.Get("/scope/{scope}", gateway.GetConfig)
+		r.Get("/scope/{scope}/latest", gateway.GetLatestConfig)
+		r.Get("/scope/{scope}/history", gateway.GetConfigHistory)
+		r.Post("/scope/{scope}/publish", gateway.PublishConfig)
 	})
 
 	return r
