@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
@@ -28,6 +29,17 @@ func main() {
 		httpPort = "8080"
 	}
 
+	// Get Keycloak configuration
+	keycloakPublicKey := os.Getenv("KEYCLOAK_PUBLIC_KEY")
+	keycloakClient := os.Getenv("KEYCLOAK_CLIENT")
+	if keycloakClient == "" {
+		keycloakClient = "dsai-console"
+	}
+	keycloakRoles := os.Getenv("KEYCLOAK_ROLES")
+	if keycloakRoles == "" {
+		keycloakRoles = "ROLE_ADMIN"
+	}
+
 	// Connect to gRPC server
 	log.Printf("Connecting to gRPC server at %s...", grpcAddr)
 	conn, err := grpc.NewClient(
@@ -42,8 +54,29 @@ func main() {
 	// Create gRPC client
 	client := configv1.NewConfigServiceClient(conn)
 
-	// Create HTTP router with all endpoints
-	router := httpgateway.NewRouter(client)
+	// Setup authentication middleware
+	var authMiddleware *httpgateway.AuthMiddleware
+	if keycloakPublicKey != "" {
+		log.Println("Keycloak authentication enabled")
+		log.Printf("  Client: %s", keycloakClient)
+		log.Printf("  Required roles: %s", keycloakRoles)
+		
+		roles := strings.Split(keycloakRoles, ",")
+		authMiddleware, err = httpgateway.NewAuthMiddleware(keycloakPublicKey, keycloakClient, roles)
+		if err != nil {
+			log.Fatalf("Failed to create auth middleware: %v", err)
+		}
+	} else {
+		log.Println("⚠️  WARNING: Running without authentication (KEYCLOAK_PUBLIC_KEY not set)")
+		log.Println("⚠️  This should only be used for development/testing!")
+		authMiddleware, _ = httpgateway.NewAuthMiddleware("", "", nil)
+	}
+
+	// Create HTTP router with authentication
+	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
+		Client:         client,
+		AuthMiddleware: authMiddleware,
+	})
 
 	// Create HTTP server
 	server := &http.Server{

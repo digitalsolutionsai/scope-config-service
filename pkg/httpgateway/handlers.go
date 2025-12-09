@@ -1,7 +1,6 @@
 package httpgateway
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -42,7 +41,7 @@ func (g *Gateway) GetTemplate(w http.ResponseWriter, r *http.Request) {
 		GroupId:     groupId,
 	}
 
-	template, err := g.client.GetConfigTemplate(context.Background(), &configv1.GetConfigTemplateRequest{
+	template, err := g.client.GetConfigTemplate(r.Context(), &configv1.GetConfigTemplateRequest{
 		Identifier: identifier,
 	})
 	if err != nil {
@@ -71,7 +70,7 @@ func (g *Gateway) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := g.client.GetConfig(context.Background(), &configv1.GetConfigRequest{
+	config, err := g.client.GetConfig(r.Context(), &configv1.GetConfigRequest{
 		Identifier: identifier,
 	})
 	if err != nil {
@@ -95,7 +94,7 @@ func (g *Gateway) GetLatestConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := g.client.GetLatestConfig(context.Background(), &configv1.GetConfigRequest{
+	config, err := g.client.GetLatestConfig(r.Context(), &configv1.GetConfigRequest{
 		Identifier: identifier,
 	})
 	if err != nil {
@@ -130,7 +129,7 @@ func (g *Gateway) GetConfigHistory(w http.ResponseWriter, r *http.Request) {
 		limit = int32(limitInt)
 	}
 
-	history, err := g.client.GetConfigHistory(context.Background(), &configv1.GetConfigHistoryRequest{
+	history, err := g.client.GetConfigHistory(r.Context(), &configv1.GetConfigHistoryRequest{
 		Identifier: identifier,
 		Limit:      limit,
 	})
@@ -193,10 +192,16 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		UserId:      req.UserId,
 	}
 
-	publishResp, err := g.client.PublishVersion(context.Background(), &configv1.PublishVersionRequest{
+	// Use authenticated user email if userName not provided
+	userName := req.UserName
+	if userName == "" {
+		userName = GetUserEmail(r.Context())
+	}
+	
+	publishResp, err := g.client.PublishVersion(r.Context(), &configv1.PublishVersionRequest{
 		Identifier:       identifier,
 		VersionToPublish: req.Version,
-		User:             req.UserName,
+		User:             userName,
 	})
 	if err != nil {
 		WriteError(w, err)

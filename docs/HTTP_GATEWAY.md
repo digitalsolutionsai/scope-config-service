@@ -5,6 +5,7 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Authentication](#authentication)
 - [API Endpoints](#api-endpoints)
   - [Get Template](#get-template)
   - [Get Configuration (Published)](#get-configuration-published)
@@ -47,6 +48,154 @@ make run-httpgateway
 |----------|---------|-------------|
 | `GRPC_SERVER_ADDRESS` | `localhost:50051` | Address of the gRPC config service |
 | `HTTP_PORT` | `8080` | Port for the HTTP gateway to listen on |
+| `KEYCLOAK_PUBLIC_KEY` | _(none)_ | RSA public key from Keycloak for JWT validation (PEM or base64 format). If not set, authentication is disabled. |
+| `KEYCLOAK_CLIENT` | `dsai-console` | Keycloak client name to check for roles |
+| `KEYCLOAK_ROLES` | `ROLE_ADMIN` | Comma-separated list of required roles (user needs at least one) |
+
+**⚠️ Security Note:** Running without `KEYCLOAK_PUBLIC_KEY` disables all authentication and should only be used for development/testing.
+
+---
+
+## Authentication
+
+The HTTP Gateway integrates with **Keycloak SSO** for authentication and authorization using JWT bearer tokens.
+
+### How It Works
+
+1. **JWT Token Validation**: All requests must include a valid JWT token in the `Authorization` header
+2. **Public Key Verification**: Tokens are validated using the RSA public key from Keycloak
+3. **Role-Based Access**: Users must have the required role (default: `ROLE_ADMIN`) in the specified client (default: `dsai-console`)
+
+### Required Token Format
+
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Token Claims
+
+The gateway expects Keycloak JWT tokens with the following structure:
+
+```json
+{
+  "exp": 1765339184,
+  "iat": 1765252784,
+  "iss": "https://auth.dsai.vn/realms/sso",
+  "sub": "5acb2c9d-6882-4d17-a9f5-880fa72f1f7e",
+  "email": "loivo@dsai.vn",
+  "preferred_username": "loivo@dsai.vn",
+  "name": "Loi Vo",
+  "resource_access": {
+    "dsai-console": {
+      "roles": ["ROLE_ADMIN"]
+    }
+  }
+}
+```
+
+### Authorization Rules
+
+- Users **must** have at least one of the required roles in `resource_access.<client>.roles`
+- Default required role: `ROLE_ADMIN`
+- Default client: `dsai-console`
+- Users with `ROLE_ADMIN` in `dsai-console` have **full permissions** to all endpoints
+
+### Getting the Keycloak Public Key
+
+1. Navigate to your Keycloak admin console
+2. Go to **Realm Settings** → **Keys**
+3. Find the active RSA key
+4. Click **Public key** to view the key
+5. Set this as the `KEYCLOAK_PUBLIC_KEY` environment variable
+
+The key can be in either format:
+- **PEM format**: `-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`
+- **Base64-encoded DER format**: Direct base64 string from Keycloak
+
+### Example Authenticated Request
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Authentication Errors
+
+**Missing Token:**
+```bash
+curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe"
+```
+
+Response (401 Unauthorized):
+```json
+{
+  "error": "Unauthorized",
+  "message": "missing Authorization header",
+  "code": 401
+}
+```
+
+**Invalid Token:**
+```bash
+curl -X GET "http://localhost:8080/api/v1/templates/payment-service?groupId=stripe" \
+  -H "Authorization: Bearer invalid.token.here"
+```
+
+Response (401 Unauthorized):
+```json
+{
+  "error": "Unauthorized",
+  "message": "invalid token: token signature is invalid: ...",
+  "code": 401
+}
+```
+
+**Insufficient Permissions:**
+```bash
+# Token is valid but user doesn't have ROLE_ADMIN
+```
+
+Response (401 Unauthorized):
+```json
+{
+  "error": "Unauthorized",
+  "message": "insufficient permissions",
+  "code": 401
+}
+```
+
+### User Information in Audit Logs
+
+When a user publishes a configuration, the authenticated user's email is automatically used for audit purposes:
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/publish?groupId=stripe" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": 5,
+    "projectId": "proj-123"
+  }'
+```
+
+The `userName` field is optional in the request body. If not provided, it will use the email from the JWT token (`loivo@dsai.vn` in the example).
+
+### Development Mode (No Authentication)
+
+For development/testing only, you can disable authentication by not setting `KEYCLOAK_PUBLIC_KEY`:
+
+```bash
+# Start without authentication
+HTTP_PORT=8080 GRPC_SERVER_ADDRESS=localhost:50051 ./bin/httpgateway
+```
+
+You'll see a warning:
+```
+⚠️  WARNING: Running without authentication (KEYCLOAK_PUBLIC_KEY not set)
+⚠️  This should only be used for development/testing!
+```
+
+**Never run in production without authentication!**
 
 ---
 

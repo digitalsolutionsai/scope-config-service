@@ -20,6 +20,10 @@ services:
     environment:
       - GRPC_SERVER_ADDRESS=config-service:50051
       - HTTP_PORT=8080
+      # Keycloak authentication (uncomment and configure for production)
+      # - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
+      # - KEYCLOAK_CLIENT=dsai-console
+      # - KEYCLOAK_ROLES=ROLE_ADMIN
     ports:
       - "8080:8080"
     depends_on:

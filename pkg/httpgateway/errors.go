@@ -15,9 +15,22 @@ type ErrorResponse struct {
 	Code    int    `json:"code"`
 }
 
+// HTTPStatusProvider is an interface for errors that can provide their own HTTP status.
+type HTTPStatusProvider interface {
+	HTTPStatus() int
+}
+
 // WriteError writes an error response in JSON format.
 func WriteError(w http.ResponseWriter, err error) {
-	httpStatus := grpcCodeToHTTP(err)
+	var httpStatus int
+	
+	// Check if error provides its own HTTP status
+	if statusProvider, ok := err.(HTTPStatusProvider); ok {
+		httpStatus = statusProvider.HTTPStatus()
+	} else {
+		httpStatus = grpcCodeToHTTP(err)
+	}
+	
 	grpcStatus, ok := status.FromError(err)
 	
 	var message string
