@@ -12,6 +12,7 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
   - [Get Configuration (Published)](#get-configuration-published)
   - [Update Configuration](#update-configuration)
   - [Get Configuration (Latest)](#get-configuration-latest)
+  - [Get Configuration by Version](#get-configuration-by-version)
   - [Get Version History](#get-version-history)
   - [Publish Configuration](#publish-configuration)
 - [Error Handling](#error-handling)
@@ -424,6 +425,82 @@ curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/latest?gro
 ```
 
 **Note:** `currentVersion` is 5 (latest) while `publishedVersion` is still 3.
+
+---
+
+### Get Configuration by Version
+
+Retrieves configuration values for a **specific version number**. This is similar to the CLI `get` command with the `--version` flag and is useful for viewing historical configuration states or inspecting unpublished versions before publishing.
+
+**Endpoint:** `GET /api/v1/config/{serviceName}/scope/{scope}/version/{version}`
+
+**Path Parameters:**
+- `serviceName`: Name of the service
+- `scope`: One of `SYSTEM`, `PROJECT`, `STORE`, or `USER`
+- `version`: The version number to retrieve (positive integer)
+
+**Query Parameters:**
+- `groupId` (required): The configuration group ID
+- `projectId` (conditional): Required if scope is `PROJECT`, `STORE`, or `USER`
+- `storeId` (conditional): Required if scope is `STORE` or `USER`
+- `userId` (conditional): Required if scope is `USER`
+
+**Example Request (Get version 3):**
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/config/notification/scope/PROJECT/version/3?groupId=system-config&projectId=hungthinh"
+```
+
+**Example Response:**
+
+```json
+{
+  "serviceName": "notification",
+  "scope": "PROJECT",
+  "groupId": "system-config",
+  "projectId": "hungthinh",
+  "currentVersion": 3,
+  "latestVersion": 5,
+  "publishedVersion": 2,
+  "fields": {
+    "rate/limit": "500"
+  },
+  "createdAt": "2024-02-20T14:45:00Z",
+  "createdBy": "alice@example.com",
+  "updatedAt": "2024-02-20T14:45:00Z",
+  "updatedBy": "alice@example.com"
+}
+```
+
+**CLI Equivalent:**
+
+This endpoint provides the same functionality as the CLI command:
+
+```bash
+bin/config-cli get \
+  --service-name=notification \
+  --scope=PROJECT \
+  --project-id=hungthinh \
+  --group-id=system-config \
+  --version 3
+```
+
+**CLI Output:**
+```
+Version:        3
+Status:         Unpublished
+Updated At:     2025-12-14T19:19:32Z
+Updated By:     alice@example.com
+
+Fields:
+  rate/limit: 500
+```
+
+**Use Cases:**
+- **Inspect unpublished versions**: Review configuration changes before publishing them
+- **Audit and compliance**: View what configuration values were active at a specific point in time
+- **Rollback preparation**: Compare current published config with previous versions to decide what to rollback to
+- **Debugging**: Check if a specific configuration version caused an issue
 
 ---
 

@@ -182,7 +182,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pkg_httpgateway.UpdateConfigRequest"
+                            "$ref": "#/definitions/httpgateway.UpdateConfigRequest"
                         }
                     }
                 ],
@@ -437,7 +437,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pkg_httpgateway.PublishRequest"
+                            "$ref": "#/definitions/httpgateway.PublishRequest"
                         }
                     }
                 ],
@@ -458,6 +458,99 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Configuration not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/config/{serviceName}/scope/{scope}/version/{version}": {
+            "get": {
+                "description": "Retrieves configuration values for a specific version number.\nSimilar to CLI 'get' command with --version flag. Useful for viewing historical configuration states.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Get configuration by specific version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "serviceName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scope level: SYSTEM, PROJECT, STORE, or USER",
+                        "name": "scope",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Version number to retrieve",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Configuration group ID",
+                        "name": "groupId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID (required for PROJECT, STORE, USER scopes)",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Store ID (required for STORE, USER scopes)",
+                        "name": "storeId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID (required for USER scope)",
+                        "name": "userId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configuration for the specified version",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Configuration or version not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -536,7 +629,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "pkg_httpgateway.PublishRequest": {
+        "httpgateway.PublishRequest": {
             "type": "object",
             "properties": {
                 "projectId": {
@@ -556,7 +649,7 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_httpgateway.UpdateConfigRequest": {
+        "httpgateway.UpdateConfigRequest": {
             "type": "object",
             "properties": {
                 "fields": {

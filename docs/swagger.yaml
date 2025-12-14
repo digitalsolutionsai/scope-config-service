@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  pkg_httpgateway.PublishRequest:
+  httpgateway.PublishRequest:
     properties:
       projectId:
         type: string
@@ -13,7 +13,7 @@ definitions:
       version:
         type: integer
     type: object
-  pkg_httpgateway.UpdateConfigRequest:
+  httpgateway.UpdateConfigRequest:
     properties:
       fields:
         additionalProperties:
@@ -139,7 +139,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/pkg_httpgateway.UpdateConfigRequest'
+          $ref: '#/definitions/httpgateway.UpdateConfigRequest'
       produces:
       - application/json
       responses:
@@ -320,7 +320,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/pkg_httpgateway.PublishRequest'
+          $ref: '#/definitions/httpgateway.PublishRequest'
       produces:
       - application/json
       responses:
@@ -345,6 +345,72 @@ paths:
             additionalProperties: true
             type: object
       summary: Publish configuration version
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/version/{version}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves configuration values for a specific version number.
+        Similar to CLI 'get' command with --version flag. Useful for viewing historical configuration states.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Version number to retrieve
+        in: path
+        name: version
+        required: true
+        type: integer
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID (required for PROJECT, STORE, USER scopes)
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID (required for STORE, USER scopes)
+        in: query
+        name: storeId
+        type: string
+      - description: User ID (required for USER scope)
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configuration for the specified version
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration or version not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get configuration by specific version
       tags:
       - Configuration
   /config/{serviceName}/template:

@@ -179,6 +179,56 @@ func (g *Gateway) GetLatestConfig(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, response)
 }
 
+// GetConfigByVersion handles GET /api/v1/config/{serviceName}/scope/{scope}/version/{version}
+//
+// @Summary Get configuration by specific version
+// @Description Retrieves configuration values for a specific version number.
+// @Description Similar to CLI 'get' command with --version flag. Useful for viewing historical configuration states.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param version path int true "Version number to retrieve"
+// @Param groupId query string true "Configuration group ID"
+// @Param projectId query string false "Project ID (required for PROJECT, STORE, USER scopes)"
+// @Param storeId query string false "Store ID (required for STORE, USER scopes)"
+// @Param userId query string false "User ID (required for USER scope)"
+// @Success 200 {object} map[string]interface{} "Configuration for the specified version"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration or version not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope}/version/{version} [get]
+func (g *Gateway) GetConfigByVersion(w http.ResponseWriter, r *http.Request) {
+	serviceName := chi.URLParam(r, "serviceName")
+	scopeStr := chi.URLParam(r, "scope")
+	versionStr := chi.URLParam(r, "version")
+
+	identifier, err := buildIdentifier(serviceName, scopeStr, r)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	version, err := strconv.Atoi(versionStr)
+	if err != nil || version <= 0 {
+		WriteError(w, &validationError{message: "invalid version parameter: must be a positive integer"})
+		return
+	}
+
+	config, err := g.client.GetConfigByVersion(r.Context(), &configv1.GetConfigByVersionRequest{
+		Identifier: identifier,
+		Version:    int32(version),
+	})
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	response := convertConfigToJSON(config)
+	WriteJSON(w, http.StatusOK, response)
+}
+
 // GetConfigHistory handles GET /api/v1/config/{serviceName}/scope/{scope}/history
 //
 // @Summary Get configuration version history

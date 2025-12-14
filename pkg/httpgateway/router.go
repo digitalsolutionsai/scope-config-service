@@ -57,6 +57,7 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 		r.Get("/scope/{scope}", gateway.GetConfig)
 		r.Put("/scope/{scope}", gateway.UpdateConfig) // Update config values
 		r.Get("/scope/{scope}/latest", gateway.GetLatestConfig)
+		r.Get("/scope/{scope}/version/{version}", gateway.GetConfigByVersion) // Get config by specific version
 		r.Get("/scope/{scope}/history", gateway.GetConfigHistory)
 		r.Post("/scope/{scope}/publish", gateway.PublishConfig)
 	})
