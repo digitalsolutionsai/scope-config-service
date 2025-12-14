@@ -18,7 +18,7 @@
     "paths": {
         "/config/templates": {
             "get": {
-                "description": "Retrieves a list of configuration templates with optional filtering.",
+                "description": "Retrieves a list of active configuration templates. Only templates with is_active=true are returned.",
                 "consumes": [
                     "application/json"
                 ],
@@ -28,24 +28,18 @@
                 "tags": [
                     "Templates"
                 ],
-                "summary": "List configuration templates",
+                "summary": "List active configuration templates",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Filter by service name",
                         "name": "serviceName",
                         "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by active status (true/false)",
-                        "name": "isActive",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of templates",
+                        "description": "List of active templates",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -186,7 +180,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpgateway.UpdateConfigRequest"
+                            "$ref": "#/definitions/pkg_httpgateway.UpdateConfigRequest"
                         }
                     }
                 ],
@@ -441,7 +435,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpgateway.PublishRequest"
+                            "$ref": "#/definitions/pkg_httpgateway.PublishRequest"
                         }
                     }
                 ],
@@ -540,7 +534,7 @@
         }
     },
     "definitions": {
-        "httpgateway.PublishRequest": {
+        "pkg_httpgateway.PublishRequest": {
             "type": "object",
             "properties": {
                 "projectId": {
@@ -560,7 +554,7 @@
                 }
             }
         },
-        "httpgateway.UpdateConfigRequest": {
+        "pkg_httpgateway.UpdateConfigRequest": {
             "type": "object",
             "properties": {
                 "fields": {

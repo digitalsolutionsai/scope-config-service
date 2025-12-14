@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  httpgateway.PublishRequest:
+  pkg_httpgateway.PublishRequest:
     properties:
       projectId:
         type: string
@@ -13,7 +13,7 @@ definitions:
       version:
         type: integer
     type: object
-  httpgateway.UpdateConfigRequest:
+  pkg_httpgateway.UpdateConfigRequest:
     properties:
       fields:
         additionalProperties:
@@ -139,7 +139,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpgateway.UpdateConfigRequest'
+          $ref: '#/definitions/pkg_httpgateway.UpdateConfigRequest'
       produces:
       - application/json
       responses:
@@ -320,7 +320,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpgateway.PublishRequest'
+          $ref: '#/definitions/pkg_httpgateway.PublishRequest'
       produces:
       - application/json
       responses:
@@ -395,21 +395,18 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves a list of configuration templates with optional filtering.
+      description: Retrieves a list of active configuration templates. Only templates
+        with is_active=true are returned.
       parameters:
       - description: Filter by service name
         in: query
         name: serviceName
         type: string
-      - description: Filter by active status (true/false)
-        in: query
-        name: isActive
-        type: boolean
       produces:
       - application/json
       responses:
         "200":
-          description: List of templates
+          description: List of active templates
           schema:
             additionalProperties: true
             type: object
@@ -418,7 +415,7 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: List configuration templates
+      summary: List active configuration templates
       tags:
       - Templates
 schemes:

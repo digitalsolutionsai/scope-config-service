@@ -20,7 +20,7 @@ const docTemplate = `{
     "paths": {
         "/config/templates": {
             "get": {
-                "description": "Retrieves a list of configuration templates with optional filtering.",
+                "description": "Retrieves a list of active configuration templates. Only templates with is_active=true are returned.",
                 "consumes": [
                     "application/json"
                 ],
@@ -30,24 +30,18 @@ const docTemplate = `{
                 "tags": [
                     "Templates"
                 ],
-                "summary": "List configuration templates",
+                "summary": "List active configuration templates",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Filter by service name",
                         "name": "serviceName",
                         "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by active status (true/false)",
-                        "name": "isActive",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of templates",
+                        "description": "List of active templates",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -188,7 +182,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpgateway.UpdateConfigRequest"
+                            "$ref": "#/definitions/pkg_httpgateway.UpdateConfigRequest"
                         }
                     }
                 ],
@@ -443,7 +437,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpgateway.PublishRequest"
+                            "$ref": "#/definitions/pkg_httpgateway.PublishRequest"
                         }
                     }
                 ],
@@ -542,7 +536,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "httpgateway.PublishRequest": {
+        "pkg_httpgateway.PublishRequest": {
             "type": "object",
             "properties": {
                 "projectId": {
@@ -562,7 +556,7 @@ const docTemplate = `{
                 }
             }
         },
-        "httpgateway.UpdateConfigRequest": {
+        "pkg_httpgateway.UpdateConfigRequest": {
             "type": "object",
             "properties": {
                 "fields": {

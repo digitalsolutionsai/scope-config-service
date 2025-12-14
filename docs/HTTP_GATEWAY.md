@@ -130,25 +130,21 @@ The `userName` field is **required** for audit trail purposes.
 
 ### List Templates
 
-Retrieves a list of all configuration templates, including their group IDs, labels, and descriptions. This is useful for populating a "Select Group" dropdown in a UI.
+Retrieves a list of **active** configuration templates, including their group IDs, labels, and descriptions. This is useful for populating a "Select Group" dropdown in a UI. Only templates with `is_active=true` are returned.
 
 **Endpoint:** `GET /api/v1/config/templates`
 
 **Query Parameters:**
 - `serviceName` (optional): Filter templates by service name
-- `isActive` (optional): Filter by active status (`true` or `false`). If not specified, returns all templates.
 
 **Example Request:**
 
 ```bash
-# Get all templates
+# Get all active templates
 curl -X GET "http://localhost:8080/api/v1/config/templates"
 
-# Get only active templates
-curl -X GET "http://localhost:8080/api/v1/config/templates?isActive=true"
-
-# Get templates for a specific service
-curl -X GET "http://localhost:8080/api/v1/config/templates?serviceName=payment&isActive=true"
+# Get active templates for a specific service
+curl -X GET "http://localhost:8080/api/v1/config/templates?serviceName=payment"
 ```
 
 **Example Response:**

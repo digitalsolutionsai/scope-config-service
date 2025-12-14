@@ -21,28 +21,23 @@ func NewGateway(client configv1.ConfigServiceClient) *Gateway {
 
 // ListTemplates handles GET /api/v1/config/templates
 //
-// @Summary List configuration templates
-// @Description Retrieves a list of configuration templates with optional filtering.
+// @Summary List active configuration templates
+// @Description Retrieves a list of active configuration templates. Only templates with is_active=true are returned.
 // @Tags Templates
 // @Accept json
 // @Produce json
 // @Param serviceName query string false "Filter by service name"
-// @Param isActive query boolean false "Filter by active status (true/false)"
-// @Success 200 {object} map[string]interface{} "List of templates"
+// @Success 200 {object} map[string]interface{} "List of active templates"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /config/templates [get]
 func (g *Gateway) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	serviceName := r.URL.Query().Get("serviceName")
-	isActiveStr := r.URL.Query().Get("isActive")
 
+	// Always filter for active templates only
+	isActive := true
 	req := &configv1.ListConfigTemplatesRequest{
 		ServiceName: serviceName,
-	}
-
-	// Parse isActive filter if provided
-	if isActiveStr != "" {
-		isActive := isActiveStr == "true"
-		req.IsActive = &isActive
+		IsActive:    &isActive,
 	}
 
 	resp, err := g.client.ListConfigTemplates(r.Context(), req)
