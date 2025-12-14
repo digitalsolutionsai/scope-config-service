@@ -35,6 +35,9 @@ service ConfigService {
 
   // Retrieves the configuration template for a given identifier.
   rpc GetConfigTemplate(GetConfigTemplateRequest) returns (ConfigTemplate);
+
+  // Retrieves a list of configuration templates.
+  rpc ListConfigTemplates(ListConfigTemplatesRequest) returns (ListConfigTemplatesResponse);
 }
 
 // === ENUMS ===
@@ -180,3 +183,13 @@ message ApplyConfigTemplateRequest {
 message GetConfigTemplateRequest {
   ConfigIdentifier identifier = 1;
 }
+
+message ListConfigTemplatesRequest {
+  // Optional: Filter by service name.
+  string service_name = 1;
+}
+
+message ListConfigTemplatesResponse {
+  repeated ConfigTemplate templates = 1;
+}
+

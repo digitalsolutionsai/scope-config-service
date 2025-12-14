@@ -19,6 +19,24 @@ func NewGateway(client configv1.ConfigServiceClient) *Gateway {
 	return &Gateway{client: client}
 }
 
+// ListTemplates handles GET /api/v1/templates
+// Query parameters:
+//   - serviceName (optional): Filter by service name
+func (g *Gateway) ListTemplates(w http.ResponseWriter, r *http.Request) {
+	serviceName := r.URL.Query().Get("serviceName")
+
+	resp, err := g.client.ListConfigTemplates(r.Context(), &configv1.ListConfigTemplatesRequest{
+		ServiceName: serviceName,
+	})
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	response := convertTemplateListToJSON(resp)
+	WriteJSON(w, http.StatusOK, response)
+}
+
 // GetTemplate handles GET /api/v1/config/{serviceName}/template
 //
 // @Summary Get configuration template

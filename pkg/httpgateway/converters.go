@@ -193,3 +193,17 @@ func convertVersionToJSON(version *configv1.ConfigVersion) VersionResponse {
 
 	return response
 }
+
+// TemplateListResponse represents a list of templates.
+type TemplateListResponse struct {
+	Templates []TemplateResponse `json:"templates"`
+}
+
+// convertTemplateListToJSON converts a gRPC template list response to a clean JSON format.
+func convertTemplateListToJSON(list *configv1.ListConfigTemplatesResponse) TemplateListResponse {
+	templates := make([]TemplateResponse, len(list.Templates))
+	for i, tmpl := range list.Templates {
+		templates[i] = convertTemplateToJSON(tmpl)
+	}
+	return TemplateListResponse{Templates: templates}
+}

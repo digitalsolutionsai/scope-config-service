@@ -39,6 +39,9 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 		r.Use(config.AuthMiddleware.Middleware)
 	}
 
+	// Global template list
+	r.Get("/api/v1/templates", gateway.ListTemplates)
+
 	// Swagger UI endpoint - accessible without authentication
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),

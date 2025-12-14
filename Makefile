@@ -55,6 +55,10 @@ down:
 	@echo "Stopping services..."
 	@docker compose -f compose.postgres.yml -f compose.yml down
 
+ps:
+	@echo "Listing running containers..."
+	@docker compose -f compose.postgres.yml -f compose.yml ps
+
 # ====================================================================================
 # DATABASE
 # ====================================================================================

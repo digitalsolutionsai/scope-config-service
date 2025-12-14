@@ -7,6 +7,7 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
 - [Getting Started](#getting-started)
 - [Authentication](#authentication)
 - [API Endpoints](#api-endpoints)
+  - [List Templates](#list-templates)
   - [Get Template](#get-template)
   - [Get Configuration (Published)](#get-configuration-published)
   - [Get Configuration (Latest)](#get-configuration-latest)
@@ -112,12 +113,11 @@ curl -X GET "https://gateway.example.com/config/payment-service/template?groupId
 When publishing configurations, you can provide `userName` in the request body for audit logging:
 
 ```bash
-curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/publish?groupId=stripe" \
+curl -X POST "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/publish?groupId=payment-methods" \
   -H "Content-Type: application/json" \
   -d '{
     "version": 5,
-    "userName": "user@example.com",
-    "projectId": "proj-123"
+    "userName": "user@example.com"
   }'
 ```
 
@@ -126,6 +126,48 @@ The `userName` field is **required** for audit trail purposes.
 ---
 
 ## API Endpoints
+
+### List Templates
+
+Retrieves a list of all configuration templates, including their group IDs, labels, and descriptions. This is useful for populating a "Select Group" dropdown in a UI.
+
+**Endpoint:** `GET /api/v1/templates`
+
+**Query Parameters:**
+- `serviceName` (optional): Filter templates by service name
+
+**Example Request:**
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/templates"
+```
+
+**Example Response:**
+
+```json
+{
+  "templates": [
+    {
+      "serviceName": "payment",
+      "serviceLabel": "Payment Service",
+      "groupId": "payment-methods",
+      "groupLabel": "Payment Methods",
+      "description": "Configuration for available payment methods.",
+      "fields": [...]
+    },
+    {
+      "serviceName": "api-gateway",
+      "serviceLabel": "API Gateway",
+      "groupId": "default-rate-limit",
+      "groupLabel": "Rate Limits",
+      "description": "Global rate limiting settings.",
+      "fields": [...]
+    }
+  ]
+}
+```
+
+---
 
 ### Get Template
 
@@ -141,57 +183,51 @@ Retrieves the template (schema) for a specific service and group. This is essent
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment/template?groupId=payment-methods"
 ```
 
 **Example Response:**
 
 ```json
 {
-  "serviceName": "payment-service",
+  "serviceName": "payment",
   "serviceLabel": "Payment Service",
-  "groupId": "stripe",
-  "groupLabel": "Stripe Configuration",
-  "description": "Stripe payment gateway settings and API configurations",
+  "groupId": "payment-methods",
+  "groupLabel": "Payment Methods",
+  "description": "Configuration for available payment methods.",
   "fields": [
     {
-      "path": "stripe.apiKey",
-      "label": "API Key",
-      "description": "Your Stripe API key for authentication",
-      "type": "STRING",
-      "defaultValue": "",
-      "displayOn": ["SYSTEM", "PROJECT"],
-      "options": []
-    },
-    {
-      "path": "stripe.webhookSecret",
-      "label": "Webhook Secret",
-      "description": "Secret for validating Stripe webhook signatures",
-      "type": "STRING",
-      "defaultValue": "",
-      "displayOn": ["SYSTEM", "PROJECT"],
-      "options": []
-    },
-    {
-      "path": "stripe.captureMethod",
-      "label": "Capture Method",
-      "description": "When to capture payment",
-      "type": "STRING",
-      "defaultValue": "automatic",
-      "displayOn": ["SYSTEM", "PROJECT", "STORE"],
-      "options": [
-        {"value": "automatic", "label": "Automatic"},
-        {"value": "manual", "label": "Manual"}
+      "path": "methods/credit-card",
+      "label": "Credit Card",
+      "description": "Credit card payment method",
+      "type": "BOOLEAN",
+      "defaultValue": "true",
+      "displayOn": [
+        "SYSTEM",
+        "USER"
       ]
     },
     {
-      "path": "stripe.enabled",
-      "label": "Enable Stripe",
-      "description": "Enable or disable Stripe payment method",
+      "path": "methods/paypal",
+      "label": "PayPal",
+      "description": "PayPal payment method",
       "type": "BOOLEAN",
       "defaultValue": "true",
-      "displayOn": ["SYSTEM", "PROJECT", "STORE"],
-      "options": []
+      "displayOn": [
+        "SYSTEM",
+        "USER"
+      ]
+    },
+    {
+      "path": "methods/stripe",
+      "label": "Stripe",
+      "description": "Stripe payment method",
+      "type": "BOOLEAN",
+      "defaultValue": "false",
+      "displayOn": [
+        "SYSTEM",
+        "USER"
+      ]
     }
   ]
 }
@@ -224,38 +260,36 @@ Retrieves the **published** (active) configuration for a specific service, group
 - `storeId` (conditional): Required if scope is `STORE` or `USER`
 - `userId` (conditional): Required if scope is `USER`
 
-**Example Request (PROJECT scope):**
+**Example Request (SYSTEM scope):**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?groupId=stripe&projectId=proj-123"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM?groupId=payment-methods"
 ```
 
 **Example Response:**
 
 ```json
 {
-  "serviceName": "payment-service",
-  "scope": "PROJECT",
-  "groupId": "stripe",
-  "projectId": "proj-123",
+  "serviceName": "payment",
+  "scope": "SYSTEM",
+  "groupId": "payment-methods",
   "currentVersion": 3,
   "latestVersion": 5,
   "publishedVersion": 3,
   "fields": {
-    "stripe.apiKey": "sk_live_abc123...",
-    "stripe.webhookSecret": "whsec_xyz789...",
-    "stripe.captureMethod": "automatic",
-    "stripe.enabled": "true"
+    "methods/credit-card": "true",
+    "methods/paypal": "true",
+    "methods/stripe": "false"
   },
   "createdAt": "2024-01-15T10:30:00Z",
   "updatedAt": "2024-02-20T14:45:00Z"
 }
 ```
 
-**Example Request (STORE scope):**
+**Example Request (USER scope):**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/STORE?groupId=stripe&projectId=proj-123&storeId=store-456"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/USER?groupId=payment-methods&userId=user-456"
 ```
 
 ---
@@ -271,25 +305,23 @@ Retrieves the **latest** configuration (including unpublished changes) for a spe
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/latest?groupId=stripe&projectId=proj-123"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/latest?groupId=payment-methods"
 ```
 
 **Example Response:**
 
 ```json
 {
-  "serviceName": "payment-service",
-  "scope": "PROJECT",
-  "groupId": "stripe",
-  "projectId": "proj-123",
+  "serviceName": "payment",
+  "scope": "SYSTEM",
+  "groupId": "payment-methods",
   "currentVersion": 5,
   "latestVersion": 5,
   "publishedVersion": 3,
   "fields": {
-    "stripe.apiKey": "sk_live_abc123...",
-    "stripe.webhookSecret": "whsec_xyz789...",
-    "stripe.captureMethod": "manual",
-    "stripe.enabled": "true"
+    "methods/credit-card": "true",
+    "methods/paypal": "true",
+    "methods/stripe": "true"
   },
   "createdAt": "2024-01-15T10:30:00Z",
   "updatedAt": "2024-03-01T09:15:00Z"
@@ -314,7 +346,7 @@ Retrieves the version history for a configuration, showing who made changes and 
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/history?groupId=stripe&projectId=proj-123&limit=5"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/history?groupId=payment-methods&limit=5"
 ```
 
 **Example Response:**
@@ -382,12 +414,11 @@ Publishes a specific version of the configuration, making it the active version 
 **Example Request:**
 
 ```bash
-curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/publish?groupId=stripe" \
+curl -X POST "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/publish?groupId=payment-methods" \
   -H "Content-Type: application/json" \
   -d '{
     "version": 5,
-    "userName": "alice@example.com",
-    "projectId": "proj-123"
+    "userName": "alice@example.com"
   }'
 ```
 
@@ -395,10 +426,9 @@ curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/
 
 ```json
 {
-  "serviceName": "payment-service",
-  "scope": "PROJECT",
-  "groupId": "stripe",
-  "projectId": "proj-123",
+  "serviceName": "payment",
+  "scope": "SYSTEM",
+  "groupId": "payment-methods",
   "latestVersion": 5,
   "publishedVersion": 5,
   "createdAt": "2024-01-15T10:30:00Z",
@@ -438,7 +468,7 @@ The HTTP Gateway translates gRPC errors to appropriate HTTP status codes with JS
 
 **Missing Required Parameter:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/template"
+curl -X GET "http://localhost:8080/api/v1/config/payment/template"
 ```
 
 Response (400 Bad Request):
@@ -452,7 +482,7 @@ Response (400 Bad Request):
 
 **Invalid Scope:**
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/INVALID?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/INVALID?groupId=payment-methods"
 ```
 
 Response (400 Bad Request):
@@ -489,7 +519,7 @@ This workflow demonstrates how a frontend application would use the API to rende
 **Step 1: Fetch the template to understand available fields**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/template?groupId=stripe"
+curl -X GET "http://localhost:8080/api/v1/config/payment/template?groupId=payment-methods"
 ```
 
 The response tells you:
@@ -502,7 +532,7 @@ The response tells you:
 **Step 2: Fetch current configuration values**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?groupId=stripe&projectId=proj-123"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM?groupId=payment-methods"
 ```
 
 This returns the current published values, which you use to pre-populate the form.
@@ -514,18 +544,17 @@ This would typically call the gRPC `UpdateConfig` method (not exposed in HTTP ga
 **Step 4: Review version history**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/history?groupId=stripe&projectId=proj-123"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/history?groupId=payment-methods"
 ```
 
 **Step 5: Publish the new version**
 
 ```bash
-curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/publish?groupId=stripe" \
+curl -X POST "http://localhost:8080/api/v1/config/payment/scope/SYSTEM/publish?groupId=payment-methods" \
   -H "Content-Type: application/json" \
   -d '{
     "version": 6,
-    "userName": "alice@example.com",
-    "projectId": "proj-123"
+    "userName": "alice@example.com"
   }'
 ```
 
@@ -535,37 +564,83 @@ curl -X POST "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT/
 
 This example shows how configuration can be set at different scope levels.
 
-**System-Level Configuration (Defaults for all projects):**
+**System-Level Configuration (Defaults for all):**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/SYSTEM?groupId=stripe"
-```
-
-**Project-Level Configuration (Override for specific project):**
-
-```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/PROJECT?groupId=stripe&projectId=proj-123"
-```
-
-**Store-Level Configuration (Override for specific store within a project):**
-
-```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/STORE?groupId=stripe&projectId=proj-123&storeId=store-456"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM?groupId=payment-methods"
 ```
 
 **User-Level Configuration (User-specific settings):**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/config/payment-service/scope/USER?groupId=stripe&projectId=proj-123&storeId=store-456&userId=user-789"
+curl -X GET "http://localhost:8080/api/v1/config/payment/scope/USER?groupId=payment-methods&userId=user-789"
 ```
 
+*Note: Other services (like `api-gateway`) may support additional scopes like PROJECT or STORE if defined in their template.*
+
+
 ---
+
+### Workflow 3: API Gateway Rate Limiting (Project Scope)
+
+This workflow demonstrates how **infrastructure settings** (like rate limits) often use the `PROJECT` scope to allow overrides for specific applications.
+
+**Step 1: Check System Defaults**
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/config/api-gateway/scope/SYSTEM?groupId=default-rate-limit"
+```
+
+Response (Global Defaults):
+```json
+{
+  "serviceName": "api-gateway",
+  "scope": "SYSTEM",
+  "groupId": "default-rate-limit",
+  "fields": {
+    "capacity": "1000",
+    "is-active": "true",
+    "refill-duration-in-seconds": "10",
+    "refill-tokens": "100",
+    "url-pattern": "/**"
+  }
+}
+```
+
+**Step 2: Check Project-Specific Override**
+
+High-traffic projects can have their own configuration group overrides.
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/config/api-gateway/scope/PROJECT?groupId=default-rate-limit&projectId=high-traffic-app"
+```
+
+Response (Project Override):
+```json
+{
+  "serviceName": "api-gateway",
+  "scope": "PROJECT",
+  "groupId": "default-rate-limit",
+  "projectId": "high-traffic-app",
+  "fields": {
+    "capacity": "5000",
+    "is-active": "true",
+    "refill-duration-in-seconds": "10",
+    "refill-tokens": "500",
+    "url-pattern": "/**"
+  }
+}
+```
+*Note: The `capacity` (5000) and `refill-tokens` (500) are higher than the system defaults.*
+
+---
+
 
 ## Testing the API
 
 You can use the provided examples with `curl`, or use tools like:
 - **Postman**: Import the examples as a collection
-- **HTTPie**: `http GET localhost:8080/api/v1/config/payment-service/template groupId==stripe`
+- **HTTPie**: `http GET localhost:8080/api/v1/config/payment/template groupId==payment-methods`
 - **Browser**: For GET requests, simply paste the URL
 
 ### Health Check
