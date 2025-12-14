@@ -1205,7 +1205,9 @@ func (x *GetConfigTemplateRequest) GetIdentifier() *ConfigIdentifier {
 type ListConfigTemplatesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional: Filter by service name.
-	ServiceName   string `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	ServiceName string `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	// Optional: Filter by is_active status. If not set, returns all templates.
+	IsActive      *bool `protobuf:"varint,2,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1245,6 +1247,13 @@ func (x *ListConfigTemplatesRequest) GetServiceName() string {
 		return x.ServiceName
 	}
 	return ""
+}
+
+func (x *ListConfigTemplatesRequest) GetIsActive() bool {
+	if x != nil && x.IsActive != nil {
+		return *x.IsActive
+	}
+	return false
 }
 
 type ListConfigTemplatesResponse struct {

@@ -39,13 +39,13 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 		r.Use(config.AuthMiddleware.Middleware)
 	}
 
-	// Global template list
-	r.Get("/api/v1/templates", gateway.ListTemplates)
-
 	// Swagger UI endpoint - accessible without authentication
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 	))
+
+	// Global templates list endpoint
+	r.Get("/api/v1/config/templates", gateway.ListTemplates)
 
 	// API routes - all under /api/v1/config/{serviceName} for consistent path-based routing
 	// Each service has one template, so template is nested under service path
@@ -55,6 +55,7 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 
 		// Config routes - manage configurations for this service
 		r.Get("/scope/{scope}", gateway.GetConfig)
+		r.Put("/scope/{scope}", gateway.UpdateConfig) // Update config values
 		r.Get("/scope/{scope}/latest", gateway.GetLatestConfig)
 		r.Get("/scope/{scope}/history", gateway.GetConfigHistory)
 		r.Post("/scope/{scope}/publish", gateway.PublishConfig)

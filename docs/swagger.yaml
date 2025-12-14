@@ -13,6 +13,22 @@ definitions:
       version:
         type: integer
     type: object
+  httpgateway.UpdateConfigRequest:
+    properties:
+      fields:
+        additionalProperties:
+          type: string
+        description: map of path -> value
+        type: object
+      projectId:
+        type: string
+      storeId:
+        type: string
+      userId:
+        type: string
+      userName:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -94,6 +110,60 @@ paths:
             additionalProperties: true
             type: object
       summary: Get published configuration
+      tags:
+      - Configuration
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Updates or creates configuration values for a specific service, group, and scope.
+        Similar to the CLI 'set' command. Creates a new version with the updated values.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Configuration update request with field values
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpgateway.UpdateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated configuration with new version
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update configuration values
       tags:
       - Configuration
   /config/{serviceName}/scope/{scope}/history:
@@ -319,6 +389,36 @@ paths:
             additionalProperties: true
             type: object
       summary: Get configuration template
+      tags:
+      - Templates
+  /config/templates:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of configuration templates with optional filtering.
+      parameters:
+      - description: Filter by service name
+        in: query
+        name: serviceName
+        type: string
+      - description: Filter by active status (true/false)
+        in: query
+        name: isActive
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of templates
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List configuration templates
       tags:
       - Templates
 schemes:

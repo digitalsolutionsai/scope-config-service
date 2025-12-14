@@ -187,6 +187,8 @@ message GetConfigTemplateRequest {
 message ListConfigTemplatesRequest {
   // Optional: Filter by service name.
   string service_name = 1;
+  // Optional: Filter by is_active status. If not set, returns all templates.
+  optional bool is_active = 2;
 }
 
 message ListConfigTemplatesResponse {

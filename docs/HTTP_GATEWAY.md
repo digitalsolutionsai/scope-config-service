@@ -10,6 +10,7 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
   - [List Templates](#list-templates)
   - [Get Template](#get-template)
   - [Get Configuration (Published)](#get-configuration-published)
+  - [Update Configuration](#update-configuration)
   - [Get Configuration (Latest)](#get-configuration-latest)
   - [Get Version History](#get-version-history)
   - [Publish Configuration](#publish-configuration)
@@ -131,15 +132,23 @@ The `userName` field is **required** for audit trail purposes.
 
 Retrieves a list of all configuration templates, including their group IDs, labels, and descriptions. This is useful for populating a "Select Group" dropdown in a UI.
 
-**Endpoint:** `GET /api/v1/templates`
+**Endpoint:** `GET /api/v1/config/templates`
 
 **Query Parameters:**
 - `serviceName` (optional): Filter templates by service name
+- `isActive` (optional): Filter by active status (`true` or `false`). If not specified, returns all templates.
 
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/templates"
+# Get all templates
+curl -X GET "http://localhost:8080/api/v1/config/templates"
+
+# Get only active templates
+curl -X GET "http://localhost:8080/api/v1/config/templates?isActive=true"
+
+# Get templates for a specific service
+curl -X GET "http://localhost:8080/api/v1/config/templates?serviceName=payment&isActive=true"
 ```
 
 **Example Response:**
@@ -291,6 +300,96 @@ curl -X GET "http://localhost:8080/api/v1/config/payment/scope/SYSTEM?groupId=pa
 ```bash
 curl -X GET "http://localhost:8080/api/v1/config/payment/scope/USER?groupId=payment-methods&userId=user-456"
 ```
+
+---
+
+### Update Configuration
+
+Updates or creates configuration values for a specific service, group, and scope. This endpoint is similar to the CLI `set` command and creates a new version with the updated values.
+
+**Endpoint:** `PUT /api/v1/config/{serviceName}/scope/{scope}`
+
+**Path Parameters:**
+- `serviceName`: Name of the service
+- `scope`: One of `SYSTEM`, `PROJECT`, `STORE`, or `USER`
+
+**Query Parameters:**
+- `groupId` (required): The configuration group ID
+
+**Request Body:**
+
+```json
+{
+  "fields": {
+    "path.to.field1": "value1",
+    "path.to.field2": "value2"
+  },
+  "userName": "user@example.com",
+  "projectId": "project-123",  // Required for PROJECT, STORE, USER scopes
+  "storeId": "store-456",      // Required for STORE, USER scopes
+  "userId": "user-789"         // Required for USER scope
+}
+```
+
+**Example Request (SYSTEM scope):**
+
+```bash
+curl -X PUT "http://localhost:8080/api/v1/config/billing-service/scope/SYSTEM?groupId=stripe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fields": {
+      "stripe.apiKey": "sk_test_123456",
+      "stripe.webhookSecret": "whsec_abcdef"
+    },
+    "userName": "admin@example.com"
+  }'
+```
+
+**Example Request (PROJECT scope):**
+
+```bash
+curl -X PUT "http://localhost:8080/api/v1/config/billing-service/scope/PROJECT?groupId=stripe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fields": {
+      "stripe.apiKey": "sk_live_project_key"
+    },
+    "userName": "developer@example.com",
+    "projectId": "project-123"
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+  "serviceName": "billing-service",
+  "scope": "SYSTEM",
+  "groupId": "stripe",
+  "currentVersion": 4,
+  "latestVersion": 4,
+  "publishedVersion": 3,
+  "fields": {
+    "stripe.apiKey": "sk_test_123456",
+    "stripe.webhookSecret": "whsec_abcdef"
+  },
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-03-15T14:20:00Z",
+  "updatedBy": "admin@example.com"
+}
+```
+
+**Response Details:**
+- A new version is created (version 4 in this example)
+- `currentVersion` and `latestVersion` are updated to the new version
+- `publishedVersion` remains unchanged until explicitly published
+- The updated fields are returned along with all other fields from the template defaults
+
+**Use Cases:**
+- Setting initial configuration values
+- Updating existing configuration values
+- Creating configuration overrides at different scopes (PROJECT, STORE, USER)
+- Similar to CLI command: `config-cli set --service-name=billing-service --scope=PROJECT --project-id=project-123 --group-id=stripe stripe.apiKey=sk_live_key`
 
 ---
 

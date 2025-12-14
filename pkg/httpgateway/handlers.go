@@ -19,15 +19,33 @@ func NewGateway(client configv1.ConfigServiceClient) *Gateway {
 	return &Gateway{client: client}
 }
 
-// ListTemplates handles GET /api/v1/templates
-// Query parameters:
-//   - serviceName (optional): Filter by service name
+// ListTemplates handles GET /api/v1/config/templates
+//
+// @Summary List configuration templates
+// @Description Retrieves a list of configuration templates with optional filtering.
+// @Tags Templates
+// @Accept json
+// @Produce json
+// @Param serviceName query string false "Filter by service name"
+// @Param isActive query boolean false "Filter by active status (true/false)"
+// @Success 200 {object} map[string]interface{} "List of templates"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/templates [get]
 func (g *Gateway) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	serviceName := r.URL.Query().Get("serviceName")
+	isActiveStr := r.URL.Query().Get("isActive")
 
-	resp, err := g.client.ListConfigTemplates(r.Context(), &configv1.ListConfigTemplatesRequest{
+	req := &configv1.ListConfigTemplatesRequest{
 		ServiceName: serviceName,
-	})
+	}
+
+	// Parse isActive filter if provided
+	if isActiveStr != "" {
+		isActive := isActiveStr == "true"
+		req.IsActive = &isActive
+	}
+
+	resp, err := g.client.ListConfigTemplates(r.Context(), req)
 	if err != nil {
 		WriteError(w, err)
 		return
@@ -298,6 +316,113 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, response)
 }
 
+// UpdateConfig handles PUT /api/v1/config/{serviceName}/scope/{scope}
+//
+// @Summary Update configuration values
+// @Description Updates or creates configuration values for a specific service, group, and scope.
+// @Description Similar to the CLI 'set' command. Creates a new version with the updated values.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param groupId query string true "Configuration group ID"
+// @Param body body UpdateConfigRequest true "Configuration update request with field values"
+// @Success 200 {object} map[string]interface{} "Updated configuration with new version"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope} [put]
+func (g *Gateway) UpdateConfig(w http.ResponseWriter, r *http.Request) {
+	serviceName := chi.URLParam(r, "serviceName")
+	scopeStr := chi.URLParam(r, "scope")
+
+	var req UpdateConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &validationError{message: "invalid JSON body"})
+		return
+	}
+
+	if len(req.Fields) == 0 {
+		WriteError(w, &validationError{message: "fields cannot be empty"})
+		return
+	}
+
+	scope, err := parseScope(scopeStr)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	groupId := r.URL.Query().Get("groupId")
+	if groupId == "" {
+		WriteError(w, &validationError{message: "groupId query parameter is required"})
+		return
+	}
+
+	// Use authenticated user email if userName not provided in request body
+	userName := req.UserName
+	if userName == "" {
+		userName = GetUserEmail(r.Context())
+	}
+
+	// If still empty (no auth), require it
+	if userName == "" {
+		WriteError(w, &validationError{message: "userName is required"})
+		return
+	}
+
+	identifier := &configv1.ConfigIdentifier{
+		ServiceName: serviceName,
+		Scope:       scope,
+		GroupId:     groupId,
+		ProjectId:   req.ProjectId,
+		StoreId:     req.StoreId,
+		UserId:      req.UserId,
+	}
+
+	// Validate scope-specific IDs
+	switch scope {
+	case configv1.Scope_PROJECT:
+		if identifier.ProjectId == "" {
+			WriteError(w, &validationError{message: "projectId is required for PROJECT scope"})
+			return
+		}
+	case configv1.Scope_STORE:
+		if identifier.StoreId == "" {
+			WriteError(w, &validationError{message: "storeId is required for STORE scope"})
+			return
+		}
+	case configv1.Scope_USER:
+		if identifier.UserId == "" {
+			WriteError(w, &validationError{message: "userId is required for USER scope"})
+			return
+		}
+	}
+
+	// Convert fields map to ConfigField array
+	var fields []*configv1.ConfigField
+	for path, value := range req.Fields {
+		fields = append(fields, &configv1.ConfigField{
+			Path:  path,
+			Value: value,
+		})
+	}
+
+	updateResp, err := g.client.UpdateConfig(r.Context(), &configv1.UpdateConfigRequest{
+		Identifier: identifier,
+		Fields:     fields,
+		User:       userName,
+	})
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	response := convertConfigToJSON(updateResp)
+	WriteJSON(w, http.StatusOK, response)
+}
+
 // PublishRequest represents the request body for publishing a configuration.
 type PublishRequest struct {
 	Version   int32  `json:"version"`
@@ -305,6 +430,15 @@ type PublishRequest struct {
 	ProjectId string `json:"projectId,omitempty"`
 	StoreId   string `json:"storeId,omitempty"`
 	UserId    string `json:"userId,omitempty"`
+}
+
+// UpdateConfigRequest represents the request body for updating configuration values.
+type UpdateConfigRequest struct {
+	Fields    map[string]string `json:"fields"` // map of path -> value
+	UserName  string            `json:"userName"`
+	ProjectId string            `json:"projectId,omitempty"`
+	StoreId   string            `json:"storeId,omitempty"`
+	UserId    string            `json:"userId,omitempty"`
 }
 
 // validationError is used for validation errors.
