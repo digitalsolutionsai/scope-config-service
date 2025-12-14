@@ -232,6 +232,55 @@ func (g *Gateway) GetConfigHistory(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, response)
 }
 
+// GetConfigByVersion handles GET /api/v1/config/{serviceName}/scope/{scope}/version/{version}
+//
+// @Summary Get configuration by version
+// @Description Retrieves a specific version of the configuration.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level"
+// @Param version path int true "Version number"
+// @Param groupId query string true "Configuration group ID"
+// @Param projectId query string false "Project ID"
+// @Param storeId query string false "Store ID"
+// @Param userId query string false "User ID"
+// @Success 200 {object} map[string]interface{} "Configuration version details"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope}/version/{version} [get]
+func (g *Gateway) GetConfigByVersion(w http.ResponseWriter, r *http.Request) {
+	serviceName := chi.URLParam(r, "serviceName")
+	scopeStr := chi.URLParam(r, "scope")
+	versionStr := chi.URLParam(r, "version")
+
+	version, err := strconv.Atoi(versionStr)
+	if err != nil || version <= 0 {
+		WriteError(w, &validationError{message: "invalid version number"})
+		return
+	}
+
+	identifier, err := buildIdentifier(serviceName, scopeStr, r)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	config, err := g.client.GetConfigByVersion(r.Context(), &configv1.GetConfigByVersionRequest{
+		Identifier: identifier,
+		Version:    int32(version),
+	})
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	response := convertConfigToJSON(config)
+	WriteJSON(w, http.StatusOK, response)
+}
+
 // PublishConfig handles POST /api/v1/config/{serviceName}/scope/{scope}/publish
 //
 // @Summary Publish configuration version
