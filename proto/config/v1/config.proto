@@ -58,6 +58,7 @@ enum FieldType {
   BOOLEAN = 4;
   JSON = 5;
   ARRAY_STRING = 6; // Example for an array type
+  SECRET = 7;       // Sensitive field - UI should mask/hide value
 }
 
 // === MODELS ===
