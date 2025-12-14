@@ -7,22 +7,23 @@ set -e
 # --- Dependency Check ---
 echo "Checking for required tools..."
 
-# Check for buf
-if ! command -v buf &> /dev/null; then
-    echo "Error: 'buf' is not installed. Please install it to continue."
-    echo "See installation instructions: https://buf.build/docs/installation"
-    exit 1
-fi
-
 # Check for go
 if ! command -v go &> /dev/null; then
     echo "Error: 'go' is not installed. Please install it to continue."
     exit 1
 fi
 
-# Check for protoc-gen-go and protoc-gen-go-grpc.
+# Add the Go bin directory to the PATH early so we can find installed tools like buf.
 GOPATH_VAL=$(go env GOPATH)
 GO_BIN_PATH="$GOPATH_VAL/bin"
+export PATH="$PATH:$GO_BIN_PATH"
+
+# Check for buf
+if ! command -v buf &> /dev/null; then
+    echo "Error: 'buf' is not installed. Please install it to continue."
+    echo "See installation instructions: https://buf.build/docs/installation"
+    exit 1
+fi
 
 if ! command -v protoc-gen-go &> /dev/null && [ ! -f "$GO_BIN_PATH/protoc-gen-go" ]; then
     echo "Error: 'protoc-gen-go' is not installed or not in your PATH."
@@ -37,11 +38,11 @@ if ! command -v protoc-gen-go-grpc &> /dev/null && [ ! -f "$GO_BIN_PATH/protoc-g
 fi
 
 # Check for the grpcio-tools Python package.
-if ! python3 -c "import grpc_tools.protoc" &> /dev/null; then
-    echo "Error: 'grpcio-tools' Python package is not installed."
-    echo "Install it by running: pip install grpcio-tools"
-    exit 1
-fi
+# if ! python3 -c "import grpc_tools.protoc" &> /dev/null; then
+#     echo "Error: 'grpcio-tools' Python package is not installed."
+#     echo "Install it by running: pip install grpcio-tools"
+#     exit 1
+# fi
 
 echo "All required tools are available."
 # --- End Dependency Check ---
@@ -55,20 +56,20 @@ buf generate
 echo "Go protobuf code generated successfully."
 
 # --- Python Protobuf Generation ---
-echo "Generating Python protobuf code..."
+# echo "Generating Python protobuf code..."
 
 # Create the Python output directory
-PYTHON_OUTPUT_DIR="./sdks/python/gen"
-mkdir -p "$PYTHON_OUTPUT_DIR"
+# PYTHON_OUTPUT_DIR="./sdks/python/gen"
+# mkdir -p "$PYTHON_OUTPUT_DIR"
 
 # Define the proto file path
-PROTO_FILE="./proto/config/v1/config_service.proto"
-INCLUDE_DIR="./proto"
+# PROTO_FILE="./proto/config/v1/config.proto"
+# INCLUDE_DIR="./proto"
 
-python3 -m grpc_tools.protoc \
-    -I="$INCLUDE_DIR" \
-    --python_out="$PYTHON_OUTPUT_DIR" \
-    --grpc_python_out="$PYTHON_OUTPUT_DIR" \
-    "$PROTO_FILE"
+# python3 -m grpc_tools.protoc \
+#     -I="$INCLUDE_DIR" \
+#     --python_out="$PYTHON_OUTPUT_DIR" \
+#     --grpc_python_out="$PYTHON_OUTPUT_DIR" \
+#     "$PROTO_FILE"
 
-echo "Python protobuf code generated successfully in $PYTHON_OUTPUT_DIR."
+# echo "Python protobuf code generated successfully in $PYTHON_OUTPUT_DIR."

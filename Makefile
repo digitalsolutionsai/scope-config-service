@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server run-server up down migrate-up migrate-down
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down swagger-gen
 
 # ====================================================================================
 # PROTO
@@ -6,6 +6,14 @@
 proto-gen:
 	@echo "Generating gRPC code from proto files..."
 	@./scripts/gen-proto.sh
+
+# ====================================================================================
+# SWAGGER
+# ====================================================================================
+swagger-gen:
+	@echo "Generating Swagger documentation..."
+	@swag init -g pkg/httpgateway/docs.go --output ./docs
+	@echo "Swagger documentation generated at ./docs"
 
 # ====================================================================================
 # BUILD
@@ -19,6 +27,11 @@ build-server:
 	@go build -o bin/server ./cmd/server
 	@echo "Building server done."
 
+build-httpgateway:
+	@echo "Building HTTP gateway..."
+	@go build -o bin/httpgateway ./cmd/httpgateway
+	@echo "Building HTTP gateway done."
+
 
 # ====================================================================================
 # RUN
@@ -26,6 +39,10 @@ build-server:
 run-server: build-server
 	@echo "Running server..."
 	@./bin/server
+
+run-httpgateway: build-httpgateway
+	@echo "Running HTTP gateway..."
+	@./bin/httpgateway
 
 # ====================================================================================
 # DOCKER
@@ -37,6 +54,10 @@ up:
 down:
 	@echo "Stopping services..."
 	@docker compose -f compose.postgres.yml -f compose.yml down
+
+ps:
+	@echo "Listing running containers..."
+	@docker compose -f compose.postgres.yml -f compose.yml ps
 
 # ====================================================================================
 # DATABASE

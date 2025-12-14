@@ -169,3 +169,56 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 
 	return template, nil
 }
+
+// ListConfigTemplates retrieves a list of configuration templates.
+func (s *server) ListConfigTemplates(ctx context.Context, req *configv1.ListConfigTemplatesRequest) (*configv1.ListConfigTemplatesResponse, error) {
+	query := `SELECT service_name, group_id, service_label, group_label, group_description 
+              FROM config_template`
+
+	var args []interface{}
+	if req.ServiceName != "" {
+		query += ` WHERE service_name = $1`
+		args = append(args, req.ServiceName)
+	}
+
+	query += ` ORDER BY service_name, group_id`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query templates: %v", err)
+	}
+	defer rows.Close()
+
+	var templates []*configv1.ConfigTemplate
+	for rows.Next() {
+		var serviceName, groupID string
+		var serviceLabel, groupLabel, groupDescription sql.NullString
+
+		if err := rows.Scan(&serviceName, &groupID, &serviceLabel, &groupLabel, &groupDescription); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to scan template row: %v", err)
+		}
+
+		// ConfigIdentifier requires Scope, but for a template list it's generic.
+		// We set it to UNSPECIFIED or leave default (0).
+		identifier := &configv1.ConfigIdentifier{
+			ServiceName: serviceName,
+			GroupId:     groupID,
+			Scope:       configv1.Scope_SCOPE_UNSPECIFIED,
+		}
+
+		templates = append(templates, &configv1.ConfigTemplate{
+			Identifier:       identifier,
+			ServiceLabel:     serviceLabel.String,
+			GroupLabel:       groupLabel.String,
+			GroupDescription: groupDescription.String,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, status.Errorf(codes.Internal, "rows iteration error: %v", err)
+	}
+
+	return &configv1.ListConfigTemplatesResponse{
+		Templates: templates,
+	}, nil
+}

@@ -1,0 +1,492 @@
+basePath: /api/v1
+definitions:
+  httpgateway.PublishRequest:
+    properties:
+      projectId:
+        type: string
+      storeId:
+        type: string
+      userId:
+        type: string
+      userName:
+        type: string
+      version:
+        type: integer
+    type: object
+  httpgateway.UpdateConfigRequest:
+    properties:
+      fields:
+        additionalProperties:
+          type: string
+        description: map of path -> value
+        type: object
+      projectId:
+        type: string
+      storeId:
+        type: string
+      userId:
+        type: string
+      userName:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@dsai.vn
+    name: API Support
+  description: |-
+    HTTP REST API for managing configuration templates and values across different scopes (SYSTEM, PROJECT, STORE, USER).
+
+    This service provides a REST API wrapper around the gRPC Scope Configuration Service.
+    It enables frontend applications and external clients to interact with configurations using simple HTTP/JSON requests.
+
+    ## Architecture
+    ```
+    Client → API Gateway (Auth/RBAC) → Config Service (Public APIs)
+    ```
+
+    ## Authentication
+    Authentication is handled at the API Gateway level (e.g., Spring Cloud Gateway, Kong, Nginx).
+    This service exposes public APIs and relies on an upstream gateway for authentication and authorization.
+  title: Scope Configuration Service API
+  version: "1.0"
+paths:
+  /config/{serviceName}/scope/{scope}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves the published (active) configuration for a specific service, group, and scope.
+        Returns merged values (explicit + defaults) and metadata.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID (required for PROJECT, STORE, USER scopes)
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID (required for STORE, USER scopes)
+        in: query
+        name: storeId
+        type: string
+      - description: User ID (required for USER scope)
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configuration with merged values and metadata
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get published configuration
+      tags:
+      - Configuration
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Updates or creates configuration values for a specific service, group, and scope.
+        Similar to the CLI 'set' command. Creates a new version with the updated values.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Configuration update request with field values
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpgateway.UpdateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated configuration with new version
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update configuration values
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/history:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves the version history for a configuration, showing who made changes and when.
+        Returns audit trail with version numbers, timestamps, and user information.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID (required for PROJECT, STORE, USER scopes)
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID (required for STORE, USER scopes)
+        in: query
+        name: storeId
+        type: string
+      - description: User ID (required for USER scope)
+        in: query
+        name: userId
+        type: string
+      - description: 'Maximum number of history entries to return (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Version history with audit information
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get configuration version history
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/latest:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves the latest configuration (including unpublished changes) for a specific service, group, and scope.
+        Useful for previewing changes before publishing.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID (required for PROJECT, STORE, USER scopes)
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID (required for STORE, USER scopes)
+        in: query
+        name: storeId
+        type: string
+      - description: User ID (required for USER scope)
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Latest configuration with merged values and metadata
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get latest configuration
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/publish:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Publishes a specific version of the configuration, making it the active version for client consumption.
+        The userName field is required for audit trail purposes.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Publish request with version and scope identifiers
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpgateway.PublishRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Published configuration version details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Publish configuration version
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/version/{version}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves configuration values for a specific version number.
+        Similar to CLI 'get' command with --version flag. Useful for viewing historical configuration states.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: 'Scope level: SYSTEM, PROJECT, STORE, or USER'
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Version number to retrieve
+        in: path
+        name: version
+        required: true
+        type: integer
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID (required for PROJECT, STORE, USER scopes)
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID (required for STORE, USER scopes)
+        in: query
+        name: storeId
+        type: string
+      - description: User ID (required for USER scope)
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configuration for the specified version
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration or version not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get configuration by specific version
+      tags:
+      - Configuration
+  /config/{serviceName}/template:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieves the template (schema) for a specific service and group. Essential for building dynamic UI forms.
+        Returns field definitions including types, labels, default values, and display options.
+      parameters:
+      - description: Service name (e.g., payment-service)
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: Configuration group ID (e.g., stripe)
+        in: query
+        name: groupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Template metadata with field definitions
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Template not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get configuration template
+      tags:
+      - Templates
+  /config/templates:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of active configuration templates. Only templates
+        with is_active=true are returned.
+      parameters:
+      - description: Filter by service name
+        in: query
+        name: serviceName
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of active templates
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List active configuration templates
+      tags:
+      - Templates
+schemes:
+- http
+- https
+swagger: "2.0"
+x-extension-openapi:
+  example: value on a json format
