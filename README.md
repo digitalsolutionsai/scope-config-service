@@ -22,6 +22,7 @@ Before using the service, it's helpful to understand two key concepts:
   - **Published Versions**: Mark a specific version as "published" to ensure stability for client consumption, while still being able to work on a newer, unpublished version.
   - **gRPC Interface**: A high-performance, language-agnostic gRPC interface.
   - **HTTP REST API Gateway**: A lightweight HTTP/JSON wrapper for easy frontend integration. See [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
+  - **Swagger UI**: Interactive API documentation at `/swagger/index.html` for easy API exploration and testing.
   - **Command-Line Interface (CLI)**: A powerful CLI (`config-cli`) for easy interaction with the service.
 
 -----
@@ -89,8 +90,18 @@ docker compose -f compose.postgres.yml -f compose.yml up -d --build
 The config service runs both gRPC and HTTP in a single container and will be available at:
 - **gRPC Service**: `localhost:50051`
 - **HTTP Gateway**: `http://localhost:8080`
+- **Swagger UI**: `http://localhost:8080/swagger/index.html`
 
 For detailed HTTP API documentation and examples, see the [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
+
+### Exploring the API with Swagger UI
+
+Once the service is running, you can explore and test the HTTP API interactively:
+
+1. Open your browser and navigate to `http://localhost:8080/swagger/index.html`
+2. Browse through available endpoints with detailed parameter descriptions
+3. Try out API calls directly from the browser
+4. View request/response schemas and examples
 
 -----
 

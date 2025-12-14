@@ -33,6 +33,19 @@ docker compose -f compose.postgres.yml -f compose.yml up -d --build
 Both endpoints will be available from the same container:
 - **gRPC**: `localhost:50051`
 - **HTTP**: `http://localhost:8080`
+- **Swagger UI**: `http://localhost:8080/swagger/index.html`
+
+### Interactive API Documentation (Swagger UI)
+
+The service provides an interactive Swagger UI for exploring and testing the API:
+
+1. Start the service (see above)
+2. Open your browser to `http://localhost:8080/swagger/index.html`
+3. Browse all available endpoints with detailed documentation
+4. Try out API calls directly from the Swagger interface
+5. View request/response schemas and example payloads
+
+This is the easiest way to understand the API and test endpoints during development.
 
 #### Standalone (Local Development)
 

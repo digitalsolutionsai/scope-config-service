@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down swagger-gen
 
 # ====================================================================================
 # PROTO
@@ -6,6 +6,14 @@
 proto-gen:
 	@echo "Generating gRPC code from proto files..."
 	@./scripts/gen-proto.sh
+
+# ====================================================================================
+# SWAGGER
+# ====================================================================================
+swagger-gen:
+	@echo "Generating Swagger documentation..."
+	@swag init -g pkg/httpgateway/docs.go --output ./docs
+	@echo "Swagger documentation generated at ./docs"
 
 # ====================================================================================
 # BUILD

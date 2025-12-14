@@ -19,9 +19,21 @@ func NewGateway(client configv1.ConfigServiceClient) *Gateway {
 	return &Gateway{client: client}
 }
 
-// GetTemplate handles GET /api/v1/templates/{serviceName}
-// Query parameters:
-//   - groupId (required): The group ID for the template
+// GetTemplate handles GET /api/v1/config/{serviceName}/template
+//
+// @Summary Get configuration template
+// @Description Retrieves the template (schema) for a specific service and group. Essential for building dynamic UI forms.
+// @Description Returns field definitions including types, labels, default values, and display options.
+// @Tags Templates
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name (e.g., payment-service)"
+// @Param groupId query string true "Configuration group ID (e.g., stripe)"
+// @Success 200 {object} map[string]interface{} "Template metadata with field definitions"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Template not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/template [get]
 func (g *Gateway) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	serviceName := chi.URLParam(r, "serviceName")
 	groupId := r.URL.Query().Get("groupId")
@@ -55,11 +67,24 @@ func (g *Gateway) GetTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetConfig handles GET /api/v1/config/{serviceName}/scope/{scope}
-// Query parameters:
-//   - groupId (required): The group ID
-//   - projectId (optional): Project ID for PROJECT scope
-//   - storeId (optional): Store ID for STORE scope
-//   - userId (optional): User ID for USER scope
+//
+// @Summary Get published configuration
+// @Description Retrieves the published (active) configuration for a specific service, group, and scope.
+// @Description Returns merged values (explicit + defaults) and metadata.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param groupId query string true "Configuration group ID"
+// @Param projectId query string false "Project ID (required for PROJECT, STORE, USER scopes)"
+// @Param storeId query string false "Store ID (required for STORE, USER scopes)"
+// @Param userId query string false "User ID (required for USER scope)"
+// @Success 200 {object} map[string]interface{} "Configuration with merged values and metadata"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope} [get]
 func (g *Gateway) GetConfig(w http.ResponseWriter, r *http.Request) {
 	serviceName := chi.URLParam(r, "serviceName")
 	scopeStr := chi.URLParam(r, "scope")
@@ -83,7 +108,24 @@ func (g *Gateway) GetConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetLatestConfig handles GET /api/v1/config/{serviceName}/scope/{scope}/latest
-// Query parameters: same as GetConfig
+//
+// @Summary Get latest configuration
+// @Description Retrieves the latest configuration (including unpublished changes) for a specific service, group, and scope.
+// @Description Useful for previewing changes before publishing.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param groupId query string true "Configuration group ID"
+// @Param projectId query string false "Project ID (required for PROJECT, STORE, USER scopes)"
+// @Param storeId query string false "Store ID (required for STORE, USER scopes)"
+// @Param userId query string false "User ID (required for USER scope)"
+// @Success 200 {object} map[string]interface{} "Latest configuration with merged values and metadata"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope}/latest [get]
 func (g *Gateway) GetLatestConfig(w http.ResponseWriter, r *http.Request) {
 	serviceName := chi.URLParam(r, "serviceName")
 	scopeStr := chi.URLParam(r, "scope")
@@ -107,8 +149,25 @@ func (g *Gateway) GetLatestConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetConfigHistory handles GET /api/v1/config/{serviceName}/scope/{scope}/history
-// Query parameters: same as GetConfig, plus:
-//   - limit (optional): Maximum number of history entries to return
+//
+// @Summary Get configuration version history
+// @Description Retrieves the version history for a configuration, showing who made changes and when.
+// @Description Returns audit trail with version numbers, timestamps, and user information.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param groupId query string true "Configuration group ID"
+// @Param projectId query string false "Project ID (required for PROJECT, STORE, USER scopes)"
+// @Param storeId query string false "Store ID (required for STORE, USER scopes)"
+// @Param userId query string false "User ID (required for USER scope)"
+// @Param limit query int false "Maximum number of history entries to return (default: 10)"
+// @Success 200 {object} map[string]interface{} "Version history with audit information"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope}/history [get]
 func (g *Gateway) GetConfigHistory(w http.ResponseWriter, r *http.Request) {
 	serviceName := chi.URLParam(r, "serviceName")
 	scopeStr := chi.URLParam(r, "scope")
@@ -143,14 +202,22 @@ func (g *Gateway) GetConfigHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 // PublishConfig handles POST /api/v1/config/{serviceName}/scope/{scope}/publish
-// Request body:
-//   {
-//     "version": 3,
-//     "userName": "John Doe",
-//     "projectId": "project-123",  // optional
-//     "storeId": null,              // optional
-//     "userId": null                // optional
-//   }
+//
+// @Summary Publish configuration version
+// @Description Publishes a specific version of the configuration, making it the active version for client consumption.
+// @Description The userName field is required for audit trail purposes.
+// @Tags Configuration
+// @Accept json
+// @Produce json
+// @Param serviceName path string true "Service name"
+// @Param scope path string true "Scope level: SYSTEM, PROJECT, STORE, or USER"
+// @Param groupId query string true "Configuration group ID"
+// @Param body body PublishRequest true "Publish request with version and scope identifiers"
+// @Success 200 {object} map[string]interface{} "Published configuration version details"
+// @Failure 400 {object} map[string]interface{} "Invalid request parameters"
+// @Failure 404 {object} map[string]interface{} "Configuration not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /config/{serviceName}/scope/{scope}/publish [post]
 func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 	serviceName := chi.URLParam(r, "serviceName")
 	scopeStr := chi.URLParam(r, "scope")

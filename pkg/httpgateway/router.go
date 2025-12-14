@@ -4,6 +4,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+	httpSwagger "github.com/swaggo/http-swagger"
+	
+	_ "github.com/digitalsolutionsai/scope-config-service/docs" // Import generated swagger docs
 )
 
 // RouterConfig holds configuration for the HTTP router.
@@ -35,6 +38,11 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 	if config.AuthMiddleware != nil {
 		r.Use(config.AuthMiddleware.Middleware)
 	}
+
+	// Swagger UI endpoint - accessible without authentication
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 
 	// API routes - all under /api/v1/config/{serviceName} for consistent path-based routing
 	// Each service has one template, so template is nested under service path
