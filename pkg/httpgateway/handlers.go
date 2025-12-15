@@ -328,6 +328,9 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 	// Use authenticated user email if userName not provided in request body
 	userName := req.UserName
 	if userName == "" {
+		userName = r.Header.Get("X-User-Name")
+	}
+	if userName == "" {
 		userName = GetUserEmail(r.Context())
 	}
 	
@@ -406,6 +409,9 @@ func (g *Gateway) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Use authenticated user email if userName not provided in request body
 	userName := req.UserName
+	if userName == "" {
+		userName = r.Header.Get("X-User-Name")
+	}
 	if userName == "" {
 		userName = GetUserEmail(r.Context())
 	}
