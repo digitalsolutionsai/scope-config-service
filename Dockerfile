@@ -34,6 +34,9 @@ WORKDIR /app
 # Copy the migrations. The application runs them on startup.
 COPY --from=builder /app/db/migrations ./db/migrations
 
+# Copy the seed templates. The application imports them on startup.
+COPY --from=builder /app/templates ./templates
+
 # Copy the binaries from the builder stage.
 COPY --from=builder /app/server /app/server
 COPY --from=builder /app/config-cli /app/config-cli

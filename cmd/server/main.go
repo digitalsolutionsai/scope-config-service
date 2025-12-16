@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
+	"github.com/digitalsolutionsai/scope-config-service/pkg/seedloader"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/service"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"github.com/golang-migrate/migrate/v4"
@@ -90,6 +92,16 @@ func startGRPCServer(db *sql.DB, port string) {
 	// Pass the database connection to the service.
 	configService := service.NewConfigService(db)
 	configv1.RegisterConfigServiceServer(s, configService)
+
+	// Load and apply seed templates after server is initialized
+	seedDir := os.Getenv("SEED_TEMPLATES_DIR")
+	if seedDir == "" {
+		seedDir = "templates"
+	}
+	loader := seedloader.NewLoader(seedDir, configService)
+	if err := loader.LoadAndApplyAll(context.Background()); err != nil {
+		log.Printf("Warning: Failed to load seed templates: %v", err)
+	}
 
 	log.Printf("gRPC server listening on port %s", port)
 	if err := s.Serve(lis); err != nil {

@@ -88,6 +88,7 @@ const (
 	FieldType_BOOLEAN                FieldType = 4
 	FieldType_JSON                   FieldType = 5
 	FieldType_ARRAY_STRING           FieldType = 6 // Example for an array type
+	FieldType_SECRET                 FieldType = 7 // Sensitive field - UI should mask/hide value
 )
 
 // Enum value maps for FieldType.
@@ -100,6 +101,7 @@ var (
 		4: "BOOLEAN",
 		5: "JSON",
 		6: "ARRAY_STRING",
+		7: "SECRET",
 	}
 	FieldType_value = map[string]int32{
 		"FIELD_TYPE_UNSPECIFIED": 0,
@@ -109,6 +111,7 @@ var (
 		"BOOLEAN":                4,
 		"JSON":                   5,
 		"ARRAY_STRING":           6,
+		"SECRET":                 7,
 	}
 )
 
@@ -1403,9 +1406,12 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x18GetConfigTemplateRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
-	"identifier\"?\n" +
+	"identifier\"o\n" +
 	"\x1aListConfigTemplatesRequest\x12!\n" +
-	"\fservice_name\x18\x01 \x01(\tR\vserviceName\"^\n" +
+	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x12 \n" +
+	"\tis_active\x18\x02 \x01(\bH\x00R\bisActive\x88\x01\x01B\f\n" +
+	"\n" +
+	"_is_active\"^\n" +
 	"\x1bListConfigTemplatesResponse\x12?\n" +
 	"\ttemplates\x18\x01 \x03(\v2!.vn.dsai.config.v1.ConfigTemplateR\ttemplates*L\n" +
 	"\x05Scope\x12\x15\n" +
@@ -1414,7 +1420,7 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x06SYSTEM\x10\x01\x12\v\n" +
 	"\aPROJECT\x10\x02\x12\t\n" +
 	"\x05STORE\x10\x03\x12\b\n" +
-	"\x04USER\x10\x04*p\n" +
+	"\x04USER\x10\x04*|\n" +
 	"\tFieldType\x12\x1a\n" +
 	"\x16FIELD_TYPE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -1423,7 +1429,9 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x05FLOAT\x10\x03\x12\v\n" +
 	"\aBOOLEAN\x10\x04\x12\b\n" +
 	"\x04JSON\x10\x05\x12\x10\n" +
-	"\fARRAY_STRING\x10\x062\xd4\a\n" +
+	"\fARRAY_STRING\x10\x06\x12\n" +
+	"\n" +
+	"\x06SECRET\x10\a2\xd4\a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12V\n" +
 	"\x0fGetLatestConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12b\n" +
@@ -1532,6 +1540,7 @@ func file_config_v1_config_proto_init() {
 	if File_config_v1_config_proto != nil {
 		return
 	}
+	file_config_v1_config_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
