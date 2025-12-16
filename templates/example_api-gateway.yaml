@@ -6,12 +6,14 @@ groups:
   - id: "default-rate-limit"
     label: "Default Rate Limiting"
     description: "Global rate limiting configuration for all API endpoints."
+    sortOrder: 100000
     fields:
       - path: "url-pattern"
         label: "URL Pattern"
         description: "URL pattern to apply rate limiting (e.g., /** for all endpoints)"
         type: "STRING"
         defaultValue: "/**"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -20,6 +22,7 @@ groups:
         description: "Maximum number of tokens in the bucket"
         type: "INT"
         defaultValue: "1000"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -28,6 +31,7 @@ groups:
         description: "Number of tokens to add during each refill"
         type: "INT"
         defaultValue: "100"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -36,6 +40,7 @@ groups:
         description: "Duration between token refills in seconds"
         type: "INT"
         defaultValue: "10"
+        sortOrder: 400000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -44,6 +49,7 @@ groups:
         description: "IP addresses exempt from rate limiting"
         type: "ARRAY_STRING"
         defaultValue: ""
+        sortOrder: 500000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -52,6 +58,7 @@ groups:
         description: "Enable or disable rate limiting"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 600000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -59,12 +66,14 @@ groups:
   - id: "rate-limit-rules"
     label: "Specific Rate Limit Rules"
     description: "Custom rate limiting rules for specific API endpoints."
+    sortOrder: 200000
     fields:
       - path: "rules"
         label: "Rate Limit Rules"
         description: "JSON configuration for endpoint-specific rate limiting rules"
         type: "JSON"
         defaultValue: '[{"url-pattern": "/api/v2/auth/**", "capacity": 500, "refill-tokens": 60, "refill-duration-in-seconds": 10, "excluded-ips": [], "is-active": true}]'
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -72,24 +81,28 @@ groups:
   - id: "cloudfront-origin-verify-secrets"
     label: "CloudFront Origin Verification"
     description: "Secret keys for verifying CloudFront origin requests."
+    sortOrder: 300000
     fields:
       - path: "keys"
         label: "Verification Keys"
         description: "List of secret keys for CloudFront origin verification"
         type: "ARRAY_STRING"
         defaultValue: "your-very-strong-and-random-secret-key-a,a-newer-strong-and-random-secret-key-b"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
 
   - id: "cors-rules"
     label: "CORS Configuration"
     description: "Cross-Origin Resource Sharing rules and settings."
+    sortOrder: 400000
     fields:
       - path: "rules"
         label: "CORS Rules"
         description: "JSON configuration for CORS rules"
         type: "JSON"
         defaultValue: '[{"path-pattern": "/**", "allowed-origins": ["http://localhost:4200"], "allowed-methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow-credentials": true, "allowed-headers": ["Authorization", "Content-Type"], "exposed-headers": [], "max-age": 3600}]'
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -97,12 +110,14 @@ groups:
   - id: "gateway-settings"
     label: "Gateway Settings"
     description: "General API gateway configuration settings."
+    sortOrder: 500000
     fields:
       - path: "timeout/connect"
         label: "Connection Timeout"
         description: "Connection timeout for upstream services in milliseconds"
         type: "INT"
         defaultValue: "5000"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -111,6 +126,7 @@ groups:
         description: "Read timeout for upstream services in milliseconds"
         type: "INT"
         defaultValue: "30000"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -119,6 +135,7 @@ groups:
         description: "Number of retry attempts for failed requests"
         type: "INT"
         defaultValue: "3"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -127,6 +144,7 @@ groups:
         description: "Gateway logging level"
         type: "STRING"
         defaultValue: "INFO"
+        sortOrder: 400000
         options:
           - value: "DEBUG"
             label: "DEBUG"
@@ -144,6 +162,7 @@ groups:
         description: "Enable gateway metrics collection"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 500000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -151,12 +170,14 @@ groups:
   - id: "security-settings"
     label: "Security Settings"
     description: "Security-related gateway configurations."
+    sortOrder: 600000
     fields:
       - path: "headers/security"
         label: "Security Headers"
         description: "JSON configuration for security headers"
         type: "JSON"
         defaultValue: '{"x-frame-options": "DENY", "x-content-type-options": "nosniff", "x-xss-protection": "1; mode=block"}'
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -165,6 +186,7 @@ groups:
         description: "Require authentication for all requests"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -173,6 +195,7 @@ groups:
         description: "Redirect HTTP requests to HTTPS"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "PROJECT"

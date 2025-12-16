@@ -6,12 +6,14 @@ groups:
   - id: "payment-methods"
     label: "Payment Methods"
     description: "Configuration for available payment methods."
+    sortOrder: 100000
     fields:
       - path: "methods/credit-card"
         label: "Credit Card"
         description: "Credit card payment method"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -20,6 +22,7 @@ groups:
         description: "PayPal payment method"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -28,6 +31,7 @@ groups:
         description: "Stripe payment method"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -35,12 +39,14 @@ groups:
   - id: "server-config"
     label: "Server Configuration"
     description: "Payment gateway server settings and API configurations."
+    sortOrder: 200000
     fields:
       - path: "api/timeout"
         label: "API Timeout"
         description: "Timeout for payment API calls in seconds"
         type: "INT"
         defaultValue: "30"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -49,6 +55,7 @@ groups:
         description: "Number of retry attempts for failed payments"
         type: "INT"
         defaultValue: "3"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -57,6 +64,7 @@ groups:
         description: "Require SSL for all payment transactions"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -65,6 +73,7 @@ groups:
         description: "Payment service logging level"
         type: "STRING"
         defaultValue: "INFO"
+        sortOrder: 400000
         options:
           - value: "DEBUG"
             label: "DEBUG"
@@ -82,12 +91,14 @@ groups:
   - id: "transaction-settings"
     label: "Transaction Settings"
     description: "Transaction processing and validation rules."
+    sortOrder: 300000
     fields:
       - path: "limits/max-amount"
         label: "Maximum Amount"
         description: "Maximum transaction amount allowed"
         type: "FLOAT"
         defaultValue: "10000.0"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -96,6 +107,7 @@ groups:
         description: "Minimum transaction amount allowed"
         type: "FLOAT"
         defaultValue: "1.0"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -104,6 +116,7 @@ groups:
         description: "Default currency for transactions"
         type: "STRING"
         defaultValue: "USD"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -112,6 +125,7 @@ groups:
         description: "List of supported currencies"
         type: "ARRAY_STRING"
         defaultValue: "USD,EUR,GBP"
+        sortOrder: 400000
         displayOn:
           - "SYSTEM"
           - "PROJECT"
@@ -120,6 +134,7 @@ groups:
         description: "Webhook settings for payment notifications"
         type: "JSON"
         defaultValue: '{"url": "", "secret": "", "events": ["payment.completed"]}'
+        sortOrder: 500000
         displayOn:
           - "SYSTEM"
           - "PROJECT"

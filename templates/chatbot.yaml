@@ -6,12 +6,14 @@ groups:
   - id: "general-settings"
     label: "General Settings"
     description: "General chatbot configuration settings."
+    sortOrder: 100000
     fields:
       - path: "bot-name"
         label: "Bot Name"
         description: "Display name for the chatbot"
         type: "STRING"
         defaultValue: "AI Assistant"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "welcome-message"
@@ -19,6 +21,7 @@ groups:
         description: "Initial greeting message when user starts a conversation"
         type: "STRING"
         defaultValue: "Hello! How can I help you today?"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "fallback-message"
@@ -26,6 +29,7 @@ groups:
         description: "Message displayed when the bot cannot understand the user input"
         type: "STRING"
         defaultValue: "I'm sorry, I didn't understand that. Could you please rephrase?"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "language"
@@ -33,6 +37,7 @@ groups:
         description: "Primary language for the chatbot"
         type: "STRING"
         defaultValue: "en"
+        sortOrder: 400000
         options:
           - value: "en"
             label: "English"
@@ -57,18 +62,21 @@ groups:
         description: "Enable or disable the chatbot service"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
 
   - id: "ai-model-settings"
     label: "AI Model Settings"
     description: "Configuration for the AI model used by the chatbot."
+    sortOrder: 200000
     fields:
       - path: "provider"
         label: "AI Provider"
         description: "Select the AI provider for the chatbot"
         type: "STRING"
         defaultValue: "openai"
+        sortOrder: 100000
         options:
           - value: "openai"
             label: "OpenAI"
@@ -85,6 +93,7 @@ groups:
         description: "Specific model to use (e.g., gpt-4o, claude-3-5-sonnet)"
         type: "STRING"
         defaultValue: "gpt-4o-mini"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "temperature"
@@ -92,6 +101,7 @@ groups:
         description: "Controls randomness in responses (0.0 - 2.0)"
         type: "FLOAT"
         defaultValue: "0.7"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "max-tokens"
@@ -99,6 +109,7 @@ groups:
         description: "Maximum tokens in the AI response"
         type: "INT"
         defaultValue: "1024"
+        sortOrder: 400000
         displayOn:
           - "PROJECT"
       - path: "system-prompt"
@@ -106,18 +117,21 @@ groups:
         description: "System prompt to set the chatbot's behavior and personality"
         type: "STRING"
         defaultValue: "You are a helpful AI assistant. Be concise, accurate, and friendly in your responses."
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
 
   - id: "conversation-settings"
     label: "Conversation Settings"
     description: "Settings for conversation management and history."
+    sortOrder: 300000
     fields:
       - path: "history/max-messages"
         label: "Max History Messages"
         description: "Maximum number of messages to keep in conversation history"
         type: "INT"
         defaultValue: "20"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "history/retention-days"
@@ -125,6 +139,7 @@ groups:
         description: "Number of days to retain conversation history"
         type: "INT"
         defaultValue: "30"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "session/timeout-minutes"
@@ -132,6 +147,7 @@ groups:
         description: "Minutes of inactivity before session expires"
         type: "INT"
         defaultValue: "30"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "typing-indicator"
@@ -139,18 +155,21 @@ groups:
         description: "Display typing indicator while bot is generating response"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 400000
         displayOn:
           - "PROJECT"
 
   - id: "rate-limits"
     label: "Rate Limits"
     description: "Rate limiting settings to control usage."
+    sortOrder: 400000
     fields:
       - path: "messages-per-minute"
         label: "Messages Per Minute"
         description: "Maximum messages per user per minute"
         type: "INT"
         defaultValue: "20"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "messages-per-day"
@@ -158,6 +177,7 @@ groups:
         description: "Maximum messages per user per day"
         type: "INT"
         defaultValue: "500"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "max-input-length"
@@ -165,18 +185,21 @@ groups:
         description: "Maximum character length for user input"
         type: "INT"
         defaultValue: "4000"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
 
   - id: "moderation-settings"
     label: "Content Moderation"
     description: "Settings for content moderation and safety."
+    sortOrder: 500000
     fields:
       - path: "enabled"
         label: "Enable Moderation"
         description: "Enable content moderation for user inputs and bot responses"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "block-profanity"
@@ -184,6 +207,7 @@ groups:
         description: "Filter and block profane content"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "block-pii"
@@ -191,6 +215,7 @@ groups:
         description: "Detect and warn about personally identifiable information"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "blocked-topics"
@@ -198,18 +223,21 @@ groups:
         description: "Comma-separated list of topics the bot should not discuss"
         type: "ARRAY_STRING"
         defaultValue: ""
+        sortOrder: 400000
         displayOn:
           - "PROJECT"
 
   - id: "webhook-settings"
     label: "Webhook Integration"
     description: "Webhook configuration for external integrations."
+    sortOrder: 600000
     fields:
       - path: "url"
         label: "Webhook URL"
         description: "URL to send conversation events"
         type: "STRING"
         defaultValue: ""
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "secret"
@@ -217,6 +245,7 @@ groups:
         description: "Secret key for webhook signature verification"
         type: "SECRET"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "events"
@@ -224,6 +253,7 @@ groups:
         description: "Events to trigger webhook notifications"
         type: "JSON"
         defaultValue: '["conversation.started", "conversation.ended", "message.received"]'
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "enabled"
@@ -231,18 +261,21 @@ groups:
         description: "Enable webhook notifications"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 400000
         displayOn:
           - "PROJECT"
 
   - id: "ui-customization"
     label: "UI Customization"
     description: "Customization options for the chatbot UI widget."
+    sortOrder: 700000
     fields:
       - path: "theme/primary-color"
         label: "Primary Color"
         description: "Primary color for the chat widget (hex code)"
         type: "STRING"
         defaultValue: "#0066FF"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "theme/avatar-url"
@@ -250,6 +283,7 @@ groups:
         description: "URL for the bot's avatar image"
         type: "STRING"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "position"
@@ -257,6 +291,7 @@ groups:
         description: "Position of the chat widget on the page"
         type: "STRING"
         defaultValue: "bottom-right"
+        sortOrder: 300000
         options:
           - value: "bottom-right"
             label: "Bottom Right"
@@ -273,5 +308,6 @@ groups:
         description: "Display branding in the chat widget"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 400000
         displayOn:
           - "PROJECT"

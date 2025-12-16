@@ -513,6 +513,7 @@ type ConfigFieldTemplate struct {
 	DefaultValue  string                 `protobuf:"bytes,5,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`                             // Default value for this field.
 	DisplayOn     []Scope                `protobuf:"varint,6,rep,packed,name=display_on,json=displayOn,proto3,enum=vn.dsai.config.v1.Scope" json:"display_on,omitempty"` // Defines which scopes can set this value (STORE, PROJECT, etc.).
 	Options       []*ValueOption         `protobuf:"bytes,7,rep,name=options,proto3" json:"options,omitempty"`                                                           // A list of predefined options for this field.
+	SortOrder     int32                  `protobuf:"varint,8,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`                                     // Optional sort order for displaying fields (use 6-digit numbers for easy modification).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -596,6 +597,13 @@ func (x *ConfigFieldTemplate) GetOptions() []*ValueOption {
 	return nil
 }
 
+func (x *ConfigFieldTemplate) GetSortOrder() int32 {
+	if x != nil {
+		return x.SortOrder
+	}
+	return 0
+}
+
 // A container that a groups all field templates for a specific service_name and group_id.
 type ConfigTemplate struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -604,6 +612,7 @@ type ConfigTemplate struct {
 	GroupLabel       string                 `protobuf:"bytes,3,opt,name=group_label,json=groupLabel,proto3" json:"group_label,omitempty"`
 	GroupDescription string                 `protobuf:"bytes,4,opt,name=group_description,json=groupDescription,proto3" json:"group_description,omitempty"`
 	Fields           []*ConfigFieldTemplate `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
+	SortOrder        int32                  `protobuf:"varint,6,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"` // Optional sort order for displaying groups (use 6-digit numbers for easy modification).
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -671,6 +680,13 @@ func (x *ConfigTemplate) GetFields() []*ConfigFieldTemplate {
 		return x.Fields
 	}
 	return nil
+}
+
+func (x *ConfigTemplate) GetSortOrder() int32 {
+	if x != nil {
+		return x.SortOrder
+	}
+	return 0
 }
 
 type GetConfigRequest struct {
@@ -1341,7 +1357,7 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x06fields\x18\x03 \x03(\v2\x1e.vn.dsai.config.v1.ConfigFieldR\x06fields\"9\n" +
 	"\vValueOption\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\xab\x02\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xca\x02\n" +
 	"\x13ConfigFieldTemplate\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
@@ -1350,7 +1366,9 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\rdefault_value\x18\x05 \x01(\tR\fdefaultValue\x127\n" +
 	"\n" +
 	"display_on\x18\x06 \x03(\x0e2\x18.vn.dsai.config.v1.ScopeR\tdisplayOn\x128\n" +
-	"\aoptions\x18\a \x03(\v2\x1e.vn.dsai.config.v1.ValueOptionR\aoptions\"\x88\x02\n" +
+	"\aoptions\x18\a \x03(\v2\x1e.vn.dsai.config.v1.ValueOptionR\aoptions\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18\b \x01(\x05R\tsortOrder\"\xa7\x02\n" +
 	"\x0eConfigTemplate\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
@@ -1359,7 +1377,9 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\vgroup_label\x18\x03 \x01(\tR\n" +
 	"groupLabel\x12+\n" +
 	"\x11group_description\x18\x04 \x01(\tR\x10groupDescription\x12>\n" +
-	"\x06fields\x18\x05 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\"k\n" +
+	"\x06fields\x18\x05 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18\x06 \x01(\x05R\tsortOrder\"k\n" +
 	"\x10GetConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +

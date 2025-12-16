@@ -6,12 +6,14 @@ groups:
   - id: "subscriptions"
     label: "Notification Subscriptions"
     description: "Configuration for user notification subscriptions."
+    sortOrder: 100000
     fields:
       - path: "promotion"
         label: "Promotions"
         description: "Receive promotional offers and news."
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -20,6 +22,7 @@ groups:
         description: "Receive updates about your orders."
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -28,6 +31,7 @@ groups:
         description: "Receive critical alerts about system status."
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -36,18 +40,21 @@ groups:
         description: "Receive notifications about new features and system updates."
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 400000
         displayOn:
           - "SYSTEM"
           - "USER"
   - id: "delivery-settings"
     label: "Delivery Settings"
     description: "Configuration for how notifications are delivered."
+    sortOrder: 200000
     fields:
       - path: "email/enabled"
         label: "Email Notifications"
         description: "Enable email notifications"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -56,6 +63,7 @@ groups:
         description: "Enable push notifications"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -64,6 +72,7 @@ groups:
         description: "Enable SMS notifications"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"
           - "USER"
@@ -71,12 +80,14 @@ groups:
   - id: "system-config"
     label: "System Configuration"
     description: "System-wide notification settings."
+    sortOrder: 300000
     fields:
       - path: "retry/attempts"
         label: "Retry Attempts"
         description: "Number of retry attempts for failed notifications"
         type: "INT"
         defaultValue: "3"
+        sortOrder: 100000
         displayOn:
           - "SYSTEM"
       - path: "rate/limit"
@@ -84,6 +95,7 @@ groups:
         description: "Maximum notifications per hour per user"
         type: "INT"
         defaultValue: "100"
+        sortOrder: 200000
         displayOn:
           - "SYSTEM"
       - path: "template/default"
@@ -91,5 +103,6 @@ groups:
         description: "Default notification template"
         type: "STRING"
         defaultValue: "default"
+        sortOrder: 300000
         displayOn:
           - "SYSTEM"

@@ -387,6 +387,72 @@ groups:
 	}
 }
 
+func TestLoader_LoadAndApplyAll_SortOrder(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "seedloader-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	templateContent := `service:
+  id: "sort-order-test"
+  label: "Sort Order Test"
+
+groups:
+  - id: "sorted-group"
+    label: "Sorted Group"
+    sortOrder: 100000
+    fields:
+      - path: "field-a"
+        label: "Field A"
+        type: "STRING"
+        sortOrder: 200000
+        displayOn:
+          - "PROJECT"
+      - path: "field-b"
+        label: "Field B"
+        type: "INT"
+        sortOrder: 100000
+        displayOn:
+          - "PROJECT"
+`
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "sortorder.yaml"), []byte(templateContent), 0644); err != nil {
+		t.Fatalf("Failed to write template file: %v", err)
+	}
+
+	applier := &mockApplier{}
+	loader := NewLoader(tmpDir, applier)
+
+	err = loader.LoadAndApplyAll(context.Background())
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+
+	if len(applier.appliedTemplates) != 1 {
+		t.Fatalf("Expected 1 template, got: %d", len(applier.appliedTemplates))
+	}
+
+	template := applier.appliedTemplates[0].Template
+	if template.SortOrder != 100000 {
+		t.Errorf("Expected group sort order 100000, got: %d", template.SortOrder)
+	}
+
+	if len(template.Fields) != 2 {
+		t.Fatalf("Expected 2 fields, got: %d", len(template.Fields))
+	}
+
+	// Check first field sort order
+	if template.Fields[0].SortOrder != 200000 {
+		t.Errorf("Expected first field sort order 200000, got: %d", template.Fields[0].SortOrder)
+	}
+
+	// Check second field sort order
+	if template.Fields[1].SortOrder != 100000 {
+		t.Errorf("Expected second field sort order 100000, got: %d", template.Fields[1].SortOrder)
+	}
+}
+
 func TestToFieldType(t *testing.T) {
 	tests := []struct {
 		input    string

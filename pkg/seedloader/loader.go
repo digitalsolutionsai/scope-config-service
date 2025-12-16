@@ -28,6 +28,7 @@ type YamlFieldTemplate struct {
 	DefaultValue string            `yaml:"defaultValue"`
 	DisplayOn    []string          `yaml:"displayOn"`
 	Options      []YamlValueOption `yaml:"options"`
+	SortOrder    int32             `yaml:"sortOrder"`
 }
 
 // YamlGroup represents a configuration group in YAML format
@@ -36,6 +37,7 @@ type YamlGroup struct {
 	Label       string              `yaml:"label"`
 	Description string              `yaml:"description"`
 	Fields      []YamlFieldTemplate `yaml:"fields"`
+	SortOrder   int32               `yaml:"sortOrder"`
 }
 
 // YamlTemplate represents the complete template structure in YAML format
@@ -154,6 +156,7 @@ func (l *Loader) applyGroup(ctx context.Context, yamlTemplate *YamlTemplate, gro
 			DefaultValue: f.DefaultValue,
 			DisplayOn:    displayOn,
 			Options:      options,
+			SortOrder:    f.SortOrder,
 		}
 	}
 
@@ -166,6 +169,7 @@ func (l *Loader) applyGroup(ctx context.Context, yamlTemplate *YamlTemplate, gro
 		GroupLabel:       group.Label,
 		GroupDescription: group.Description,
 		Fields:           fields,
+		SortOrder:        group.SortOrder,
 	}
 
 	req := &configv1.ApplyConfigTemplateRequest{

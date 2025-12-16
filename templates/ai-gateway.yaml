@@ -6,12 +6,14 @@ groups:
   - id: "openai-model"
     label: "OpenAI Model Configuration"
     description: "Configuration for OpenAI model integration."
+    sortOrder: 100000
     fields:
       - path: "enabled"
         label: "Enable OpenAI"
         description: "Enable or disable OpenAI model integration"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "api-keys"
@@ -19,6 +21,7 @@ groups:
         description: "OpenAI API keys for round-robin load balancing"
         type: "SECRET"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "base-url"
@@ -26,6 +29,7 @@ groups:
         description: "Custom base URL for OpenAI API (optional, leave empty for default)"
         type: "STRING"
         defaultValue: "https://api.openai.com/v1"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "default-model"
@@ -33,6 +37,7 @@ groups:
         description: "Default OpenAI model to use"
         type: "STRING"
         defaultValue: "gpt-4o"
+        sortOrder: 400000
         options:
           - value: "gpt-4o"
             label: "GPT-4o"
@@ -53,6 +58,7 @@ groups:
         description: "Maximum number of tokens for completion"
         type: "INT"
         defaultValue: "4096"
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
       - path: "temperature"
@@ -60,18 +66,21 @@ groups:
         description: "Sampling temperature (0.0 - 2.0)"
         type: "FLOAT"
         defaultValue: "0.7"
+        sortOrder: 600000
         displayOn:
           - "PROJECT"
 
   - id: "anthropic-model"
     label: "Anthropic Claude Configuration"
     description: "Configuration for Anthropic Claude model integration."
+    sortOrder: 200000
     fields:
       - path: "enabled"
         label: "Enable Anthropic"
         description: "Enable or disable Anthropic Claude model integration"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "api-keys"
@@ -79,6 +88,7 @@ groups:
         description: "Anthropic API keys for round-robin load balancing"
         type: "SECRET"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "base-url"
@@ -86,6 +96,7 @@ groups:
         description: "Custom base URL for Anthropic API (optional)"
         type: "STRING"
         defaultValue: "https://api.anthropic.com"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "default-model"
@@ -93,6 +104,7 @@ groups:
         description: "Default Anthropic Claude model to use"
         type: "STRING"
         defaultValue: "claude-3-5-sonnet-20241022"
+        sortOrder: 400000
         options:
           - value: "claude-3-5-sonnet-20241022"
             label: "Claude 3.5 Sonnet"
@@ -111,18 +123,21 @@ groups:
         description: "Maximum number of tokens for completion"
         type: "INT"
         defaultValue: "4096"
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
 
   - id: "google-model"
     label: "Google Gemini Configuration"
     description: "Configuration for Google Gemini model integration."
+    sortOrder: 300000
     fields:
       - path: "enabled"
         label: "Enable Google Gemini"
         description: "Enable or disable Google Gemini model integration"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "api-keys"
@@ -130,6 +145,7 @@ groups:
         description: "Google API keys for round-robin load balancing"
         type: "SECRET"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "base-url"
@@ -137,6 +153,7 @@ groups:
         description: "Custom base URL for Google Gemini API (optional)"
         type: "STRING"
         defaultValue: ""
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "default-model"
@@ -144,6 +161,7 @@ groups:
         description: "Default Google Gemini model to use"
         type: "STRING"
         defaultValue: "gemini-1.5-pro"
+        sortOrder: 400000
         options:
           - value: "gemini-1.5-pro"
             label: "Gemini 1.5 Pro"
@@ -160,18 +178,21 @@ groups:
         description: "Maximum number of tokens for completion"
         type: "INT"
         defaultValue: "8192"
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
 
   - id: "azure-openai-model"
     label: "Azure OpenAI Configuration"
     description: "Configuration for Azure OpenAI model integration."
+    sortOrder: 400000
     fields:
       - path: "enabled"
         label: "Enable Azure OpenAI"
         description: "Enable or disable Azure OpenAI model integration"
         type: "BOOLEAN"
         defaultValue: "false"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "api-keys"
@@ -179,6 +200,7 @@ groups:
         description: "Azure OpenAI API keys for round-robin load balancing"
         type: "SECRET"
         defaultValue: ""
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "endpoint"
@@ -186,6 +208,7 @@ groups:
         description: "Azure OpenAI resource endpoint URL"
         type: "STRING"
         defaultValue: ""
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
       - path: "deployment-name"
@@ -193,6 +216,7 @@ groups:
         description: "Azure OpenAI deployment name"
         type: "STRING"
         defaultValue: ""
+        sortOrder: 400000
         displayOn:
           - "PROJECT"
       - path: "api-version"
@@ -200,18 +224,21 @@ groups:
         description: "Azure OpenAI API version"
         type: "STRING"
         defaultValue: "2024-02-15-preview"
+        sortOrder: 500000
         displayOn:
           - "PROJECT"
 
   - id: "rate-limiting"
     label: "AI Gateway Rate Limiting"
     description: "Rate limiting configuration for AI model requests."
+    sortOrder: 500000
     fields:
       - path: "requests-per-minute"
         label: "Requests Per Minute"
         description: "Maximum requests per minute per project"
         type: "INT"
         defaultValue: "60"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "tokens-per-minute"
@@ -219,6 +246,7 @@ groups:
         description: "Maximum tokens per minute per project"
         type: "INT"
         defaultValue: "100000"
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "concurrent-requests"
@@ -226,18 +254,21 @@ groups:
         description: "Maximum concurrent requests per project"
         type: "INT"
         defaultValue: "10"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
 
   - id: "fallback-settings"
     label: "Fallback Settings"
     description: "Configuration for model fallback behavior."
+    sortOrder: 600000
     fields:
       - path: "enabled"
         label: "Enable Fallback"
         description: "Enable automatic fallback to alternative models on failure"
         type: "BOOLEAN"
         defaultValue: "true"
+        sortOrder: 100000
         displayOn:
           - "PROJECT"
       - path: "fallback-order"
@@ -245,6 +276,7 @@ groups:
         description: "JSON array defining model fallback priority"
         type: "JSON"
         defaultValue: '["openai", "anthropic", "google"]'
+        sortOrder: 200000
         displayOn:
           - "PROJECT"
       - path: "retry-attempts"
@@ -252,5 +284,6 @@ groups:
         description: "Number of retry attempts before falling back"
         type: "INT"
         defaultValue: "2"
+        sortOrder: 300000
         displayOn:
           - "PROJECT"
