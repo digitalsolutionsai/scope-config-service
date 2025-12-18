@@ -2,10 +2,11 @@
 In-memory cache for configuration values and templates.
 """
 
+import logging
 import threading
 import time
 from typing import Optional, Tuple, Dict, Callable, List
-from .types import ConfigIdentifier, ScopeConfig, ConfigTemplate
+from .types import ConfigIdentifier, ScopeConfig, ConfigTemplate, Scope
 
 
 class CacheEntry:
@@ -166,7 +167,6 @@ class ConfigCache:
                     try:
                         sync_fn(identifier)
                     except Exception as e:
-                        import logging
                         logging.warning(
                             f"Background sync failed for {identifier.service_name}/{identifier.group_id}: {e}"
                         )
@@ -180,7 +180,3 @@ class ConfigCache:
         if self._sync_thread and self._sync_thread.is_alive():
             self._sync_thread.join(timeout=5.0)
         self._sync_thread = None
-
-
-# Import Scope for use in get_cached_identifiers
-from .types import Scope

@@ -16,13 +16,17 @@ export const DEFAULT_PORT = 50051;
 
 // Client configuration options
 export interface ClientOptions {
-  /** Server address in format "host:port" */
+  /**
+   * Server address in format "host:port".
+   * If not provided, will be constructed from host and port options or environment variables.
+   * @deprecated Use host and port options instead for consistency with environment variables.
+   */
   address?: string;
-  /** Server host (can also use GRPC_SCOPE_CONFIG_HOST env var) */
+  /** Server host (can also use GRPC_SCOPE_CONFIG_HOST env var, default: localhost) */
   host?: string;
-  /** Server port (can also use GRPC_SCOPE_CONFIG_PORT env var) */
+  /** Server port (can also use GRPC_SCOPE_CONFIG_PORT env var, default: 50051) */
   port?: number;
-  /** Use insecure connection (can also use GRPC_SCOPE_CONFIG_USE_TLS env var) */
+  /** Use insecure connection (can also use GRPC_SCOPE_CONFIG_USE_TLS env var, default: true) */
   insecure?: boolean;
   credentials?: grpc.ChannelCredentials;
   channelOptions?: grpc.ChannelOptions;

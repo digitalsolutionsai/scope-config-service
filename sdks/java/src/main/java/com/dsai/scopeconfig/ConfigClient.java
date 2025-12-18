@@ -674,22 +674,23 @@ public class ConfigClient implements AutoCloseable {
             ConfigCache cache = null;
             if (cacheEnabled) {
                 cache = new ConfigCache(cacheTtl);
-                
-                if (backgroundSyncEnabled) {
-                    final ConfigClient[] clientRef = new ConfigClient[1];
-                    cache.startBackgroundSync(backgroundSyncInterval, identifier -> {
-                        if (clientRef[0] != null) {
-                            try {
-                                clientRef[0].getConfig(identifier);
-                            } catch (Exception e) {
-                                // Silently fail - stale cache will be used
-                            }
-                        }
-                    });
-                }
             }
 
-            return new ConfigClient(channel, cache, cacheEnabled);
+            ConfigClient client = new ConfigClient(channel, cache, cacheEnabled);
+            
+            // Start background sync after client is created to avoid circular reference
+            if (cacheEnabled && backgroundSyncEnabled && cache != null) {
+                final ConfigClient syncClient = client;
+                cache.startBackgroundSync(backgroundSyncInterval, identifier -> {
+                    try {
+                        syncClient.getConfig(identifier);
+                    } catch (Exception e) {
+                        // Silently fail - stale cache will be used
+                    }
+                });
+            }
+
+            return client;
         }
     }
 }

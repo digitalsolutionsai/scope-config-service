@@ -140,7 +140,7 @@ class ConfigClient:
         if config_pb2 is None or config_pb2_grpc is None:
             raise ConfigServiceError(
                 "Generated proto files not found. Please run buf generate first.",
-                code=grpc.StatusCode.INTERNAL.value[0],
+                code=grpc.StatusCode.INTERNAL.value[0] if isinstance(grpc.StatusCode.INTERNAL.value, tuple) else grpc.StatusCode.INTERNAL.value,
             )
         
         if self.use_tls:
@@ -253,15 +253,16 @@ class ConfigClient:
         """Wrap gRPC errors with additional context."""
         code = error.code()
         details = error.details()
+        code_value = code.value[0] if isinstance(code.value, tuple) else code.value
         
         if code == grpc.StatusCode.NOT_FOUND:
-            return ConfigServiceError(f"{method}: resource not found: {details}", code.value[0], details)
+            return ConfigServiceError(f"{method}: resource not found: {details}", code_value, details)
         elif code == grpc.StatusCode.INVALID_ARGUMENT:
-            return ConfigServiceError(f"{method}: invalid argument: {details}", code.value[0], details)
+            return ConfigServiceError(f"{method}: invalid argument: {details}", code_value, details)
         elif code == grpc.StatusCode.UNAVAILABLE:
-            return ConfigServiceError(f"{method}: service unavailable: {details}", code.value[0], details)
+            return ConfigServiceError(f"{method}: service unavailable: {details}", code_value, details)
         else:
-            return ConfigServiceError(f"{method} failed: {details}", code.value[0], details)
+            return ConfigServiceError(f"{method} failed: {details}", code_value, details)
     
     def _sync_config(self, identifier: ConfigIdentifier) -> None:
         """Sync a config from the server (for background sync)."""
