@@ -1,5 +1,5 @@
-# Generated protobuf code
-gen/
+# Proto files are copied here temporarily for buf generate
+proto/
 
 # Go build artifacts
 *.exe

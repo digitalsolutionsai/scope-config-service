@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# Generated protobuf files
-src/gen/
+# Proto files are copied here temporarily for buf generate
+proto/
 
 # IDE
 .idea/

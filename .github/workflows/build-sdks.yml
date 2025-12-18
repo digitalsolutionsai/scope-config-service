@@ -37,7 +37,7 @@ jobs:
         run: |
           mkdir -p proto
           cp -r ../../proto/config proto/
-          buf generate
+          buf generate proto
 
       - name: Build Go SDK
         working-directory: sdks/go
