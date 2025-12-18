@@ -408,6 +408,22 @@ Available in `configv1.Scope`:
 - `Scope_STORE`
 - `Scope_USER`
 
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+- `examples/main.go` - Comprehensive example demonstrating all SDK features
+
+Run the example:
+
+```bash
+# Generate proto files first
+buf generate
+
+# Run the example
+go run examples/main.go
+```
+
 ## Testing
 
 Run the example test:

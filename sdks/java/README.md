@@ -181,6 +181,63 @@ try {
 }
 ```
 
+## Examples
+
+See the `src/main/java/com/dsai/scopeconfig/examples/` directory for complete working examples:
+
+- `BasicUsage.java` - Comprehensive example demonstrating all SDK features
+
+Run the example:
+
+```bash
+# Build the SDK first
+mvn clean package
+
+# Run the example
+mvn exec:java -Dexec.mainClass="com.dsai.scopeconfig.examples.BasicUsage"
+```
+
+### Spring Boot Integration
+
+For Spring Boot applications, you can create a configuration class:
+
+```java
+@Configuration
+public class ScopeConfigConfiguration {
+
+    @Bean
+    public ConfigClient scopeConfigClient() {
+        return ConfigClient.fromEnvironment()
+                .cacheEnabled(true)
+                .cacheTtl(Duration.ofMinutes(1))
+                .backgroundSyncEnabled(true)
+                .backgroundSyncInterval(Duration.ofSeconds(30))
+                .build();
+    }
+}
+
+@Service
+public class MyService {
+    private final ConfigClient configClient;
+
+    public MyService(ConfigClient configClient) {
+        this.configClient = configClient;
+    }
+
+    public String getDatabaseHost(String projectId) {
+        ConfigIdentifier identifier = ConfigIdentifierBuilder.create("my-service")
+                .scope(Scope.PROJECT)
+                .groupId("database")
+                .projectId(projectId)
+                .build();
+
+        return configClient.getValue(identifier, "database.host",
+                GetValueOptions.withInheritanceAndDefaults())
+                .orElse("localhost");
+    }
+}
+```
+
 ## Proto Generation
 
 Generate the proto files using buf:

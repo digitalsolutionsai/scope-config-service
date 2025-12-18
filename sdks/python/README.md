@@ -142,6 +142,36 @@ Inheritance:
 - **USER** → SYSTEM
 - **PROJECT** → SYSTEM
 
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+- `examples/basic_usage.py` - Basic SDK usage demonstration
+- `examples/fastapi_integration.py` - FastAPI integration with dependency injection
+
+Run the examples:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run basic example
+python examples/basic_usage.py
+
+# Run FastAPI integration example (requires FastAPI and uvicorn)
+pip install fastapi uvicorn
+uvicorn examples.fastapi_integration:app --reload
+```
+
+### FastAPI Integration
+
+For FastAPI applications, see `examples/fastapi_integration.py` for:
+
+1. Creating a ScopeConfig service with lifespan management
+2. Using dependency injection in routes
+3. Creating business-logic services
+4. Cache management endpoints
+
 ## Proto Generation
 
 Generate the proto files using buf:

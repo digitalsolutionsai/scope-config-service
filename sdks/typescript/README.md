@@ -229,6 +229,35 @@ const template = {
 await client.applyConfigTemplate(template, 'admin@example.com');
 ```
 
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+- `examples/basic-usage.ts` - Basic SDK usage demonstration
+- `examples/nestjs-integration.ts` - NestJS integration with dependency injection
+
+Run the examples:
+
+```bash
+# Install dependencies
+npm install
+
+# Run basic example
+npx ts-node examples/basic-usage.ts
+
+# Run NestJS integration example
+npx ts-node examples/nestjs-integration.ts
+```
+
+### NestJS Integration
+
+For NestJS applications, see `examples/nestjs-integration.ts` for:
+
+1. Creating a ScopeConfig module with lifespan management
+2. Creating a service wrapper with dependency injection
+3. Using the service in controllers and other services
+4. Configuring tsconfig.json paths for custom imports
+
 ## Proto File Generation (Optional)
 
 For production use, generate TypeScript types from proto files:
