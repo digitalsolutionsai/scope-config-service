@@ -340,7 +340,11 @@ export class ConfigClient {
 
   /**
    * Gets parent scope identifiers for inheritance.
-   * Order: USER -> STORE -> PROJECT -> SYSTEM
+   * The inheritance hierarchy is:
+   *   SYSTEM
+   *   ├── PROJECT → STORE
+   *   └── USER
+   * So: STORE → PROJECT → SYSTEM, USER → SYSTEM, PROJECT → SYSTEM
    */
   private getParentIdentifiers(
     identifier: ConfigIdentifier
@@ -349,21 +353,7 @@ export class ConfigClient {
 
     switch (identifier.scope) {
       case Scope.USER:
-        if (identifier.storeId) {
-          parents.push({
-            ...identifier,
-            scope: Scope.STORE,
-            userId: undefined,
-          });
-        }
-        if (identifier.projectId) {
-          parents.push({
-            ...identifier,
-            scope: Scope.PROJECT,
-            storeId: undefined,
-            userId: undefined,
-          });
-        }
+        // User -> System (USER is at same level as PROJECT, not under STORE)
         parents.push({
           ...identifier,
           scope: Scope.SYSTEM,
@@ -374,6 +364,7 @@ export class ConfigClient {
         break;
 
       case Scope.STORE:
+        // Store -> Project -> System
         if (identifier.projectId) {
           parents.push({
             ...identifier,
@@ -390,6 +381,7 @@ export class ConfigClient {
         break;
 
       case Scope.PROJECT:
+        // Project -> System
         parents.push({
           ...identifier,
           scope: Scope.SYSTEM,

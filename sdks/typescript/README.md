@@ -97,7 +97,7 @@ interface ClientOptions {
 ```typescript
 interface GetValueOptions {
   useDefault?: boolean;  // Use template default if config value not set
-  inherit?: boolean;     // Traverse parent scopes (USER -> STORE -> PROJECT -> SYSTEM)
+  inherit?: boolean;     // Traverse parent scopes (STORE → PROJECT → SYSTEM, USER → SYSTEM)
 }
 ```
 
@@ -162,9 +162,9 @@ const config2 = await client.getConfigCached(identifier);
 ### Get Value with Inheritance
 
 ```typescript
-// Will check USER -> STORE -> PROJECT -> SYSTEM scopes
+// Inheritance: STORE → PROJECT → SYSTEM, USER → SYSTEM
 const value = await client.getValue(
-  { ...identifier, scope: Scope.USER, userId: 'user-123' },
+  { ...identifier, scope: Scope.STORE, storeId: 'store-456' },
   'feature.enabled',
   { inherit: true, useDefault: true }
 );

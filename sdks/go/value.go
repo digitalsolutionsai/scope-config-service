@@ -14,7 +14,11 @@ type GetValueOptions struct {
 	UseDefault bool
 
 	// Inherit traverses parent scopes to find the value if not found in the current scope.
-	// The inheritance order is: USER -> STORE -> PROJECT -> SYSTEM
+	// The inheritance hierarchy is:
+	//   SYSTEM
+	//   ├── PROJECT → STORE
+	//   └── USER
+	// So: STORE → PROJECT → SYSTEM, USER → SYSTEM, PROJECT → SYSTEM
 	Inherit bool
 }
 
@@ -110,30 +114,19 @@ func (c *Client) getDefaultValue(ctx context.Context, identifier *configv1.Confi
 }
 
 // getParentIdentifiers returns the parent scope identifiers in inheritance order.
-// The order is from most specific to most general: USER -> STORE -> PROJECT -> SYSTEM
+// The inheritance hierarchy is:
+//
+//	SYSTEM
+//	├── PROJECT → STORE
+//	└── USER
+//
+// So: STORE → PROJECT → SYSTEM, USER → SYSTEM, PROJECT → SYSTEM
 func getParentIdentifiers(identifier *configv1.ConfigIdentifier) []*configv1.ConfigIdentifier {
 	var parents []*configv1.ConfigIdentifier
 
 	switch identifier.Scope {
 	case configv1.Scope_USER:
-		// User -> Store -> Project -> System
-		if identifier.StoreId != "" {
-			parents = append(parents, &configv1.ConfigIdentifier{
-				ServiceName: identifier.ServiceName,
-				GroupId:     identifier.GroupId,
-				Scope:       configv1.Scope_STORE,
-				ProjectId:   identifier.ProjectId,
-				StoreId:     identifier.StoreId,
-			})
-		}
-		if identifier.ProjectId != "" {
-			parents = append(parents, &configv1.ConfigIdentifier{
-				ServiceName: identifier.ServiceName,
-				GroupId:     identifier.GroupId,
-				Scope:       configv1.Scope_PROJECT,
-				ProjectId:   identifier.ProjectId,
-			})
-		}
+		// User -> System (USER is at same level as PROJECT, not under STORE)
 		parents = append(parents, &configv1.ConfigIdentifier{
 			ServiceName: identifier.ServiceName,
 			GroupId:     identifier.GroupId,

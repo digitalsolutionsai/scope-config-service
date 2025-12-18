@@ -321,7 +321,7 @@ client, err := scopeconfig.NewClient(
 ```go
 type GetValueOptions struct {
     UseDefault bool  // Use default value from template if not set
-    Inherit    bool  // Traverse parent scopes (USER -> STORE -> PROJECT -> SYSTEM)
+    Inherit    bool  // Traverse parent scopes (STORE → PROJECT → SYSTEM, USER → SYSTEM)
 }
 ```
 
