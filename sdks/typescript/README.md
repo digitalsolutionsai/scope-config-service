@@ -11,6 +11,7 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 - **GetValue** with inheritance and default value support
 - **TypeScript interfaces** for type safety
 - **Environment variable support** for configuration
+- **Automatic template loading** from YAML files
 
 ## Quick Start
 
@@ -227,6 +228,110 @@ const template = {
 };
 
 await client.applyConfigTemplate(template, 'admin@example.com');
+```
+
+## Automatic Template Loading
+
+The SDK supports automatic loading of configuration templates from YAML files. Simply place your template files in a `templates` directory and the SDK will load them automatically.
+
+### Quick Start
+
+1. Create a `templates` directory in your project root
+2. Add your YAML template files (`.yaml` or `.yml`)
+3. Load templates on client initialization
+
+```typescript
+import { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from './src';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
+
+const client = new ConfigClient(createOptionsFromEnv());
+await client.connect();
+
+// Auto-load all templates from the templates directory
+await loadTemplatesFromDir(client, './templates', 'system');
+```
+
+### Template File Format
+
+Create YAML files in your `templates` directory following this structure:
+
+```yaml
+# templates/my-service.yaml
+service:
+  id: "my-service"
+  label: "My Service"
+
+groups:
+  - id: "database"
+    label: "Database Configuration"
+    description: "Database connection settings"
+    sortOrder: 100000
+    fields:
+      - path: "host"
+        label: "Database Host"
+        description: "The database server hostname"
+        type: "STRING"
+        defaultValue: "localhost"
+        sortOrder: 100000
+        displayOn:
+          - "PROJECT"
+          - "STORE"
+      - path: "port"
+        label: "Database Port"
+        type: "INT"
+        defaultValue: "5432"
+        sortOrder: 200000
+        displayOn:
+          - "PROJECT"
+      - path: "ssl-enabled"
+        label: "Enable SSL"
+        type: "BOOLEAN"
+        defaultValue: "false"
+        sortOrder: 300000
+        displayOn:
+          - "PROJECT"
+```
+
+### Field Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `STRING` | Text value | `"localhost"` |
+| `INT` | Integer number | `"5432"` |
+| `FLOAT` | Decimal number | `"0.7"` |
+| `BOOLEAN` | True/false | `"true"` |
+| `JSON` | JSON object/array | `'["a", "b"]'` |
+| `ARRAY_STRING` | String array | |
+| `SECRET` | Sensitive value | API keys, passwords |
+
+### Display Scopes
+
+The `displayOn` field controls which scopes the field is visible/editable:
+- `SYSTEM` - System-wide settings
+- `PROJECT` - Project-level settings
+- `STORE` - Store-level settings
+- `USER` - User-level settings
+
+### Options (Dropdowns)
+
+Define selectable options for a field:
+
+```yaml
+- path: "log-level"
+  label: "Log Level"
+  type: "STRING"
+  defaultValue: "INFO"
+  options:
+    - value: "DEBUG"
+      label: "Debug"
+    - value: "INFO"
+      label: "Info"
+    - value: "WARN"
+      label: "Warning"
+    - value: "ERROR"
+      label: "Error"
 ```
 
 ## Examples

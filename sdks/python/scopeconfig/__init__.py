@@ -11,9 +11,10 @@ Features:
 - GetValue extracts specific field from cached group config
 - GetValue with inheritance and default value support
 - Environment variable support for configuration
+- Automatic template loading from YAML files
 """
 
-from .client import ConfigClient
+from .client import ConfigClient, load_templates_from_dir
 from .cache import ConfigCache
 from .types import (
     Scope,
@@ -46,6 +47,7 @@ __all__ = [
     "ConfigServiceError",
     "IdentifierBuilder",
     "create_identifier",
+    "load_templates_from_dir",
 ]
 
 __version__ = "1.0.0"

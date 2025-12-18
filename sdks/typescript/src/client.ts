@@ -524,3 +524,175 @@ export class ConfigClient {
     }
   }
 }
+
+/**
+ * Load and apply all YAML templates from a directory.
+ *
+ * Simply place your template files in the specified directory and this function
+ * will automatically load and apply them to the config service.
+ *
+ * @param client - The connected ConfigClient instance
+ * @param dirPath - Path to the templates directory
+ * @param user - The user performing the action
+ *
+ * @example
+ * // Initialize client and auto-load templates
+ * const client = new ConfigClient(createOptionsFromEnv());
+ * await client.connect();
+ * await loadTemplatesFromDir(client, './templates', 'system');
+ */
+export async function loadTemplatesFromDir(
+  client: ConfigClient,
+  dirPath: string,
+  user: string
+): Promise<void> {
+  const fs = await import("fs");
+  const path = await import("path");
+
+  // Check if yaml is available
+  let yaml: any;
+  try {
+    yaml = await import("js-yaml");
+  } catch {
+    throw new ConfigServiceError(
+      "js-yaml is required for template loading. Install with: npm install js-yaml"
+    );
+  }
+
+  if (!fs.existsSync(dirPath)) {
+    console.log(
+      `Templates directory ${dirPath} does not exist, skipping template import`
+    );
+    return;
+  }
+
+  const files = fs.readdirSync(dirPath);
+  const yamlFiles = files.filter(
+    (f: string) => f.endsWith(".yaml") || f.endsWith(".yml")
+  );
+
+  if (yamlFiles.length === 0) {
+    console.log(`No template files found in ${dirPath}`);
+    return;
+  }
+
+  console.log(`Found ${yamlFiles.length} template file(s) to import`);
+
+  for (const file of yamlFiles) {
+    const filePath = path.join(dirPath, file);
+    await loadAndApplyTemplateFile(client, filePath, user, yaml);
+  }
+}
+
+async function loadAndApplyTemplateFile(
+  client: ConfigClient,
+  filePath: string,
+  user: string,
+  yaml: any
+): Promise<void> {
+  const fs = await import("fs");
+  const path = await import("path");
+
+  let data: any;
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    data = yaml.load(content);
+  } catch (e: any) {
+    throw new ConfigServiceError(
+      `Failed to read template file ${filePath}: ${e.message}`
+    );
+  }
+
+  if (!data) {
+    console.warn(`Empty template file: ${filePath}`);
+    return;
+  }
+
+  // Validate required fields
+  if (!data.service || !data.service.id) {
+    throw new ConfigServiceError(
+      `Template file ${filePath} missing 'service.id'`
+    );
+  }
+
+  const serviceName = data.service.id;
+  const serviceLabel = data.service.label || serviceName;
+  const groups = data.groups || [];
+
+  if (groups.length === 0) {
+    console.warn(`No groups defined in template: ${filePath}`);
+    return;
+  }
+
+  for (const group of groups) {
+    await applyGroupTemplate(client, serviceName, serviceLabel, group, user);
+    console.log(
+      `Successfully imported template: service=${serviceName}, group=${group.id} from ${path.basename(filePath)}`
+    );
+  }
+}
+
+async function applyGroupTemplate(
+  client: ConfigClient,
+  serviceName: string,
+  serviceLabel: string,
+  group: any,
+  user: string
+): Promise<void> {
+  const groupId = group.id || "";
+  const groupLabel = group.label || groupId;
+  const groupDescription = group.description || "";
+  const sortOrder = group.sortOrder || 0;
+
+  const fields = (group.fields || []).map((f: any) => ({
+    path: f.path || "",
+    label: f.label || "",
+    description: f.description || "",
+    type: toFieldType(f.type || "STRING"),
+    defaultValue: f.defaultValue || "",
+    displayOn: (f.displayOn || []).map(toScope),
+    options: (f.options || []).map((o: any) => ({
+      value: o.value,
+      label: o.label || o.value,
+    })),
+    sortOrder: f.sortOrder || 0,
+  }));
+
+  const template: ConfigTemplate = {
+    identifier: {
+      serviceName,
+      groupId,
+      scope: Scope.SCOPE_UNSPECIFIED,
+    },
+    serviceLabel,
+    groupLabel,
+    groupDescription,
+    fields,
+    sortOrder,
+  };
+
+  await client.applyConfigTemplate(template, user);
+}
+
+function toScope(s: string): Scope {
+  const scopeMap: Record<string, Scope> = {
+    SYSTEM: Scope.SYSTEM,
+    PROJECT: Scope.PROJECT,
+    STORE: Scope.STORE,
+    USER: Scope.USER,
+  };
+  return scopeMap[s.toUpperCase()] || Scope.SCOPE_UNSPECIFIED;
+}
+
+function toFieldType(t: string): number {
+  const typeMap: Record<string, number> = {
+    STRING: 1,
+    INT: 2,
+    FLOAT: 3,
+    BOOLEAN: 4,
+    JSON: 5,
+    ARRAY_STRING: 6,
+    SECRET: 7,
+  };
+  return typeMap[t.toUpperCase()] || 1;
+}

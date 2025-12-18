@@ -519,3 +519,191 @@ class ConfigClient:
     def is_cache_enabled(self) -> bool:
         """Check if caching is enabled."""
         return self._cache is not None
+    
+    def apply_config_template(self, template: ConfigTemplate, user: str) -> ConfigTemplate:
+        """
+        Apply a configuration template.
+        
+        Args:
+            template: The template to apply
+            user: The user performing the action
+            
+        Returns:
+            The applied template
+        """
+        if not self._stub:
+            raise ConfigServiceError("Client not connected. Call connect() first.")
+        
+        try:
+            # Convert to proto
+            proto_fields = []
+            for f in template.fields:
+                proto_options = [
+                    config_pb2.ValueOption(value=o.value, label=o.label)
+                    for o in f.options
+                ]
+                proto_fields.append(config_pb2.ConfigFieldTemplate(
+                    path=f.path,
+                    label=f.label,
+                    description=f.description,
+                    type=f.type.value,
+                    default_value=f.default_value,
+                    display_on=[s.value for s in f.display_on],
+                    options=proto_options,
+                    sort_order=f.sort_order,
+                ))
+            
+            proto_template = config_pb2.ConfigTemplate(
+                identifier=self._to_proto_identifier(template.identifier),
+                service_label=template.service_label,
+                group_label=template.group_label,
+                group_description=template.group_description,
+                fields=proto_fields,
+                sort_order=template.sort_order,
+            )
+            
+            request = config_pb2.ApplyConfigTemplateRequest(
+                template=proto_template,
+                user=user,
+            )
+            response = self._stub.ApplyConfigTemplate(request)
+            return self._from_proto_template(response)
+        except grpc.RpcError as e:
+            raise self._wrap_error("ApplyConfigTemplate", e)
+
+
+def load_templates_from_dir(client: ConfigClient, dir_path: str, user: str) -> None:
+    """
+    Load and apply all YAML templates from a directory.
+    
+    Simply place your template files in the specified directory and this function
+    will automatically load and apply them to the config service.
+    
+    Args:
+        client: The connected ConfigClient instance
+        dir_path: Path to the templates directory
+        user: The user performing the action
+        
+    Example:
+        # Initialize client and auto-load templates
+        with ConfigClient() as client:
+            load_templates_from_dir(client, "./templates", "system")
+    """
+    import os
+    import glob
+    
+    try:
+        import yaml
+    except ImportError:
+        raise ConfigServiceError("PyYAML is required for template loading. Install with: pip install pyyaml")
+    
+    if not os.path.isdir(dir_path):
+        logger.info(f"Templates directory {dir_path} does not exist, skipping template import")
+        return
+    
+    # Find all YAML files
+    yaml_files = glob.glob(os.path.join(dir_path, "*.yaml")) + glob.glob(os.path.join(dir_path, "*.yml"))
+    
+    if not yaml_files:
+        logger.info(f"No template files found in {dir_path}")
+        return
+    
+    logger.info(f"Found {len(yaml_files)} template file(s) to import")
+    
+    for file_path in yaml_files:
+        _load_and_apply_template_file(client, file_path, user)
+
+
+def _load_and_apply_template_file(client: ConfigClient, file_path: str, user: str) -> None:
+    """Load and apply a single template file."""
+    import yaml
+    
+    try:
+        with open(file_path, 'r') as f:
+            data = yaml.safe_load(f)
+    except Exception as e:
+        raise ConfigServiceError(f"Failed to read template file {file_path}: {e}")
+    
+    if not data:
+        logger.warning(f"Empty template file: {file_path}")
+        return
+    
+    # Validate required fields
+    if 'service' not in data or 'id' not in data['service']:
+        raise ConfigServiceError(f"Template file {file_path} missing 'service.id'")
+    
+    service_name = data['service']['id']
+    service_label = data['service'].get('label', service_name)
+    
+    groups = data.get('groups', [])
+    if not groups:
+        logger.warning(f"No groups defined in template: {file_path}")
+        return
+    
+    for group in groups:
+        _apply_group_template(client, service_name, service_label, group, user)
+        logger.info(f"Successfully imported template: service={service_name}, group={group.get('id')} from {os.path.basename(file_path)}")
+
+
+def _apply_group_template(client: ConfigClient, service_name: str, service_label: str, group: dict, user: str) -> None:
+    """Apply a single group template."""
+    group_id = group.get('id', '')
+    group_label = group.get('label', group_id)
+    group_description = group.get('description', '')
+    sort_order = group.get('sortOrder', 0)
+    
+    fields = []
+    for f in group.get('fields', []):
+        display_on = [_to_scope(s) for s in f.get('displayOn', [])]
+        options = [ValueOption(value=o['value'], label=o.get('label', o['value'])) for o in f.get('options', [])]
+        
+        fields.append(ConfigFieldTemplate(
+            path=f.get('path', ''),
+            label=f.get('label', ''),
+            description=f.get('description', ''),
+            type=_to_field_type(f.get('type', 'STRING')),
+            default_value=f.get('defaultValue', ''),
+            display_on=display_on,
+            options=options,
+            sort_order=f.get('sortOrder', 0),
+        ))
+    
+    template = ConfigTemplate(
+        identifier=ConfigIdentifier(
+            service_name=service_name,
+            group_id=group_id,
+            scope=Scope.SCOPE_UNSPECIFIED,
+        ),
+        service_label=service_label,
+        group_label=group_label,
+        group_description=group_description,
+        fields=fields,
+        sort_order=sort_order,
+    )
+    
+    client.apply_config_template(template, user)
+
+
+def _to_scope(s: str) -> Scope:
+    """Convert string to Scope enum."""
+    scope_map = {
+        'SYSTEM': Scope.SYSTEM,
+        'PROJECT': Scope.PROJECT,
+        'STORE': Scope.STORE,
+        'USER': Scope.USER,
+    }
+    return scope_map.get(s.upper(), Scope.SCOPE_UNSPECIFIED)
+
+
+def _to_field_type(t: str) -> FieldType:
+    """Convert string to FieldType enum."""
+    type_map = {
+        'STRING': FieldType.STRING,
+        'INT': FieldType.INT,
+        'FLOAT': FieldType.FLOAT,
+        'BOOLEAN': FieldType.BOOLEAN,
+        'JSON': FieldType.JSON,
+        'ARRAY_STRING': FieldType.ARRAY_STRING,
+        'SECRET': FieldType.SECRET,
+    }
+    return type_map.get(t.upper(), FieldType.STRING)
