@@ -2,11 +2,28 @@ package scopeconfig
 
 import (
 	"crypto/tls"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+// Environment variable names for configuration
+const (
+	EnvHost   = "GRPC_SCOPE_CONFIG_HOST"
+	EnvPort   = "GRPC_SCOPE_CONFIG_PORT"
+	EnvUseTLS = "GRPC_SCOPE_CONFIG_USE_TLS"
+)
+
+// Default values
+const (
+	DefaultHost = "localhost"
+	DefaultPort = 50051
 )
 
 // ClientOption is a functional option for configuring the Client.
@@ -24,6 +41,44 @@ type clientConfig struct {
 	// Background sync settings
 	syncEnabled  bool
 	syncInterval time.Duration
+}
+
+// FromEnvironment creates client options from environment variables.
+// Uses GRPC_SCOPE_CONFIG_HOST, GRPC_SCOPE_CONFIG_PORT, and GRPC_SCOPE_CONFIG_USE_TLS.
+//
+// Example:
+//
+//	client, err := NewClient(FromEnvironment()...)
+func FromEnvironment() []ClientOption {
+	host := os.Getenv(EnvHost)
+	if host == "" {
+		host = DefaultHost
+	}
+
+	port := DefaultPort
+	if portStr := os.Getenv(EnvPort); portStr != "" {
+		if p, err := strconv.Atoi(portStr); err == nil {
+			port = p
+		}
+	}
+
+	useTLS := false
+	if tlsStr := strings.ToLower(os.Getenv(EnvUseTLS)); tlsStr == "true" || tlsStr == "1" || tlsStr == "yes" {
+		useTLS = true
+	}
+
+	opts := []ClientOption{
+		WithAddress(fmt.Sprintf("%s:%d", host, port)),
+	}
+
+	if useTLS {
+		// Use default TLS config
+		opts = append(opts, WithTLS(&tls.Config{}))
+	} else {
+		opts = append(opts, WithInsecure())
+	}
+
+	return opts
 }
 
 // WithAddress sets the server address for the client.

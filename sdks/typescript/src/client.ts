@@ -8,6 +8,12 @@
  * - Stale cache fallback when server is unavailable
  * - GetValue extracts specific field from cached group config
  * - GetValue with inheritance and default value support
+ * - Environment variable support for configuration
+ *
+ * Environment Variables:
+ * - GRPC_SCOPE_CONFIG_HOST: Server host (default: localhost)
+ * - GRPC_SCOPE_CONFIG_PORT: Server port (default: 50051)
+ * - GRPC_SCOPE_CONFIG_USE_TLS: Enable TLS (default: false)
  */
 
 import * as grpc from "@grpc/grpc-js";
@@ -21,6 +27,11 @@ import {
   ConfigTemplate,
   GetValueOptions,
   Scope,
+  ENV_HOST,
+  ENV_PORT,
+  ENV_USE_TLS,
+  DEFAULT_HOST,
+  DEFAULT_PORT,
 } from "./types";
 import { ConfigCache } from "./cache";
 
@@ -30,11 +41,35 @@ const DEFAULT_CACHE_TTL_MS = 60000;
 const DEFAULT_SYNC_INTERVAL_MS = 30000;
 
 /**
+ * Creates client options from environment variables.
+ */
+export function createOptionsFromEnv(
+  overrides?: Partial<ClientOptions>
+): ClientOptions {
+  const host = process.env[ENV_HOST] || DEFAULT_HOST;
+  const port = parseInt(process.env[ENV_PORT] || String(DEFAULT_PORT), 10);
+  const useTlsEnv = process.env[ENV_USE_TLS]?.toLowerCase();
+  const useTls = useTlsEnv === "true" || useTlsEnv === "1" || useTlsEnv === "yes";
+
+  return {
+    address: `${host}:${port}`,
+    host,
+    port,
+    insecure: !useTls,
+    cacheEnabled: true,
+    ...overrides,
+  };
+}
+
+/**
  * ScopeConfig gRPC Client with caching support.
  *
  * @example
  * ```typescript
- * // Create a client with caching
+ * // Create a client using environment variables
+ * const client = new ConfigClient(createOptionsFromEnv());
+ *
+ * // Or with explicit configuration
  * const client = new ConfigClient({
  *   address: 'localhost:50051',
  *   insecure: true,
@@ -63,13 +98,28 @@ export class ConfigClient {
   private client: any;
   private options: ClientOptions;
   private cache: ConfigCache | null = null;
+  private address: string;
 
-  constructor(options: ClientOptions) {
-    this.options = options;
+  constructor(options?: ClientOptions) {
+    // Use provided options or load from environment
+    this.options = options || createOptionsFromEnv();
 
-    // Initialize cache if enabled
-    if (options.cacheEnabled) {
-      this.cache = new ConfigCache(options.cacheTtlMs || DEFAULT_CACHE_TTL_MS);
+    // Resolve address
+    if (this.options.address) {
+      this.address = this.options.address;
+    } else {
+      const host = this.options.host || process.env[ENV_HOST] || DEFAULT_HOST;
+      const port =
+        this.options.port ||
+        parseInt(process.env[ENV_PORT] || String(DEFAULT_PORT), 10);
+      this.address = `${host}:${port}`;
+    }
+
+    // Initialize cache if enabled (default: true)
+    if (this.options.cacheEnabled !== false) {
+      this.cache = new ConfigCache(
+        this.options.cacheTtlMs || DEFAULT_CACHE_TTL_MS
+      );
     }
   }
 
@@ -100,7 +150,7 @@ export class ConfigClient {
         : this.options.credentials || grpc.credentials.createSsl();
 
       this.client = new configService.ConfigService(
-        this.options.address,
+        this.address,
         credentials,
         this.options.channelOptions
       );
@@ -109,7 +159,7 @@ export class ConfigClient {
       if (
         this.options.backgroundSyncEnabled &&
         this.cache &&
-        this.options.cacheEnabled
+        this.options.cacheEnabled !== false
       ) {
         this.cache.startBackgroundSync(
           this.options.backgroundSyncIntervalMs || DEFAULT_SYNC_INTERVAL_MS,

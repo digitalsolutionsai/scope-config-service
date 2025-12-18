@@ -10,6 +10,7 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 - **Stale cache fallback** when server is unavailable
 - **GetValue** with inheritance and default value support
 - **TypeScript interfaces** for type safety
+- **Environment variable support** for configuration
 
 ## Quick Start
 
@@ -19,7 +20,35 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 npm install @grpc/grpc-js @grpc/proto-loader
 ```
 
-### Basic Usage
+### Using Environment Variables
+
+```typescript
+import { ConfigClient, createOptionsFromEnv, Scope, createIdentifier } from './src';
+
+// Environment variables:
+// GRPC_SCOPE_CONFIG_HOST (default: localhost)
+// GRPC_SCOPE_CONFIG_PORT (default: 50051)
+// GRPC_SCOPE_CONFIG_USE_TLS (default: false)
+
+const client = new ConfigClient(createOptionsFromEnv());
+await client.connect();
+
+const identifier = createIdentifier('my-service')
+  .withScope(Scope.PROJECT)
+  .withGroupId('database')
+  .withProjectId('proj-123')
+  .build();
+
+const value = await client.getValue(identifier, 'database.host', {
+  useDefault: true,
+  inherit: true,
+});
+console.log('Database host:', value);
+
+await client.close();
+```
+
+### With Explicit Configuration
 
 ```typescript
 import { ConfigClient, Scope, createIdentifier } from './src';

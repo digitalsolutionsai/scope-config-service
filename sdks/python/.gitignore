@@ -1,3 +1,24 @@
 # Ignore generated Python gRPC files
-config_pb2.py
-config_pb2_grpc.py
+*_pb2.py
+*_pb2_grpc.py
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Distribution
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp

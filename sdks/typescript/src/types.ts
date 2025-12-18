@@ -5,13 +5,28 @@
 
 import * as grpc from "@grpc/grpc-js";
 
+// Environment variable names
+export const ENV_HOST = "GRPC_SCOPE_CONFIG_HOST";
+export const ENV_PORT = "GRPC_SCOPE_CONFIG_PORT";
+export const ENV_USE_TLS = "GRPC_SCOPE_CONFIG_USE_TLS";
+
+// Default values
+export const DEFAULT_HOST = "localhost";
+export const DEFAULT_PORT = 50051;
+
 // Client configuration options
 export interface ClientOptions {
-  address: string;
+  /** Server address in format "host:port" */
+  address?: string;
+  /** Server host (can also use GRPC_SCOPE_CONFIG_HOST env var) */
+  host?: string;
+  /** Server port (can also use GRPC_SCOPE_CONFIG_PORT env var) */
+  port?: number;
+  /** Use insecure connection (can also use GRPC_SCOPE_CONFIG_USE_TLS env var) */
   insecure?: boolean;
   credentials?: grpc.ChannelCredentials;
   channelOptions?: grpc.ChannelOptions;
-  /** Enable in-memory caching (default: false) */
+  /** Enable in-memory caching (default: true) */
   cacheEnabled?: boolean;
   /** Cache TTL in milliseconds (default: 60000 = 1 minute) */
   cacheTtlMs?: number;

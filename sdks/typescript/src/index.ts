@@ -1,4 +1,4 @@
-export { ConfigClient } from "./client";
+export { ConfigClient, createOptionsFromEnv } from "./client";
 
 export { IdentifierBuilder, createIdentifier } from "./identifier";
 
@@ -17,4 +17,9 @@ export {
   GetValueOptions,
   ClientOptions,
   ConfigServiceError,
+  ENV_HOST,
+  ENV_PORT,
+  ENV_USE_TLS,
+  DEFAULT_HOST,
+  DEFAULT_PORT,
 } from "./types";

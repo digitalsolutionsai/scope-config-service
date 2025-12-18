@@ -1,6 +1,15 @@
 # Go SDK for ScopeConfig Service
 
-A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC service.
+A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC service with caching support.
+
+## Features
+
+- **In-memory caching** for config values by group (reduces gRPC calls)
+- **Template caching** for default value lookups
+- **Background sync** to refresh cached configs periodically
+- **Stale cache fallback** when server is unavailable
+- **GetValue** with inheritance and default value support
+- **Environment variable support** for configuration
 
 ## Prerequisites
 
@@ -75,6 +84,52 @@ go mod tidy
 
 ## Usage
 
+### Using Environment Variables
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    scopeconfig "github.com/your-org/your-project/scopeconfig-sdk"
+    configv1 "github.com/your-org/your-project/scopeconfig-sdk/gen/config/v1"
+)
+
+func main() {
+    // Create a client using environment variables:
+    // GRPC_SCOPE_CONFIG_HOST (default: localhost)
+    // GRPC_SCOPE_CONFIG_PORT (default: 50051)
+    // GRPC_SCOPE_CONFIG_USE_TLS (default: false)
+    client, err := scopeconfig.NewClient(scopeconfig.FromEnvironment()...)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    ctx := context.Background()
+
+    identifier := scopeconfig.NewIdentifier("my-service").
+        WithScope(configv1.Scope_PROJECT).
+        WithGroupID("database").
+        WithProjectID("proj-123").
+        Build()
+
+    // Get a specific config value with inheritance
+    value, err := client.GetValue(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+        UseDefault: true,
+        Inherit:    true,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if value != nil {
+        log.Printf("Database host: %s", *value)
+    }
+}
+```
+
 ### Basic Example
 
 ```go
@@ -94,6 +149,8 @@ func main() {
     client, err := scopeconfig.NewClient(
         scopeconfig.WithAddress("localhost:50051"),
         scopeconfig.WithInsecure(), // Use WithTLS() in production
+        scopeconfig.WithCache(time.Minute),
+        scopeconfig.WithBackgroundSync(30*time.Second),
     )
     if err != nil {
         log.Fatal(err)
@@ -108,8 +165,8 @@ func main() {
         WithGroupID("database").
         Build()
 
-    // Get configuration
-    config, err := client.GetConfig(ctx, identifier)
+    // Get configuration with caching
+    config, err := client.GetConfigCached(ctx, identifier)
     if err != nil {
         log.Fatal(err)
     }
