@@ -208,6 +208,56 @@ for _, field := range template.Fields {
 }
 ```
 
+### Using Caching
+
+```go
+// Create a client with caching enabled
+client, err := scopeconfig.NewClient(
+    scopeconfig.WithAddress("localhost:50051"),
+    scopeconfig.WithInsecure(),
+    scopeconfig.WithCache(time.Minute),           // Cache TTL: 1 minute
+    scopeconfig.WithBackgroundSync(30*time.Second), // Sync every 30 seconds
+)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+// Get config with caching (reduces gRPC calls)
+config, err := client.GetConfigCached(ctx, identifier)
+```
+
+### Get Specific Config Value
+
+```go
+// Get a specific value with options
+value, err := client.GetValue(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+    UseDefault: true,  // Use template default if not set
+    Inherit:    true,  // Check parent scopes if not found
+})
+if err != nil {
+    log.Fatal(err)
+}
+if value != nil {
+    fmt.Printf("Database host: %s\n", *value)
+}
+
+// Or use GetValueString for convenience (returns empty string if not found)
+host, err := client.GetValueString(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+    UseDefault: true,
+})
+```
+
+### Load Templates from Directory
+
+```go
+// Load and apply all YAML templates from a directory
+err := client.LoadTemplatesFromDir(ctx, "./templates", "system")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
 ### Using TLS in Production
 
 ```go
@@ -242,11 +292,20 @@ client, err := scopeconfig.NewClient(
 
 - `NewClient(opts ...ClientOption) (*Client, error)` - Create a new client
 - `Close() error` - Close the client connection
-- `GetConfig(ctx, identifier) (*ScopeConfig, error)` - Get published configuration
+- `GetConfig(ctx, identifier) (*ScopeConfig, error)` - Get published configuration (always fetches from server)
+- `GetConfigCached(ctx, identifier) (*ScopeConfig, error)` - Get configuration with caching support
 - `GetLatestConfig(ctx, identifier) (*ScopeConfig, error)` - Get latest configuration
 - `UpdateConfig(ctx, identifier, fields, user) (*ScopeConfig, error)` - Update configuration
 - `GetConfigTemplate(ctx, identifier) (*ConfigTemplate, error)` - Get configuration template
+- `GetConfigTemplateCached(ctx, identifier) (*ConfigTemplate, error)` - Get template with caching (for default values)
 - `ApplyConfigTemplate(ctx, template, user) (*ConfigTemplate, error)` - Apply configuration template
+- `GetValue(ctx, identifier, path, opts) (*string, error)` - Get specific config value with options
+- `GetValueString(ctx, identifier, path, opts) (string, error)` - Get value as string (empty if not found)
+- `MustGetValue(ctx, identifier, path, opts) string` - Get value or panic on error
+- `LoadTemplatesFromDir(ctx, dir, user) error` - Load and apply templates from directory
+- `InvalidateCache(identifier)` - Invalidate cache for specific config
+- `ClearCache()` - Clear all cached configs
+- `IsCacheEnabled() bool` - Check if caching is enabled
 
 ### Client Options
 
@@ -254,6 +313,24 @@ client, err := scopeconfig.NewClient(
 - `WithInsecure()` - Use insecure connection (development only)
 - `WithTLS(tlsConfig *tls.Config)` - Use TLS connection
 - `WithDialOptions(opts ...grpc.DialOption)` - Add custom gRPC dial options
+- `WithCache(ttl time.Duration)` - Enable caching with specified TTL (default: 1 minute)
+- `WithBackgroundSync(interval time.Duration)` - Enable background sync (default: 30 seconds)
+
+### GetValue Options
+
+```go
+type GetValueOptions struct {
+    UseDefault bool  // Use default value from template if not set
+    Inherit    bool  // Traverse parent scopes (USER -> STORE -> PROJECT -> SYSTEM)
+}
+```
+
+### Caching Behavior
+
+- **Config values** are cached by group to reduce gRPC calls
+- **Templates** are cached for default value lookups
+- **Stale cache fallback**: If server is unavailable, returns stale cached data
+- **Background sync**: Periodically refreshes cached configs in the background
 
 ### Identifier Builder
 

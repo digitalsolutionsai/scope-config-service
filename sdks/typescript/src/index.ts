@@ -1,6 +1,8 @@
-export { ConfigClient } from './client';
+export { ConfigClient } from "./client";
 
-export { IdentifierBuilder, createIdentifier } from './identifier';
+export { IdentifierBuilder, createIdentifier } from "./identifier";
+
+export { ConfigCache } from "./cache";
 
 export {
   Scope,
@@ -9,6 +11,10 @@ export {
   ConfigField,
   ConfigVersion,
   ScopeConfig,
+  ConfigTemplate,
+  ConfigFieldTemplate,
+  ValueOption,
+  GetValueOptions,
   ClientOptions,
   ConfigServiceError,
-} from './types';
+} from "./types";
