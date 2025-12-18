@@ -110,7 +110,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚀 Deployment Started: ${{ steps.extract_tag.outputs.tag }}",
+              "text": "🚀 Deployment Started",
               "blocks": [
                 {
                   "type": "header",
@@ -122,8 +122,22 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Service:*\n`scope-config-service`" },
-                    { "type": "mrkdwn", "text": "*Version:*\n`${{ steps.extract_tag.outputs.tag }}`" }
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n${{ steps.extract_tag.outputs.tag }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\nProduction"
+                    }
                   ]
                 },
                 {
