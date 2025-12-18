@@ -101,17 +101,13 @@ func (c *Client) loadAndApplyFile(ctx context.Context, filePath string, user str
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var yamlTemplate YamlTemplate
-	if err := yaml.Unmarshal(data, &yamlTemplate); err != nil {
-		return fmt.Errorf("failed to parse YAML: %w", err)
-	}
-
-	if yamlTemplate.Service.Name == "" {
-		return fmt.Errorf("service.id is required in template file")
+	yamlTemplate, err := parseAndValidateTemplate(data)
+	if err != nil {
+		return err
 	}
 
 	for _, group := range yamlTemplate.Groups {
-		if err := c.applyGroup(ctx, &yamlTemplate, &group, user); err != nil {
+		if err := c.applyGroup(ctx, yamlTemplate, &group, user); err != nil {
 			return fmt.Errorf("failed to apply group %s: %w", group.ID, err)
 		}
 		log.Printf("Successfully imported template: service=%s, group=%s from %s",
@@ -119,6 +115,20 @@ func (c *Client) loadAndApplyFile(ctx context.Context, filePath string, user str
 	}
 
 	return nil
+}
+
+// parseAndValidateTemplate parses YAML data and validates the template structure.
+func parseAndValidateTemplate(data []byte) (*YamlTemplate, error) {
+	var yamlTemplate YamlTemplate
+	if err := yaml.Unmarshal(data, &yamlTemplate); err != nil {
+		return nil, fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	if yamlTemplate.Service.Name == "" {
+		return nil, fmt.Errorf("service.id is required in template")
+	}
+
+	return &yamlTemplate, nil
 }
 
 func (c *Client) applyGroup(ctx context.Context, yamlTemplate *YamlTemplate, group *YamlGroup, user string) error {
@@ -217,17 +227,13 @@ func toScope(s string) configv1.Scope {
 //	`)
 //	err := client.LoadTemplateFromBytes(ctx, yamlData, "system")
 func (c *Client) LoadTemplateFromBytes(ctx context.Context, data []byte, user string) error {
-	var yamlTemplate YamlTemplate
-	if err := yaml.Unmarshal(data, &yamlTemplate); err != nil {
-		return fmt.Errorf("failed to parse YAML: %w", err)
-	}
-
-	if yamlTemplate.Service.Name == "" {
-		return fmt.Errorf("service.id is required in template")
+	yamlTemplate, err := parseAndValidateTemplate(data)
+	if err != nil {
+		return err
 	}
 
 	for _, group := range yamlTemplate.Groups {
-		if err := c.applyGroup(ctx, &yamlTemplate, &group, user); err != nil {
+		if err := c.applyGroup(ctx, yamlTemplate, &group, user); err != nil {
 			return fmt.Errorf("failed to apply group %s: %w", group.ID, err)
 		}
 	}

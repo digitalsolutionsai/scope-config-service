@@ -99,7 +99,9 @@ func (c *Client) getDefaultValue(ctx context.Context, identifier *configv1.Confi
 	}
 
 	for _, field := range template.Fields {
-		if field.Path == path && field.DefaultValue != "" {
+		if field.Path == path {
+			// Return default value even if it's empty string
+			// (empty string can be a valid default)
 			return &field.DefaultValue, nil
 		}
 	}

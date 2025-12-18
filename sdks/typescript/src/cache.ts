@@ -143,10 +143,15 @@ export class ConfigCache {
     for (const key of this.configs.keys()) {
       const parts = key.split(":");
       if (parts.length >= 3) {
+        const scopeNum = parseInt(parts[2], 10);
+        // Skip if scope is not a valid number
+        if (isNaN(scopeNum)) {
+          continue;
+        }
         identifiers.push({
           serviceName: parts[0],
           groupId: parts[1],
-          scope: parseInt(parts[2], 10),
+          scope: scopeNum,
           projectId: parts[3] || undefined,
           storeId: parts[4] || undefined,
           userId: parts[5] || undefined,
