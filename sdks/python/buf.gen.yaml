@@ -1,10 +1,6 @@
 version: v2
 plugins:
-  - local: protoc-gen-python
-    out: gen
-    opt:
-      - paths=source_relative
-  - local: protoc-gen-grpc-python
-    out: gen
-    opt:
-      - paths=source_relative
+  - remote: buf.build/protocolbuffers/python
+    out: scopeconfig
+  - remote: buf.build/grpc/python
+    out: scopeconfig

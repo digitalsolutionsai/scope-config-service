@@ -1,6 +1,10 @@
 version: v2
 plugins:
-  - remote: buf.build/community/timostamm-protobuf-ts 
+  - remote: buf.build/community/timostamm-protobuf-ts
     out: src/gen
     opt:
       - long_type_string
+      - add_pb_suffix
+      - output_javascript
+      - output_typescript
+      - ts_nocheck

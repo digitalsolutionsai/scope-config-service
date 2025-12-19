@@ -1,6 +1,16 @@
 # Go SDK for ScopeConfig Service
 
-A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC service.
+A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC service with caching support.
+
+## Features
+
+- **In-memory caching** for config values by group (reduces gRPC calls)
+- **Template caching** for default value lookups
+- **Background sync** to refresh cached configs periodically
+- **Stale cache fallback** when server is unavailable
+- **GetValue** with inheritance and default value support
+- **Environment variable support** for configuration
+- **Automatic template loading** from YAML files
 
 ## Prerequisites
 
@@ -75,6 +85,52 @@ go mod tidy
 
 ## Usage
 
+### Using Environment Variables
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    scopeconfig "github.com/your-org/your-project/scopeconfig-sdk"
+    configv1 "github.com/your-org/your-project/scopeconfig-sdk/gen/config/v1"
+)
+
+func main() {
+    // Create a client using environment variables:
+    // GRPC_SCOPE_CONFIG_HOST (default: localhost)
+    // GRPC_SCOPE_CONFIG_PORT (default: 50051)
+    // GRPC_SCOPE_CONFIG_USE_TLS (default: false)
+    client, err := scopeconfig.NewClient(scopeconfig.FromEnvironment()...)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    ctx := context.Background()
+
+    identifier := scopeconfig.NewIdentifier("my-service").
+        WithScope(configv1.Scope_PROJECT).
+        WithGroupID("database").
+        WithProjectID("proj-123").
+        Build()
+
+    // Get a specific config value with inheritance
+    value, err := client.GetValue(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+        UseDefault: true,
+        Inherit:    true,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if value != nil {
+        log.Printf("Database host: %s", *value)
+    }
+}
+```
+
 ### Basic Example
 
 ```go
@@ -94,6 +150,8 @@ func main() {
     client, err := scopeconfig.NewClient(
         scopeconfig.WithAddress("localhost:50051"),
         scopeconfig.WithInsecure(), // Use WithTLS() in production
+        scopeconfig.WithCache(time.Minute),
+        scopeconfig.WithBackgroundSync(30*time.Second),
     )
     if err != nil {
         log.Fatal(err)
@@ -108,8 +166,8 @@ func main() {
         WithGroupID("database").
         Build()
 
-    // Get configuration
-    config, err := client.GetConfig(ctx, identifier)
+    // Get configuration with caching
+    config, err := client.GetConfigCached(ctx, identifier)
     if err != nil {
         log.Fatal(err)
     }
@@ -208,6 +266,162 @@ for _, field := range template.Fields {
 }
 ```
 
+### Using Caching
+
+```go
+// Create a client with caching enabled
+client, err := scopeconfig.NewClient(
+    scopeconfig.WithAddress("localhost:50051"),
+    scopeconfig.WithInsecure(),
+    scopeconfig.WithCache(time.Minute),           // Cache TTL: 1 minute
+    scopeconfig.WithBackgroundSync(30*time.Second), // Sync every 30 seconds
+)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+// Get config with caching (reduces gRPC calls)
+config, err := client.GetConfigCached(ctx, identifier)
+```
+
+### Get Specific Config Value
+
+```go
+// Get a specific value with options
+value, err := client.GetValue(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+    UseDefault: true,  // Use template default if not set
+    Inherit:    true,  // Check parent scopes if not found
+})
+if err != nil {
+    log.Fatal(err)
+}
+if value != nil {
+    fmt.Printf("Database host: %s\n", *value)
+}
+
+// Or use GetValueString for convenience (returns empty string if not found)
+host, err := client.GetValueString(ctx, identifier, "database.host", &scopeconfig.GetValueOptions{
+    UseDefault: true,
+})
+```
+
+## Automatic Template Loading
+
+The SDK supports automatic loading of configuration templates from YAML files. Simply place your template files in a `templates` directory and the SDK will load them automatically.
+
+### Quick Start
+
+1. Create a `templates` directory in your project root
+2. Add your YAML template files (`.yaml` or `.yml`)
+3. Call `LoadTemplatesFromDir` on client initialization
+
+```go
+// Initialize client and auto-load templates
+client, err := scopeconfig.NewClient(scopeconfig.FromEnvironment()...)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+// Auto-load all templates from the templates directory
+err = client.LoadTemplatesFromDir(ctx, "./templates", "system")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Template File Format
+
+Create YAML files in your `templates` directory following this structure:
+
+```yaml
+# templates/my-service.yaml
+service:
+  id: "my-service"
+  label: "My Service"
+
+groups:
+  - id: "database"
+    label: "Database Configuration"
+    description: "Database connection settings"
+    sortOrder: 100000
+    fields:
+      - path: "host"
+        label: "Database Host"
+        description: "The database server hostname"
+        type: "STRING"
+        defaultValue: "localhost"
+        sortOrder: 100000
+        displayOn:
+          - "PROJECT"
+          - "STORE"
+      - path: "port"
+        label: "Database Port"
+        type: "INT"
+        defaultValue: "5432"
+        sortOrder: 200000
+        displayOn:
+          - "PROJECT"
+      - path: "ssl-enabled"
+        label: "Enable SSL"
+        type: "BOOLEAN"
+        defaultValue: "false"
+        sortOrder: 300000
+        displayOn:
+          - "PROJECT"
+```
+
+### Field Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `STRING` | Text value | `"localhost"` |
+| `INT` | Integer number | `"5432"` |
+| `FLOAT` | Decimal number | `"0.7"` |
+| `BOOLEAN` | True/false | `"true"` |
+| `JSON` | JSON object/array | `'["a", "b"]'` |
+| `ARRAY_STRING` | String array | |
+| `SECRET` | Sensitive value | API keys, passwords |
+
+### Display Scopes
+
+The `displayOn` field controls which scopes the field is visible/editable:
+- `SYSTEM` - System-wide settings
+- `PROJECT` - Project-level settings
+- `STORE` - Store-level settings
+- `USER` - User-level settings
+
+### Options (Dropdowns)
+
+Define selectable options for a field:
+
+```yaml
+- path: "log-level"
+  label: "Log Level"
+  type: "STRING"
+  defaultValue: "INFO"
+  options:
+    - value: "DEBUG"
+      label: "Debug"
+    - value: "INFO"
+      label: "Info"
+    - value: "WARN"
+      label: "Warning"
+    - value: "ERROR"
+      label: "Error"
+```
+
+### Load Templates from Directory
+
+```go
+// Load and apply all YAML templates from a directory
+err := client.LoadTemplatesFromDir(ctx, "./templates", "system")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
 ### Using TLS in Production
 
 ```go
@@ -242,11 +456,20 @@ client, err := scopeconfig.NewClient(
 
 - `NewClient(opts ...ClientOption) (*Client, error)` - Create a new client
 - `Close() error` - Close the client connection
-- `GetConfig(ctx, identifier) (*ScopeConfig, error)` - Get published configuration
+- `GetConfig(ctx, identifier) (*ScopeConfig, error)` - Get published configuration (always fetches from server)
+- `GetConfigCached(ctx, identifier) (*ScopeConfig, error)` - Get configuration with caching support
 - `GetLatestConfig(ctx, identifier) (*ScopeConfig, error)` - Get latest configuration
 - `UpdateConfig(ctx, identifier, fields, user) (*ScopeConfig, error)` - Update configuration
 - `GetConfigTemplate(ctx, identifier) (*ConfigTemplate, error)` - Get configuration template
+- `GetConfigTemplateCached(ctx, identifier) (*ConfigTemplate, error)` - Get template with caching (for default values)
 - `ApplyConfigTemplate(ctx, template, user) (*ConfigTemplate, error)` - Apply configuration template
+- `GetValue(ctx, identifier, path, opts) (*string, error)` - Get specific config value with options
+- `GetValueString(ctx, identifier, path, opts) (string, error)` - Get value as string (empty if not found)
+- `MustGetValue(ctx, identifier, path, opts) string` - Get value or panic on error
+- `LoadTemplatesFromDir(ctx, dir, user) error` - Load and apply templates from directory
+- `InvalidateCache(identifier)` - Invalidate cache for specific config
+- `ClearCache()` - Clear all cached configs
+- `IsCacheEnabled() bool` - Check if caching is enabled
 
 ### Client Options
 
@@ -254,6 +477,24 @@ client, err := scopeconfig.NewClient(
 - `WithInsecure()` - Use insecure connection (development only)
 - `WithTLS(tlsConfig *tls.Config)` - Use TLS connection
 - `WithDialOptions(opts ...grpc.DialOption)` - Add custom gRPC dial options
+- `WithCache(ttl time.Duration)` - Enable caching with specified TTL (default: 1 minute)
+- `WithBackgroundSync(interval time.Duration)` - Enable background sync (default: 30 seconds)
+
+### GetValue Options
+
+```go
+type GetValueOptions struct {
+    UseDefault bool  // Use default value from template if not set
+    Inherit    bool  // Traverse parent scopes (STORE → PROJECT → SYSTEM, USER → SYSTEM)
+}
+```
+
+### Caching Behavior
+
+- **Config values** are cached by group to reduce gRPC calls
+- **Templates** are cached for default value lookups
+- **Stale cache fallback**: If server is unavailable, returns stale cached data
+- **Background sync**: Periodically refreshes cached configs in the background
 
 ### Identifier Builder
 
@@ -273,6 +514,22 @@ Available in `configv1.Scope`:
 - `Scope_PROJECT`
 - `Scope_STORE`
 - `Scope_USER`
+
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+- `examples/main.go` - Comprehensive example demonstrating all SDK features
+
+Run the example:
+
+```bash
+# Generate proto files first
+buf generate
+
+# Run the example
+go run examples/main.go
+```
 
 ## Testing
 

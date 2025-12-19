@@ -1,6 +1,8 @@
-export { ConfigClient } from './client';
+export { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from "./client";
 
-export { IdentifierBuilder, createIdentifier } from './identifier';
+export { IdentifierBuilder, createIdentifier } from "./identifier";
+
+export { ConfigCache } from "./cache";
 
 export {
   Scope,
@@ -9,6 +11,15 @@ export {
   ConfigField,
   ConfigVersion,
   ScopeConfig,
+  ConfigTemplate,
+  ConfigFieldTemplate,
+  ValueOption,
+  GetValueOptions,
   ClientOptions,
   ConfigServiceError,
-} from './types';
+  ENV_HOST,
+  ENV_PORT,
+  ENV_USE_TLS,
+  DEFAULT_HOST,
+  DEFAULT_PORT,
+} from "./types";
