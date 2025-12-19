@@ -52,7 +52,12 @@ jobs:
       - name: Create Go SDK artifact
         run: |
           cd sdks
-          tar -czf go-sdk.tar.gz go/
+          tar -czf go-sdk.tar.gz \
+            --exclude='go/proto' \
+            --exclude='go/vendor' \
+            --exclude='go/buf.gen.yaml' \
+            --exclude='go/.git*' \
+            go/
           
       - name: Upload Go SDK artifact
         uses: actions/upload-artifact@v4
@@ -84,8 +89,8 @@ jobs:
       - name: Copy proto files
         working-directory: sdks/typescript
         run: |
-          mkdir -p proto
-          cp -r ../../proto/config proto/
+          mkdir -p proto/config/v1
+          cp ../../proto/config/v1/*.proto proto/config/v1/
 
       - name: Generate proto files for TypeScript SDK
         working-directory: sdks/typescript
@@ -98,7 +103,12 @@ jobs:
       - name: Create TypeScript SDK artifact
         run: |
           cd sdks
-          tar -czf typescript-sdk.tar.gz typescript/
+          tar -czf typescript-sdk.tar.gz \
+            --exclude='typescript/node_modules' \
+            --exclude='typescript/package-lock.json' \
+            --exclude='typescript/buf.gen.yaml' \
+            --exclude='typescript/.git*' \
+            typescript/
           
       - name: Upload TypeScript SDK artifact
         uses: actions/upload-artifact@v4
@@ -132,8 +142,8 @@ jobs:
       - name: Copy proto files
         working-directory: sdks/python
         run: |
-          mkdir -p proto
-          cp -r ../../proto/config proto/
+          mkdir -p proto/config/v1
+          cp ../../proto/config/v1/*.proto proto/config/v1/
 
       - name: Generate proto files for Python SDK
         working-directory: sdks/python
@@ -142,7 +152,19 @@ jobs:
       - name: Create Python SDK artifact
         run: |
           cd sdks
-          tar -czf python-sdk.tar.gz python/
+          tar -czf python-sdk.tar.gz \
+            --exclude='python/__pycache__' \
+            --exclude='python/*.pyc' \
+            --exclude='python/.pytest_cache' \
+            --exclude='python/proto' \
+            --exclude='python/.venv' \
+            --exclude='python/venv' \
+            --exclude='python/buf.gen.yaml' \
+            --exclude='python/.git*' \
+            --exclude='python/dist' \
+            --exclude='python/build' \
+            --exclude='python/*.egg-info' \
+            python/
           
       - name: Upload Python SDK artifact
         uses: actions/upload-artifact@v4
@@ -171,8 +193,8 @@ jobs:
       - name: Copy proto files
         working-directory: sdks/java
         run: |
-          mkdir -p proto
-          cp -r ../../proto/config proto/
+          mkdir -p proto/config/v1
+          cp ../../proto/config/v1/*.proto proto/config/v1/
 
       - name: Generate proto files for Java SDK
         working-directory: sdks/java
@@ -185,7 +207,15 @@ jobs:
       - name: Create Java SDK artifact
         run: |
           cd sdks
-          tar -czf java-sdk.tar.gz java/
+          tar -czf java-sdk.tar.gz \
+            --exclude='java/target' \
+            --exclude='java/gen' \
+            --exclude='java/proto' \
+            --exclude='java/buf.gen.yaml' \
+            --exclude='java/.git*' \
+            --exclude='java/*.iml' \
+            --exclude='java/.idea' \
+            java/
           
       - name: Upload Java SDK artifact
         uses: actions/upload-artifact@v4
