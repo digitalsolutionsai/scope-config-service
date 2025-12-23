@@ -5,6 +5,7 @@ on:
     tags:
       - 'sdk-v*'  # Triggers on tags like sdk-v1.0.0, sdk-v1.0.0-beta
       - 'v*'      # Also triggers on regular version tags
+      - '*-prd'   # Also triggers on production tags like 2511.02.1-prd
 
 env:
   BUF_VERSION: '1.57.2'
