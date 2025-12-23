@@ -17,11 +17,11 @@
  *    - GRPC_SCOPE_CONFIG_USE_TLS (default: false)
  *
  * Run:
- *     mvn exec:java -Dexec.mainClass="com.dsai.scopeconfig.examples.BasicUsage"
+ *     mvn exec:java -Dexec.mainClass="vn.dsai.scopeconfig.examples.BasicUsage"
  */
-package com.dsai.scopeconfig.examples;
+package vn.dsai.scopeconfig.examples;
 
-import com.dsai.scopeconfig.*;
+import vn.dsai.scopeconfig.*;
 import vn.dsai.config.v1.*;
 
 import java.time.Duration;

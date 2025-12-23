@@ -1,4 +1,4 @@
-package com.dsai.scopeconfig;
+package vn.dsai.scopeconfig;
 
 import java.time.Duration;
 import java.time.Instant;

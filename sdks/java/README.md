@@ -37,7 +37,7 @@ mvn clean install
 ### Using Environment Variables
 
 ```java
-import com.dsai.scopeconfig.*;
+import vn.dsai.scopeconfig.*;
 import vn.dsai.config.v1.*;
 
 // Environment variables:
@@ -166,8 +166,8 @@ The SDK supports automatic loading of configuration templates from YAML files. S
 3. Load templates on client initialization
 
 ```java
-import com.dsai.scopeconfig.ConfigClient;
-import com.dsai.scopeconfig.TemplateLoader;
+import vn.dsai.scopeconfig.ConfigClient;
+import vn.dsai.scopeconfig.TemplateLoader;
 
 try (ConfigClient client = ConfigClient.fromEnvironment().build()) {
     // Auto-load all templates from the templates directory
@@ -289,7 +289,7 @@ try {
 
 ## Examples
 
-See the `src/main/java/com/dsai/scopeconfig/examples/` directory for complete working examples:
+See the `src/main/java/vn/dsai/scopeconfig/examples/` directory for complete working examples:
 
 - `BasicUsage.java` - Comprehensive example demonstrating all SDK features
 
@@ -300,7 +300,7 @@ Run the example:
 mvn clean package
 
 # Run the example
-mvn exec:java -Dexec.mainClass="com.dsai.scopeconfig.examples.BasicUsage"
+mvn exec:java -Dexec.mainClass="vn.dsai.scopeconfig.examples.BasicUsage"
 ```
 
 ### Spring Boot Integration

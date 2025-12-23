@@ -1,4 +1,4 @@
-package com.dsai.scopeconfig;
+package vn.dsai.scopeconfig;
 
 import vn.dsai.config.v1.ConfigField;
 import vn.dsai.config.v1.FieldType;

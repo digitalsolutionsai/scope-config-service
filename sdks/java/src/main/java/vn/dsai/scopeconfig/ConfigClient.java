@@ -1,4 +1,4 @@
-package com.dsai.scopeconfig;
+package vn.dsai.scopeconfig;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
