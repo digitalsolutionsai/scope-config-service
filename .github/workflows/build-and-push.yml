@@ -110,34 +110,20 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚀 Deployment Started",
+              "text": "🚀 Deployment Started: scope-config-service - ${{ steps.extract_tag.outputs.tag }}",
               "blocks": [
                 {
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "🚀 Deployment Started"
+                    "text": "🚀 Deployment Started: scope-config-service"
                   }
                 },
                 {
                   "type": "section",
                   "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:*\n${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Version:*\n${{ steps.extract_tag.outputs.tag }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Triggered by:*\n${{ github.actor }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Environment:*\nProduction"
-                    }
+                    { "type": "mrkdwn", "text": "*Service:*\n`scope-config-service`" },
+                    { "type": "mrkdwn", "text": "*Version:*\n`${{ steps.extract_tag.outputs.tag }}`" }
                   ]
                 },
                 {
@@ -191,7 +177,24 @@ jobs:
           sudo docker compose pull ${SERVICE_NAME} && \
           echo '=== Restarting service: ${SERVICE_NAME} ===' && \
           sudo docker compose up -d ${SERVICE_NAME} && \
-          echo '=== Pruning unused Docker images ===' && \
+          echo '=== Cleaning up old Docker images ===' && \
+          CONTAINER_ID=\$(sudo docker compose ps -q ${SERVICE_NAME} | head -1) && \
+          CURRENT_IMAGE_ID=\$(sudo docker inspect --format='{{.Image}}' \"\$CONTAINER_ID\" 2>/dev/null | sed 's/sha256://') && \
+          IMAGE_REPO=\$(sudo docker inspect --format='{{.Config.Image}}' \"\$CONTAINER_ID\" 2>/dev/null | sed 's/:.*//') && \
+          echo \"Current running image ID: \$CURRENT_IMAGE_ID\" && \
+          echo \"Image repository from running service: \$IMAGE_REPO\" && \
+          sudo docker images \"\$IMAGE_REPO\" --format '{{.ID}} {{.Repository}}:{{.Tag}}' --no-trunc | while read IMAGE_ID IMAGE_TAG; do \
+            SHORT_IMAGE_ID=\$(echo \"\$IMAGE_ID\" | sed 's/sha256://') && \
+            if [ \"\$SHORT_IMAGE_ID\" != \"\$CURRENT_IMAGE_ID\" ]; then \
+              echo \"Removing old image: \$IMAGE_TAG\" && \
+              if ! sudo docker rmi -f \"\$IMAGE_ID\" 2>&1; then \
+                echo \"Warning: Failed to remove image \$IMAGE_TAG, it may be in use by another container\"; \
+              fi; \
+            else \
+              echo \"Keeping current image: \$IMAGE_TAG\"; \
+            fi; \
+          done && \
+          echo '=== Pruning dangling images ===' && \
           sudo docker image prune -f && \
           echo '=== Deployment completed successfully ==='"
           
