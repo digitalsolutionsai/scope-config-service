@@ -555,7 +555,8 @@ export async function loadTemplatesFromDir(
     yaml = await import("js-yaml");
   } catch {
     throw new ConfigServiceError(
-      "js-yaml is required for template loading. Install with: npm install js-yaml"
+      "js-yaml is required for template loading. Install with: npm install js-yaml",
+      grpc.status.INTERNAL
     );
   }
 
@@ -599,7 +600,8 @@ async function loadAndApplyTemplateFile(
     data = yaml.load(content);
   } catch (e: any) {
     throw new ConfigServiceError(
-      `Failed to read template file ${filePath}: ${e.message}`
+      `Failed to read template file ${filePath}: ${e.message}`,
+      grpc.status.INTERNAL
     );
   }
 
@@ -611,7 +613,8 @@ async function loadAndApplyTemplateFile(
   // Validate required fields
   if (!data.service || !data.service.id) {
     throw new ConfigServiceError(
-      `Template file ${filePath} missing 'service.id'`
+      `Template file ${filePath} missing 'service.id'`,
+      grpc.status.INVALID_ARGUMENT
     );
   }
 
