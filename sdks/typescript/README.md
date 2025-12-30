@@ -17,9 +17,24 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 
 ### Installation
 
+This package is published to GitHub Packages. To install:
+
+**1. Configure npm to use GitHub Packages for @dsai scope:**
+
+Create or update `.npmrc` in your project root:
+
 ```bash
-npm install @grpc/grpc-js @grpc/proto-loader
+@dsai:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
+
+**2. Install the package:**
+
+```bash
+npm install @dsai/scopeconfig
+```
+
+> **Note**: You need a GitHub token with `read:packages` permission. Set it as the `GITHUB_TOKEN` environment variable or replace `${GITHUB_TOKEN}` with your token.
 
 ### Using Environment Variables
 

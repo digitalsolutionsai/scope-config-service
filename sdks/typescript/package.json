@@ -10,7 +10,8 @@
     "prebuild": "npm run clean",
     "generate": "npx buf generate",
     "lint": "eslint src --ext .ts",
-    "test": "jest"
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "scopeconfig",
@@ -20,6 +21,15 @@
   ],
   "author": "DSAI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digitalsolutionsai/scope-config-service.git",
+    "directory": "sdks/typescript"
+  },
+  "homepage": "https://github.com/digitalsolutionsai/scope-config-service/tree/main/sdks/typescript#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "dependencies": {
     "@grpc/grpc-js": "^1.9.0",
     "@grpc/proto-loader": "^0.7.0",
