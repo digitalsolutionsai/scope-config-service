@@ -24,7 +24,7 @@ npm install @grpc/grpc-js @grpc/proto-loader
 ### Using Environment Variables
 
 ```typescript
-import { ConfigClient, createOptionsFromEnv, Scope, createIdentifier } from './src';
+import { ConfigClient, createOptionsFromEnv, Scope, createIdentifier } from '@dsai/scopeconfig';
 
 // Environment variables:
 // GRPC_SCOPE_CONFIG_HOST (default: localhost)
@@ -52,7 +52,7 @@ await client.close();
 ### With Explicit Configuration
 
 ```typescript
-import { ConfigClient, Scope, createIdentifier } from './src';
+import { ConfigClient, Scope, createIdentifier } from '@dsai/scopeconfig';
 
 // Create a client with caching
 const client = new ConfigClient({
@@ -241,10 +241,7 @@ The SDK supports automatic loading of configuration templates from YAML files. S
 3. Load templates on client initialization
 
 ```typescript
-import { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from './src';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as yaml from 'js-yaml';
+import { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from '@dsai/scopeconfig';
 
 const client = new ConfigClient(createOptionsFromEnv());
 await client.connect();

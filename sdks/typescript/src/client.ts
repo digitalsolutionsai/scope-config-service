@@ -130,7 +130,7 @@ export class ConfigClient {
     try {
       const PROTO_PATH = path.join(
         __dirname,
-        "../../proto/config/v1/config.proto"
+        "../proto/config/v1/config.proto"
       );
       const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
         keepCase: true,

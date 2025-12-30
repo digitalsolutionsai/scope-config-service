@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# Proto files are copied here temporarily for buf generate
-proto/
+# Generated Go files in proto (not needed for TypeScript)
+proto/**/*.pb.go
 
 # IDE
 .idea/
