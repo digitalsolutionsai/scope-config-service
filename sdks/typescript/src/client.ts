@@ -191,10 +191,27 @@ export class ConfigClient {
   }
 
   /**
+   * Converts a ConfigIdentifier from camelCase to snake_case for proto-loader.
+   * Proto-loader with keepCase:true preserves the original proto field names.
+   */
+  private toProtoIdentifier(identifier: ConfigIdentifier): any {
+    return {
+      service_name: identifier.serviceName,
+      scope: identifier.scope,
+      group_id: identifier.groupId,
+      project_id: identifier.projectId || "",
+      store_id: identifier.storeId || "",
+      user_id: identifier.userId || "",
+    };
+  }
+
+  /**
    * Gets a config (always fetches from server, updates cache).
    */
   async getConfig(identifier: ConfigIdentifier): Promise<ScopeConfig> {
-    const config = await this.promisify("GetConfig", { identifier });
+    const config = await this.promisify("GetConfig", {
+      identifier: this.toProtoIdentifier(identifier)
+    });
 
     // Update cache if enabled
     if (this.cache) {
@@ -219,7 +236,9 @@ export class ConfigClient {
 
     // Fetch from server
     try {
-      const config = await this.promisify("GetConfig", { identifier });
+      const config = await this.promisify("GetConfig", {
+        identifier: this.toProtoIdentifier(identifier)
+      });
       if (this.cache) {
         this.cache.set(identifier, config);
       }
@@ -243,7 +262,9 @@ export class ConfigClient {
    * Gets the latest config (always fetches from server).
    */
   async getLatestConfig(identifier: ConfigIdentifier): Promise<ScopeConfig> {
-    return this.promisify("GetLatestConfig", { identifier });
+    return this.promisify("GetLatestConfig", {
+      identifier: this.toProtoIdentifier(identifier)
+    });
   }
 
   /**
@@ -252,7 +273,9 @@ export class ConfigClient {
   async getConfigTemplate(
     identifier: ConfigIdentifier
   ): Promise<ConfigTemplate> {
-    const template = await this.promisify("GetConfigTemplate", { identifier });
+    const template = await this.promisify("GetConfigTemplate", {
+      identifier: this.toProtoIdentifier(identifier)
+    });
 
     // Update cache if enabled
     if (this.cache) {
@@ -280,7 +303,7 @@ export class ConfigClient {
     // Fetch from server
     try {
       const template = await this.promisify("GetConfigTemplate", {
-        identifier,
+        identifier: this.toProtoIdentifier(identifier),
       });
       if (this.cache) {
         this.cache.setTemplate(identifier, template);
@@ -379,10 +402,12 @@ export class ConfigClient {
   ): Promise<string | null> {
     try {
       const template = await this.getConfigTemplateCached(identifier);
-      const field = template.fields.find(
-        (f) => f.path === path && f.defaultValue
+      // Proto-loader returns snake_case field names
+      const fields = template.fields as any[];
+      const field = fields.find(
+        (f) => f.path === path && f.default_value
       );
-      return field?.defaultValue || null;
+      return field?.default_value || null;
     } catch {
       return null;
     }
