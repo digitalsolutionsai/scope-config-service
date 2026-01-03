@@ -652,26 +652,27 @@ async function applyGroupTemplate(
     label: f.label || "",
     description: f.description || "",
     type: toFieldType(f.type || "STRING"),
-    defaultValue: f.defaultValue || "",
-    displayOn: (f.displayOn || []).map(toScope),
+    default_value: f.defaultValue || "",  // snake_case for proto-loader
+    display_on: (f.displayOn || []).map(toScope),  // snake_case for proto-loader
     options: (f.options || []).map((o: any) => ({
       value: o.value,
       label: o.label || o.value,
     })),
-    sortOrder: f.sortOrder || 0,
+    sort_order: f.sortOrder || 0,  // snake_case for proto-loader
   }));
 
-  const template: ConfigTemplate = {
+  // Use snake_case field names for proto-loader (keepCase: true)
+  const template: any = {
     identifier: {
-      serviceName,
-      groupId,
+      service_name: serviceName,  // snake_case
+      group_id: groupId,          // snake_case
       scope: Scope.SCOPE_UNSPECIFIED,
     },
-    serviceLabel,
-    groupLabel,
-    groupDescription,
+    service_label: serviceLabel,      // snake_case
+    group_label: groupLabel,          // snake_case
+    group_description: groupDescription,  // snake_case
     fields,
-    sortOrder,
+    sort_order: sortOrder,  // snake_case
   };
 
   await client.applyConfigTemplate(template, user);
