@@ -17,24 +17,67 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 
 ### Installation
 
-This package is published to GitHub Packages. To install:
+This package is published to **GitHub Packages**. Follow these steps to install:
 
-**1. Configure npm to use GitHub Packages for @digitalsolutionsai scope:**
+#### Option 1: Using Environment Variable (Recommended)
 
-Create or update `.npmrc` in your project root:
+**1. Create a GitHub Personal Access Token:**
+
+- Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+- Click **"Generate new token (classic)"**
+- Give it a name (e.g., `npm-packages`)
+- Select scope: **`read:packages`**
+- Click **Generate token** and copy it
+
+**2. Set the token as an environment variable:**
+
+```bash
+# Add to your ~/.bashrc, ~/.zshrc, or ~/.profile
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+**3. Create `.npmrc` in your project root:**
 
 ```bash
 @digitalsolutionsai:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-**2. Install the package:**
+**4. Install the package:**
 
 ```bash
 npm install @digitalsolutionsai/scopeconfig
 ```
 
-> **Note**: You need a GitHub token with `read:packages` permission. Set it as the `GITHUB_TOKEN` environment variable or replace `${GITHUB_TOKEN}` with your token.
+#### Option 2: Direct Token in .npmrc
+
+If you prefer not to use environment variables:
+
+```bash
+# .npmrc
+@digitalsolutionsai:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+> ⚠️ **Security Note**: Never commit `.npmrc` with hardcoded tokens to version control. Add it to `.gitignore`.
+
+#### Option 3: Global Configuration
+
+Set up once for all projects:
+
+```bash
+# Configure globally
+npm config set @digitalsolutionsai:registry https://npm.pkg.github.com
+npm config set //npm.pkg.github.com/:_authToken ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+#### Verify Installation
+
+```bash
+npm list @digitalsolutionsai/scopeconfig
+```
+
+> **Access Requirements**: You need read access to the [digitalsolutionsai/scope-config-service](https://github.com/digitalsolutionsai/scope-config-service) repository to install this package.
 
 ### Using Environment Variables
 
