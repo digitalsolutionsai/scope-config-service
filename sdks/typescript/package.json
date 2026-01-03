@@ -1,5 +1,5 @@
 {
-  "name": "@dsai/scopeconfig",
+  "name": "@digitalsolutionsai/scopeconfig",
   "version": "1.0.0",
   "description": "TypeScript SDK for ScopeConfig gRPC service",
   "main": "dist/index.js",

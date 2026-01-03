@@ -19,19 +19,19 @@ A TypeScript client for the ScopeConfig gRPC service with caching support.
 
 This package is published to GitHub Packages. To install:
 
-**1. Configure npm to use GitHub Packages for @dsai scope:**
+**1. Configure npm to use GitHub Packages for @digitalsolutionsai scope:**
 
 Create or update `.npmrc` in your project root:
 
 ```bash
-@dsai:registry=https://npm.pkg.github.com
+@digitalsolutionsai:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
 **2. Install the package:**
 
 ```bash
-npm install @dsai/scopeconfig
+npm install @digitalsolutionsai/scopeconfig
 ```
 
 > **Note**: You need a GitHub token with `read:packages` permission. Set it as the `GITHUB_TOKEN` environment variable or replace `${GITHUB_TOKEN}` with your token.
@@ -39,7 +39,7 @@ npm install @dsai/scopeconfig
 ### Using Environment Variables
 
 ```typescript
-import { ConfigClient, createOptionsFromEnv, Scope, createIdentifier } from '@dsai/scopeconfig';
+import { ConfigClient, createOptionsFromEnv, Scope, createIdentifier } from '@digitalsolutionsai/scopeconfig';
 
 // Environment variables:
 // GRPC_SCOPE_CONFIG_HOST (default: localhost)
@@ -67,7 +67,7 @@ await client.close();
 ### With Explicit Configuration
 
 ```typescript
-import { ConfigClient, Scope, createIdentifier } from '@dsai/scopeconfig';
+import { ConfigClient, Scope, createIdentifier } from '@digitalsolutionsai/scopeconfig';
 
 // Create a client with caching
 const client = new ConfigClient({
@@ -256,7 +256,7 @@ The SDK supports automatic loading of configuration templates from YAML files. S
 3. Load templates on client initialization
 
 ```typescript
-import { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from '@dsai/scopeconfig';
+import { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from '@digitalsolutionsai/scopeconfig';
 
 const client = new ConfigClient(createOptionsFromEnv());
 await client.connect();
