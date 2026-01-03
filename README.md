@@ -71,6 +71,110 @@ make proto
 
 This will run `buf generate` and update the necessary `*.pb.go` files, which you should then commit.
 
+### SDK Development & Publishing
+
+This project provides client SDKs in multiple languages located in the `sdks/` directory. When you update the proto files, you need to regenerate the SDK code and publish new versions.
+
+#### Available SDKs
+
+- **TypeScript** (`sdks/typescript/`) - Published to GitHub Packages as `@digitalsolutionsai/scopeconfig`
+- **Go** (`sdks/go/`) - Go module
+- **Python** (`sdks/python/`) - Python package
+- **Java** (`sdks/java/`) - Maven package
+
+#### Updating SDKs After Proto Changes
+
+**1. Regenerate Proto Code for All SDKs:**
+
+```bash
+# From project root
+make proto
+
+# Or regenerate for specific SDK
+cd sdks/typescript
+npm run generate  # Runs buf generate
+```
+
+**2. Update SDK Version:**
+
+```bash
+cd sdks/typescript
+npm version patch  # For bug fixes
+npm version minor  # For new features
+npm version major  # For breaking changes
+```
+
+**3. Build and Test:**
+
+```bash
+npm run build
+npm test  # If tests are available
+```
+
+#### Publishing TypeScript SDK to GitHub Packages
+
+**Prerequisites:**
+- GitHub Personal Access Token with `write:packages` scope
+- Access to the `digitalsolutionsai` organization
+
+**Steps:**
+
+**1. Login to GitHub Packages:**
+
+```bash
+cd sdks/typescript
+npm login --registry=https://npm.pkg.github.com
+# Username: your-github-username
+# Password: <paste your GitHub token>
+# Email: your-email@example.com
+```
+
+**2. Publish:**
+
+```bash
+npm publish
+```
+
+The package will be published to: `@digitalsolutionsai/scopeconfig@<version>`
+
+**3. Verify:**
+
+Visit: https://github.com/digitalsolutionsai/scope-config-service/packages
+
+#### Using the TypeScript SDK
+
+For detailed usage instructions, see [`sdks/typescript/README.md`](sdks/typescript/README.md).
+
+**Quick Install:**
+
+```bash
+# Configure npm to use GitHub Packages
+echo "@digitalsolutionsai:registry=https://npm.pkg.github.com" >> .npmrc
+
+# Install
+npm install @digitalsolutionsai/scopeconfig
+```
+
+**Quick Usage:**
+
+```typescript
+import { ConfigClient, createOptionsFromEnv, createIdentifier, Scope } from '@digitalsolutionsai/scopeconfig';
+
+const client = new ConfigClient(createOptionsFromEnv());
+await client.connect();
+
+const identifier = createIdentifier('my-service')
+  .withScope(Scope.PROJECT)
+  .withGroupId('database')
+  .withProjectId('proj-123')
+  .build();
+
+const value = await client.getValue(identifier, 'database.host', {
+  useDefault: true,
+  inherit: true,
+});
+```
+
 ### Running with Docker Compose
 
 To run the complete stack (PostgreSQL database and config service with both gRPC and HTTP), use Docker Compose.
