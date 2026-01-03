@@ -27,7 +27,7 @@ func TestConfigErrorWithUnderlying(t *testing.T) {
 		Err:    underlying,
 	}
 
-	if !errors.Is(err.Unwrap(), underlying) {
+	if err.Unwrap() != underlying {
 		t.Error("Expected to unwrap to underlying error")
 	}
 }

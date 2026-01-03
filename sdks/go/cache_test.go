@@ -1,6 +1,7 @@
 package scopeconfig
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -241,7 +242,7 @@ func TestConfigCacheClear(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		identifier := &configv1.ConfigIdentifier{
 			ServiceName: "test-service",
-			GroupId:     "group-" + string(rune('a'+i)),
+			GroupId:     fmt.Sprintf("group-%c", 'a'+i),
 			Scope:       configv1.Scope_SYSTEM,
 		}
 		cache.set(identifier, &configv1.ScopeConfig{})
@@ -254,7 +255,7 @@ func TestConfigCacheClear(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		identifier := &configv1.ConfigIdentifier{
 			ServiceName: "test-service",
-			GroupId:     "group-" + string(rune('a'+i)),
+			GroupId:     fmt.Sprintf("group-%c", 'a'+i),
 			Scope:       configv1.Scope_SYSTEM,
 		}
 		result, _ := cache.get(identifier)
