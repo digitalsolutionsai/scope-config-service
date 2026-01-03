@@ -15,73 +15,45 @@ A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC ser
 ## Prerequisites
 
 - Go 1.24 or later
-- `buf` CLI for protobuf generation ([installation guide](https://buf.build/docs/installation))
-- `protoc-gen-go` and `protoc-gen-go-grpc` plugins
-
-Install the required Go plugins:
-
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
 
 ## Installation
 
-### 1. Copy the SDK to your project
+### Install via `go get` (Recommended)
+
+The SDK can be installed directly from GitHub with generated proto files included:
 
 ```bash
-# Copy the entire sdks/go directory to your project
-cp -r sdks/go /path/to/your/project/scopeconfig-sdk
-cd /path/to/your/project/scopeconfig-sdk
+go get github.com/digitalsolutionsai/scope-config-service/sdks/go@latest
 ```
 
-### 2. Update the module path
-
-Edit `go.mod` and change the module name to match your project:
-
-```go
-module github.com/your-org/your-project/scopeconfig-sdk
-```
-
-Also update the import paths in:
-- `identifier.go`
-- `client.go`
-
-Change:
-```go
-configv1 "github.com/digitalsolutionsai/scope-config-service/sdks/go/gen/config/v1"
-```
-
-To:
-```go
-configv1 "github.com/your-org/your-project/scopeconfig-sdk/gen/config/v1"
-```
-
-### 3. Copy the proto files
+Or install a specific version:
 
 ```bash
-# Copy proto files to the SDK directory
-mkdir -p proto
-cp -r /path/to/scope-config-service/proto/config proto/
+go get github.com/digitalsolutionsai/scope-config-service/sdks/go@v1.0.0
 ```
 
-### 4. Generate the protobuf code
+### Private Repository Access
+
+If this is a private repository, configure Git to use SSH:
 
 ```bash
-# Ensure protoc-gen-go and protoc-gen-go-grpc are in your PATH
-export PATH="$PATH:$(go env GOPATH)/bin"
-
-# Generate the code using buf
-buf generate
+git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
-This will generate the gRPC client code in the `gen/` directory (which is gitignored).
-
-### 5. Install dependencies
+Or set the GOPRIVATE environment variable:
 
 ```bash
-go mod tidy
+export GOPRIVATE=github.com/digitalsolutionsai/*
 ```
+
+### Alternative: Manual Installation
+
+If you prefer to copy the SDK manually:
+
+1. Copy the entire `sdks/go` directory to your project
+2. Update the module path in `go.mod` to match your project
+3. Update import paths in all `.go` files
+4. Run `go mod tidy`
 
 ## Usage
 
@@ -94,8 +66,8 @@ import (
     "context"
     "log"
 
-    scopeconfig "github.com/your-org/your-project/scopeconfig-sdk"
-    configv1 "github.com/your-org/your-project/scopeconfig-sdk/gen/config/v1"
+    scopeconfig "github.com/digitalsolutionsai/scope-config-service/sdks/go"
+    configv1 "github.com/digitalsolutionsai/scope-config-service/sdks/go/gen/config/v1"
 )
 
 func main() {
@@ -141,8 +113,8 @@ import (
     "fmt"
     "log"
 
-    scopeconfig "github.com/your-org/your-project/scopeconfig-sdk"
-    configv1 "github.com/your-org/your-project/scopeconfig-sdk/gen/config/v1"
+    scopeconfig "github.com/digitalsolutionsai/scope-config-service/sdks/go"
+    configv1 "github.com/digitalsolutionsai/scope-config-service/sdks/go/gen/config/v1"
 )
 
 func main() {
@@ -182,6 +154,11 @@ func main() {
 ### Update Configuration
 
 ```go
+import (
+    scopeconfig "github.com/digitalsolutionsai/scope-config-service/sdks/go"
+    configv1 "github.com/digitalsolutionsai/scope-config-service/sdks/go/gen/config/v1"
+)
+
 // Update config fields
 identifier := scopeconfig.NewIdentifier("payment-service").
     WithScope(configv1.Scope_PROJECT).
@@ -459,10 +436,15 @@ client, err := scopeconfig.NewClient(
 - `GetConfig(ctx, identifier) (*ScopeConfig, error)` - Get published configuration (always fetches from server)
 - `GetConfigCached(ctx, identifier) (*ScopeConfig, error)` - Get configuration with caching support
 - `GetLatestConfig(ctx, identifier) (*ScopeConfig, error)` - Get latest configuration
+- `GetConfigByVersion(ctx, identifier, version) (*ScopeConfig, error)` - Get configuration by specific version
+- `GetConfigHistory(ctx, identifier, limit) (*GetConfigHistoryResponse, error)` - Get version history
 - `UpdateConfig(ctx, identifier, fields, user) (*ScopeConfig, error)` - Update configuration
+- `PublishVersion(ctx, identifier, version, user) (*ConfigVersion, error)` - Mark version as published
+- `DeleteConfig(ctx, identifier) error` - Delete configuration and all versions
 - `GetConfigTemplate(ctx, identifier) (*ConfigTemplate, error)` - Get configuration template
 - `GetConfigTemplateCached(ctx, identifier) (*ConfigTemplate, error)` - Get template with caching (for default values)
 - `ApplyConfigTemplate(ctx, template, user) (*ConfigTemplate, error)` - Apply configuration template
+- `ListConfigTemplates(ctx, serviceName, isActive) (*ListConfigTemplatesResponse, error)` - List templates
 - `GetValue(ctx, identifier, path, opts) (*string, error)` - Get specific config value with options
 - `GetValueString(ctx, identifier, path, opts) (string, error)` - Get value as string (empty if not found)
 - `MustGetValue(ctx, identifier, path, opts) string` - Get value or panic on error
@@ -515,6 +497,47 @@ Available in `configv1.Scope`:
 - `Scope_STORE`
 - `Scope_USER`
 
+### Error Handling
+
+The SDK provides custom error types and helper functions for error inspection:
+
+```go
+import scopeconfig "github.com/digitalsolutionsai/scope-config-service/sdks/go"
+
+config, err := client.GetConfig(ctx, identifier)
+if err != nil {
+    if scopeconfig.IsNotFound(err) {
+        // Handle not found
+        log.Println("Configuration not found")
+    } else if scopeconfig.IsServerUnavailable(err) {
+        // Handle server unavailable
+        log.Println("Server is unavailable")
+    } else if scopeconfig.IsInvalidArgument(err) {
+        // Handle invalid argument
+        log.Println("Invalid request")
+    } else {
+        // Handle other errors
+        log.Printf("Error: %v", err)
+    }
+}
+```
+
+Available error helpers:
+- `IsNotFound(err)` - Check if resource was not found
+- `IsServerUnavailable(err)` - Check if server is unavailable
+- `IsInvalidArgument(err)` - Check if argument was invalid
+- `IsPermissionDenied(err)` - Check if permission was denied
+- `IsAlreadyExists(err)` - Check if resource already exists
+- `GRPCCode(err)` - Get the gRPC status code from the error
+
+Sentinel errors:
+- `ErrConfigNotFound`
+- `ErrTemplateNotFound`
+- `ErrServerUnavailable`
+- `ErrInvalidArgument`
+- `ErrPermissionDenied`
+- `ErrAlreadyExists`
+
 ## Examples
 
 See the `examples/` directory for complete working examples:
@@ -524,33 +547,59 @@ See the `examples/` directory for complete working examples:
 Run the example:
 
 ```bash
-# Generate proto files first
-buf generate
-
-# Run the example
+# Run the example (proto files are already generated)
 go run examples/main.go
 ```
 
 ## Testing
 
-Run the example test:
+### Unit Tests
+
+Run the unit tests:
 
 ```bash
-# Start the ScopeConfig service first
-# Then run:
-go test -v
+# Run unit tests only
+make test-unit
+
+# Or directly:
+go test -v -short ./...
 ```
 
-## Extending the SDK
+### Integration Tests
 
-The SDK currently implements the core methods. Additional methods can be added:
+Integration tests use testcontainers-go to spin up PostgreSQL and the ScopeConfig service:
 
-- `GetConfigByVersion()` - Retrieve a specific version
-- `GetConfigHistory()` - Get version history
-- `PublishVersion()` - Publish a specific version
-- `DeleteConfig()` - Delete a configuration
+```bash
+# Run integration tests (requires Docker)
+make test-integration
 
-See comments in `client.go` for implementation guidance.
+# Or directly:
+go test -v -tags=integration -timeout=10m ./tests/...
+
+# With a pre-built image:
+SCOPE_CONFIG_IMAGE=scope-config-service:test go test -v -tags=integration ./tests/...
+```
+
+### Test Coverage
+
+```bash
+make test-coverage
+```
+
+## Makefile Targets
+
+```bash
+make build            # Build the SDK
+make test             # Run all tests
+make test-unit        # Run unit tests only
+make test-integration # Run integration tests (requires Docker)
+make test-coverage    # Run tests with coverage report
+make lint             # Run linter
+make fmt              # Format code
+make clean            # Clean build artifacts
+make deps             # Install dependencies
+make help             # Show all targets
+```
 
 ## License
 

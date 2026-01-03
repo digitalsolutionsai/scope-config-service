@@ -22,8 +22,6 @@ import (
 	configv1 "github.com/digitalsolutionsai/scope-config-service/sdks/go/gen/config/v1"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // Default cache settings
@@ -214,16 +212,16 @@ func (c *Client) GetConfigCached(ctx context.Context, identifier *configv1.Confi
 
 // GetLatestConfig retrieves the latest configuration (published or not) for the given identifier.
 func (c *Client) GetLatestConfig(ctx context.Context, identifier *configv1.ConfigIdentifier) (*configv1.ScopeConfig, error) {
-    req := &configv1.GetConfigRequest{
-        Identifier: identifier,
-    }
+	req := &configv1.GetConfigRequest{
+		Identifier: identifier,
+	}
 
-    resp, err := c.client.GetLatestConfig(ctx, req)
-    if err != nil {
-        return nil, wrapError("GetLatestConfig", err)
-    }
+	resp, err := c.client.GetLatestConfig(ctx, req)
+	if err != nil {
+		return nil, wrapError("GetLatestConfig", err)
+	}
 
-    return resp, nil
+	return resp, nil
 }
 
 /*
@@ -231,33 +229,33 @@ UpdateConfig creates or updates a configuration with the provided fields.
 
 Example:
 
-    identifier := NewIdentifier("my-service").
-        WithScope(configv1.Scope_SYSTEM).
-        WithGroupID("my-group").
-        Build()
-    fields := []*configv1.ConfigField{
-        {Path: "log.level", Value: "INFO", Type: configv1.FieldType_STRING},
-    }
-    config, err := client.UpdateConfig(ctx, identifier, fields, "user@example.com")
+	identifier := NewIdentifier("my-service").
+	    WithScope(configv1.Scope_SYSTEM).
+	    WithGroupID("my-group").
+	    Build()
+	fields := []*configv1.ConfigField{
+	    {Path: "log.level", Value: "INFO", Type: configv1.FieldType_STRING},
+	}
+	config, err := client.UpdateConfig(ctx, identifier, fields, "user@example.com")
 */
 func (c *Client) UpdateConfig(
-    ctx context.Context,
-    identifier *configv1.ConfigIdentifier,
-    fields []*configv1.ConfigField,
-    user string,
+	ctx context.Context,
+	identifier *configv1.ConfigIdentifier,
+	fields []*configv1.ConfigField,
+	user string,
 ) (*configv1.ScopeConfig, error) {
-    req := &configv1.UpdateConfigRequest{
-        Identifier: identifier,
-        Fields:     fields,
-        User:       user,
-    }
+	req := &configv1.UpdateConfigRequest{
+		Identifier: identifier,
+		Fields:     fields,
+		User:       user,
+	}
 
-    resp, err := c.client.UpdateConfig(ctx, req)
-    if err != nil {
-        return nil, wrapError("UpdateConfig", err)
-    }
+	resp, err := c.client.UpdateConfig(ctx, req)
+	if err != nil {
+		return nil, wrapError("UpdateConfig", err)
+	}
 
-    return resp, nil
+	return resp, nil
 }
 
 /*
@@ -334,75 +332,205 @@ ApplyConfigTemplate applies a configuration template to the service.
 
 Example:
 
-    template := &configv1.ConfigTemplate{
-        Identifier: NewIdentifier("my-service").WithGroupID("my-group").Build(),
-        ServiceLabel: "My Service",
-        GroupLabel: "My Group",
-        GroupDescription: "Configuration for my service",
-        Fields: []*configv1.ConfigFieldTemplate{
-            {
-                Path: "log.level",
-                Label: "Log Level",
-                Description: "Application logging level",
-                Type: configv1.FieldType_STRING,
-                DefaultValue: "INFO",
-            },
-        },
-    }
-    result, err := client.ApplyConfigTemplate(ctx, template, "user@example.com")
+	template := &configv1.ConfigTemplate{
+	    Identifier: NewIdentifier("my-service").WithGroupID("my-group").Build(),
+	    ServiceLabel: "My Service",
+	    GroupLabel: "My Group",
+	    GroupDescription: "Configuration for my service",
+	    Fields: []*configv1.ConfigFieldTemplate{
+	        {
+	            Path: "log.level",
+	            Label: "Log Level",
+	            Description: "Application logging level",
+	            Type: configv1.FieldType_STRING,
+	            DefaultValue: "INFO",
+	        },
+	    },
+	}
+	result, err := client.ApplyConfigTemplate(ctx, template, "user@example.com")
 */
 func (c *Client) ApplyConfigTemplate(
-    ctx context.Context,
-    template *configv1.ConfigTemplate,
-    user string,
+	ctx context.Context,
+	template *configv1.ConfigTemplate,
+	user string,
 ) (*configv1.ConfigTemplate, error) {
-    req := &configv1.ApplyConfigTemplateRequest{
-        Template: template,
-        User:     user,
-    }
+	req := &configv1.ApplyConfigTemplateRequest{
+		Template: template,
+		User:     user,
+	}
 
-    resp, err := c.client.ApplyConfigTemplate(ctx, req)
-    if err != nil {
-        return nil, wrapError("ApplyConfigTemplate", err)
-    }
+	resp, err := c.client.ApplyConfigTemplate(ctx, req)
+	if err != nil {
+		return nil, wrapError("ApplyConfigTemplate", err)
+	}
 
-    return resp, nil
+	return resp, nil
 }
 
 /*
-Additional methods that can be implemented when needed:
+GetConfigByVersion retrieves a configuration by a specific version number.
 
-- GetConfigByVersion: Retrieve a specific version of a configuration
-- GetConfigHistory: Get version history for a configuration
-- PublishVersion: Mark a version as published
-- DeleteConfig: Delete a configuration
+Example:
+
+	identifier := NewIdentifier("my-service").
+	    WithScope(configv1.Scope_SYSTEM).
+	    WithGroupID("my-group").
+	    Build()
+	config, err := client.GetConfigByVersion(ctx, identifier, 5)
 */
+func (c *Client) GetConfigByVersion(
+	ctx context.Context,
+	identifier *configv1.ConfigIdentifier,
+	version int32,
+) (*configv1.ScopeConfig, error) {
+	req := &configv1.GetConfigByVersionRequest{
+		Identifier: identifier,
+		Version:    version,
+	}
 
-// wrapError wraps gRPC errors with additional context.
+	resp, err := c.client.GetConfigByVersion(ctx, req)
+	if err != nil {
+		return nil, wrapError("GetConfigByVersion", err)
+	}
+
+	return resp, nil
+}
+
+/*
+GetConfigHistory retrieves the version history for a configuration.
+
+Example:
+
+	identifier := NewIdentifier("my-service").
+	    WithScope(configv1.Scope_SYSTEM).
+	    WithGroupID("my-group").
+	    Build()
+	history, err := client.GetConfigHistory(ctx, identifier, 10)
+*/
+func (c *Client) GetConfigHistory(
+	ctx context.Context,
+	identifier *configv1.ConfigIdentifier,
+	limit int32,
+) (*configv1.GetConfigHistoryResponse, error) {
+	req := &configv1.GetConfigHistoryRequest{
+		Identifier: identifier,
+		Limit:      limit,
+	}
+
+	resp, err := c.client.GetConfigHistory(ctx, req)
+	if err != nil {
+		return nil, wrapError("GetConfigHistory", err)
+	}
+
+	return resp, nil
+}
+
+/*
+PublishVersion marks a specific version as "published" for client consumption.
+
+Example:
+
+	identifier := NewIdentifier("my-service").
+	    WithScope(configv1.Scope_SYSTEM).
+	    WithGroupID("my-group").
+	    Build()
+	version, err := client.PublishVersion(ctx, identifier, 3, "admin@example.com")
+*/
+func (c *Client) PublishVersion(
+	ctx context.Context,
+	identifier *configv1.ConfigIdentifier,
+	version int32,
+	user string,
+) (*configv1.ConfigVersion, error) {
+	req := &configv1.PublishVersionRequest{
+		Identifier:       identifier,
+		VersionToPublish: version,
+		User:             user,
+	}
+
+	resp, err := c.client.PublishVersion(ctx, req)
+	if err != nil {
+		return nil, wrapError("PublishVersion", err)
+	}
+
+	// Invalidate cache since published version changed
+	if c.cacheEnabled && c.cache != nil {
+		c.cache.invalidate(identifier)
+	}
+
+	return resp, nil
+}
+
+/*
+DeleteConfig deletes a configuration set and all of its associated versions.
+
+Example:
+
+	identifier := NewIdentifier("my-service").
+	    WithScope(configv1.Scope_PROJECT).
+	    WithGroupID("my-group").
+	    WithProjectID("proj-123").
+	    Build()
+	err := client.DeleteConfig(ctx, identifier)
+*/
+func (c *Client) DeleteConfig(
+	ctx context.Context,
+	identifier *configv1.ConfigIdentifier,
+) error {
+	req := &configv1.DeleteConfigRequest{
+		Identifier: identifier,
+	}
+
+	_, err := c.client.DeleteConfig(ctx, req)
+	if err != nil {
+		return wrapError("DeleteConfig", err)
+	}
+
+	// Invalidate cache
+	if c.cacheEnabled && c.cache != nil {
+		c.cache.invalidate(identifier)
+	}
+
+	return nil
+}
+
+/*
+ListConfigTemplates retrieves a list of configuration templates for a service.
+
+Example:
+
+	templates, err := client.ListConfigTemplates(ctx, "my-service", nil)
+
+With active filter:
+
+	isActive := true
+	templates, err := client.ListConfigTemplates(ctx, "my-service", &isActive)
+*/
+func (c *Client) ListConfigTemplates(
+	ctx context.Context,
+	serviceName string,
+	isActive *bool,
+) (*configv1.ListConfigTemplatesResponse, error) {
+	req := &configv1.ListConfigTemplatesRequest{
+		ServiceName: serviceName,
+		IsActive:    isActive,
+	}
+
+	resp, err := c.client.ListConfigTemplates(ctx, req)
+	if err != nil {
+		return nil, wrapError("ListConfigTemplates", err)
+	}
+
+	return resp, nil
+}
+
+// wrapError wraps gRPC errors with additional context using custom error types.
 func wrapError(method string, err error) error {
 	if err == nil {
 		return nil
 	}
 
-	st, ok := status.FromError(err)
-	if !ok {
-		return fmt.Errorf("%s failed: %w", method, err)
-	}
-
-	switch st.Code() {
-	case codes.NotFound:
-		return fmt.Errorf("%s: resource not found: %s", method, st.Message())
-	case codes.InvalidArgument:
-		return fmt.Errorf("%s: invalid argument: %s", method, st.Message())
-	case codes.AlreadyExists:
-		return fmt.Errorf("%s: resource already exists: %s", method, st.Message())
-	case codes.PermissionDenied:
-		return fmt.Errorf("%s: permission denied: %s", method, st.Message())
-	case codes.Unavailable:
-		return fmt.Errorf("%s: service unavailable: %s", method, st.Message())
-	default:
-		return fmt.Errorf("%s failed with %s: %s", method, st.Code(), st.Message())
-	}
+	return newConfigError(method, err)
 }
 
 // addSyncTarget adds a config identifier to the list of targets for background sync.

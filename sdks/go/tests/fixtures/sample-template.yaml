@@ -1,0 +1,75 @@
+# Sample configuration template for testing
+service:
+  id: "test-service"
+  label: "Test Service"
+
+groups:
+  - id: "database"
+    label: "Database Configuration"
+    description: "Database connection settings for testing"
+    sortOrder: 100000
+    fields:
+      - path: "host"
+        label: "Database Host"
+        description: "The database server hostname"
+        type: "STRING"
+        defaultValue: "localhost"
+        sortOrder: 100000
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "port"
+        label: "Database Port"
+        description: "The database server port"
+        type: "INT"
+        defaultValue: "5432"
+        sortOrder: 200000
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+      - path: "ssl_enabled"
+        label: "Enable SSL"
+        description: "Whether to use SSL for database connections"
+        type: "BOOLEAN"
+        defaultValue: "false"
+        sortOrder: 300000
+        displayOn:
+          - "PROJECT"
+
+  - id: "logging"
+    label: "Logging Configuration"
+    description: "Application logging settings"
+    sortOrder: 200000
+    fields:
+      - path: "level"
+        label: "Log Level"
+        description: "Application logging level"
+        type: "STRING"
+        defaultValue: "INFO"
+        sortOrder: 100000
+        displayOn:
+          - "SYSTEM"
+          - "PROJECT"
+          - "STORE"
+        options:
+          - value: "DEBUG"
+            label: "Debug"
+          - value: "INFO"
+            label: "Info"
+          - value: "WARN"
+            label: "Warning"
+          - value: "ERROR"
+            label: "Error"
+      - path: "format"
+        label: "Log Format"
+        description: "Output format for log messages"
+        type: "STRING"
+        defaultValue: "json"
+        sortOrder: 200000
+        displayOn:
+          - "SYSTEM"
+        options:
+          - value: "json"
+            label: "JSON"
+          - value: "text"
+            label: "Plain Text"

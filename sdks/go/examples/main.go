@@ -11,9 +11,9 @@ This example demonstrates:
 Prerequisites:
 1. Generate proto files: buf generate
 2. Set environment variables (optional):
-   - GRPC_SCOPE_CONFIG_HOST (default: localhost)
-   - GRPC_SCOPE_CONFIG_PORT (default: 50051)
-   - GRPC_SCOPE_CONFIG_USE_TLS (default: false)
+  - GRPC_SCOPE_CONFIG_HOST (default: localhost)
+  - GRPC_SCOPE_CONFIG_PORT (default: 50051)
+  - GRPC_SCOPE_CONFIG_USE_TLS (default: false)
 
 Run:
 
