@@ -3,8 +3,10 @@ name: Build and Release SDKs
 on:
   push:
     tags:
-      - 'sdk-v*'  # Triggers on tags like sdk-v1.0.0, sdk-v1.0.0-beta
-      - 'v*'      # Also triggers on regular version tags
+      - 'sdk-v*'           # Triggers on tags like sdk-v1.0.0, sdk-v1.0.0-beta
+      - 'v*'               # Also triggers on regular version tags
+      - 'sdks/go/v*'       # Go SDK specific tags (required for Go modules in subdirectory)
+      - 'sdks/typescript/v*'  # TypeScript SDK specific tags
 
 env:
   BUF_VERSION: '1.57.2'
@@ -47,7 +49,7 @@ jobs:
 
       - name: Run Go SDK tests
         working-directory: sdks/go
-        run: go test -v ./... -run "^Test" || true  # Allow test failures for integration tests
+        run: go test -v -short ./...
 
       - name: Create Go SDK artifact
         run: |
@@ -63,6 +65,9 @@ jobs:
   # Build TypeScript/Node.js SDK
   build-typescript-sdk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,6 +76,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@digitalsolutionsai'
 
       - name: Install buf CLI
         uses: bufbuild/buf-setup-action@v1
@@ -79,7 +86,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: sdks/typescript
-        run: npm install
+        run: npm ci
 
       - name: Copy proto files
         working-directory: sdks/typescript
@@ -93,7 +100,13 @@ jobs:
 
       - name: Build TypeScript SDK
         working-directory: sdks/typescript
-        run: npm run build || npx tsc --noEmit || true
+        run: npm run build
+
+      - name: Publish to GitHub Packages
+        working-directory: sdks/typescript
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create TypeScript SDK artifact
         run: |
