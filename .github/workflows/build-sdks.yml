@@ -84,6 +84,28 @@ jobs:
         with:
           version: ${{ env.BUF_VERSION }}
 
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          # Handle different tag formats: sdks/typescript/v1.0.0, sdk-v1.0.0, v1.0.0
+          if [[ "$TAG" == sdks/typescript/v* ]]; then
+            VERSION=${TAG#sdks/typescript/v}
+          elif [[ "$TAG" == sdk-v* ]]; then
+            VERSION=${TAG#sdk-v}
+          elif [[ "$TAG" == v* ]]; then
+            VERSION=${TAG#v}
+          else
+            VERSION=$TAG
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        working-directory: sdks/typescript
+        run: |
+          npm version ${{ steps.extract_version.outputs.version }} --no-git-tag-version --allow-same-version
+
       - name: Install dependencies
         working-directory: sdks/typescript
         run: npm ci
