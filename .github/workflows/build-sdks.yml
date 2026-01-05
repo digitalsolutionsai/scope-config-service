@@ -3,10 +3,10 @@ name: Build and Release SDKs
 on:
   push:
     tags:
-      - 'sdk-v*'           # Triggers on tags like sdk-v1.0.0, sdk-v1.0.0-beta
-      - 'v*'               # Also triggers on regular version tags
-      - 'sdks/go/v*'       # Go SDK specific tags (required for Go modules in subdirectory)
-      - 'sdks/typescript/v*'  # TypeScript SDK specific tags
+      - 'sdks/go/v*' # Go SDK specific tags
+      - 'sdks/typescript/v*' # TypeScript SDK specific tags
+      - 'sdks/python/v*' # Python SDK specific tags
+      - 'sdks/java/v*' # Java SDK specific tags
 
 env:
   BUF_VERSION: '1.57.2'
@@ -14,6 +14,7 @@ env:
 jobs:
   # Build Go SDK
   build-go-sdk:
+    if: startsWith(github.ref, 'refs/tags/sdks/go/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -64,6 +65,7 @@ jobs:
 
   # Build TypeScript/Node.js SDK
   build-typescript-sdk:
+    if: startsWith(github.ref, 'refs/tags/sdks/typescript/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -88,16 +90,8 @@ jobs:
         id: extract_version
         run: |
           TAG=${GITHUB_REF#refs/tags/}
-          # Handle different tag formats: sdks/typescript/v1.0.0, sdk-v1.0.0, v1.0.0
-          if [[ "$TAG" == sdks/typescript/v* ]]; then
-            VERSION=${TAG#sdks/typescript/v}
-          elif [[ "$TAG" == sdk-v* ]]; then
-            VERSION=${TAG#sdk-v}
-          elif [[ "$TAG" == v* ]]; then
-            VERSION=${TAG#v}
-          else
-            VERSION=$TAG
-          fi
+          # Expects tag format: sdks/typescript/v1.0.0
+          VERSION=${TAG#sdks/typescript/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
 
@@ -143,6 +137,7 @@ jobs:
 
   # Build Python SDK
   build-python-sdk:
+    if: startsWith(github.ref, 'refs/tags/sdks/python/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -187,6 +182,7 @@ jobs:
 
   # Build Java SDK
   build-java-sdk:
+    if: startsWith(github.ref, 'refs/tags/sdks/java/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -231,6 +227,7 @@ jobs:
   # Create GitHub Release with SDK artifacts
   create-release:
     needs: [build-go-sdk, build-typescript-sdk, build-python-sdk, build-java-sdk]
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -253,70 +250,61 @@ jobs:
       - name: List artifacts
         run: |
           ls -la artifacts/
-          ls -la artifacts/*/
+          find artifacts -type f -print
+
+      - name: Prepare release content
+        id: prepare_release
+        run: |
+          BODY="## ScopeConfig SDK Release ${{ steps.extract_tag.outputs.tag }}\n\nThis release contains SDK libraries for interacting with the ScopeConfig gRPC service.\n\n"
+          ASSETS=""
+
+          if [ -f "artifacts/go-sdk/go-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/go-sdk/go-sdk.tar.gz\n"
+          fi
+          if [ -f "artifacts/typescript-sdk/typescript-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/typescript-sdk/typescript-sdk.tar.gz\n"
+          fi
+          if [ -f "artifacts/python-sdk/python-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/python-sdk/python-sdk.tar.gz\n"
+          fi
+          if [ -f "artifacts/java-sdk/java-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/java-sdk/java-sdk.tar.gz\n"
+          fi
+          
+          if [ -n "$ASSETS" ]; then
+            BODY="${BODY}### Available SDKs\n\n| SDK | Language | Download |\n|-----|----------|----------|\n"
+            if [ -f "artifacts/go-sdk/go-sdk.tar.gz" ]; then
+              BODY="${BODY}| Go SDK | Go 1.24+ | \`go-sdk.tar.gz\` |\n"
+            fi
+            if [ -f "artifacts/typescript-sdk/typescript-sdk.tar.gz" ]; then
+              BODY="${BODY}| TypeScript SDK | Node.js 20+ | \`typescript-sdk.tar.gz\` |\n"
+            fi
+            if [ -f "artifacts/python-sdk/python-sdk.tar.gz" ]; then
+              BODY="${BODY}| Python SDK | Python 3.11+ | \`python-sdk.tar.gz\` |\n"
+            fi
+            if [ -f "artifacts/java-sdk/java-sdk.tar.gz" ]; then
+              BODY="${BODY}| Java SDK | Java 22+ | \`java-sdk.tar.gz\` |\n"
+            fi
+          fi
+
+          STATIC_BODY="\n### Features\n\nAll SDKs include:\n- **In-memory caching** for config values (reduces gRPC calls)\n- **Template caching** for default value lookups\n- **Background sync** to refresh cached configs periodically\n- **Stale cache fallback** when server is unavailable\n- **GetValue** with inheritance and default value support\n- **Environment variable support** for configuration\n\n### Environment Variables\n\n| Variable | Default | Description |\n|----------|---------|-------------|\n| \`GRPC_SCOPE_CONFIG_HOST\` | \`localhost\` | Server host |\n| \`GRPC_SCOPE_CONFIG_PORT\` | \`50051\` | Server port |\n| \`GRPC_SCOPE_CONFIG_USE_TLS\` | \`false\` | Enable TLS |\n\n### Integration Guides\n\nSee the README.md file in each SDK for detailed integration instructions:\n- [Go SDK](sdks/go/README.md)\n- [TypeScript SDK](sdks/typescript/README.md) - includes NestJS integration example\n- [Python SDK](sdks/python/README.md) - includes FastAPI integration example\n- [Java SDK](sdks/java/README.md) - includes Spring Boot integration example\n\n### Scope Hierarchy\n\n\`\`\`\nSYSTEM\n├── PROJECT → STORE\n└── USER\n\`\`\`\n\nInheritance:\n- STORE → PROJECT → SYSTEM\n- USER → SYSTEM\n- PROJECT → SYSTEM\n"
+          BODY="${BODY}${STATIC_BODY}"
+          
+          echo "assets<<EOF" >> "${GITHUB_OUTPUT}"
+          echo -e "$ASSETS" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+
+          echo "body<<EOF" >> "${GITHUB_OUTPUT}"
+          echo -e "$BODY" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.extract_tag.outputs.tag }}
           name: ScopeConfig SDKs ${{ steps.extract_tag.outputs.tag }}
-          body: |
-            ## ScopeConfig SDK Release ${{ steps.extract_tag.outputs.tag }}
-            
-            This release contains SDK libraries for interacting with the ScopeConfig gRPC service.
-            
-            ### Available SDKs
-            
-            | SDK | Language | Download |
-            |-----|----------|----------|
-            | Go SDK | Go 1.24+ | `go-sdk.tar.gz` |
-            | TypeScript SDK | Node.js 20+ | `typescript-sdk.tar.gz` |
-            | Python SDK | Python 3.11+ | `python-sdk.tar.gz` |
-            | Java SDK | Java 22+ | `java-sdk.tar.gz` |
-            
-            ### Features
-            
-            All SDKs include:
-            - **In-memory caching** for config values (reduces gRPC calls)
-            - **Template caching** for default value lookups
-            - **Background sync** to refresh cached configs periodically
-            - **Stale cache fallback** when server is unavailable
-            - **GetValue** with inheritance and default value support
-            - **Environment variable support** for configuration
-            
-            ### Environment Variables
-            
-            | Variable | Default | Description |
-            |----------|---------|-------------|
-            | `GRPC_SCOPE_CONFIG_HOST` | `localhost` | Server host |
-            | `GRPC_SCOPE_CONFIG_PORT` | `50051` | Server port |
-            | `GRPC_SCOPE_CONFIG_USE_TLS` | `false` | Enable TLS |
-            
-            ### Integration Guides
-            
-            See the README.md file in each SDK for detailed integration instructions:
-            - [Go SDK](sdks/go/README.md)
-            - [TypeScript SDK](sdks/typescript/README.md) - includes NestJS integration example
-            - [Python SDK](sdks/python/README.md) - includes FastAPI integration example
-            - [Java SDK](sdks/java/README.md) - includes Spring Boot integration example
-            
-            ### Scope Hierarchy
-            
-            ```
-            SYSTEM
-            ├── PROJECT → STORE
-            └── USER
-            ```
-            
-            Inheritance:
-            - STORE → PROJECT → SYSTEM
-            - USER → SYSTEM
-            - PROJECT → SYSTEM
-          files: |
-            artifacts/go-sdk/go-sdk.tar.gz
-            artifacts/typescript-sdk/typescript-sdk.tar.gz
-            artifacts/python-sdk/python-sdk.tar.gz
-            artifacts/java-sdk/java-sdk.tar.gz
+          body: ${{ steps.prepare_release.outputs.body }}
+          files: ${{ steps.prepare_release.outputs.assets }}
           draft: false
           prerelease: ${{ contains(steps.extract_tag.outputs.tag, '-') }}
         env:
