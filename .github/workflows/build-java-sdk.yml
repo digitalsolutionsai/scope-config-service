@@ -44,7 +44,10 @@ jobs:
       - name: Update pom.xml version
         working-directory: sdks/java
         run: |
-          mvn versions:set -DnewVersion=${{ steps.extract_version.outputs.version }} -DgenerateBackupPoms=false
+          # Use sed to update version (avoids issues with Maven extensions loading)
+          sed -i "s/<version>1.0.0<\/version>/<version>${{ steps.extract_version.outputs.version }}<\/version>/" pom.xml
+          echo "Updated pom.xml version to ${{ steps.extract_version.outputs.version }}"
+          grep -A1 "<artifactId>scopeconfig-sdk</artifactId>" pom.xml
 
       - name: Build Java SDK with Maven
         working-directory: sdks/java
