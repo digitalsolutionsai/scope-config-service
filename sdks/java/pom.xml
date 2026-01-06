@@ -130,7 +130,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Protobuf Maven Plugin (backup for when buf is not used) -->
+            <!-- Protobuf Maven Plugin - generates Java classes from proto files -->
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>

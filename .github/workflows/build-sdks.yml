@@ -199,11 +199,6 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      - name: Install buf CLI
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          version: ${{ env.BUF_VERSION }}
-
       - name: Extract version from tag
         id: extract_version
         run: |
@@ -217,16 +212,6 @@ jobs:
         working-directory: sdks/java
         run: |
           mvn versions:set -DnewVersion=${{ steps.extract_version.outputs.version }} -DgenerateBackupPoms=false
-
-      - name: Copy proto files
-        working-directory: sdks/java
-        run: |
-          mkdir -p proto
-          cp -r ../../proto/config proto/
-
-      - name: Generate proto files for Java SDK
-        working-directory: sdks/java
-        run: buf generate proto
 
       - name: Build Java SDK with Maven
         working-directory: sdks/java

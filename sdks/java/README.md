@@ -601,12 +601,13 @@ The workflow is defined in `.github/workflows/build-sdks.yml` and triggers on ta
 **What the workflow does:**
 
 1. Sets up Java 22 with GitHub Packages authentication
-2. Copies proto files from the repository root
-3. Generates Java code from proto files using buf
-4. Extracts version from tag and updates `pom.xml`
-5. Builds the JAR (including source and javadoc JARs)
-6. Publishes to GitHub Packages
-7. Creates a GitHub Release with the SDK artifact
+2. Extracts version from tag and updates `pom.xml`
+3. Generates Java code from proto files using Maven's protobuf-maven-plugin (automatically runs during build)
+4. Builds the JAR (including source and javadoc JARs)
+5. Publishes to GitHub Packages
+6. Creates a GitHub Release with the SDK artifact
+
+**Note:** The proto files are located in the repository root at `proto/config/v1/config.proto`. The protobuf-maven-plugin is configured to automatically find and compile them during the Maven build phase.
 
 ### Triggering a Release
 

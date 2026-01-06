@@ -2,6 +2,9 @@
 src/main/java/vn/dsai/config/
 gen/
 
+# Proto files (copied during development, use root proto/ instead)
+proto/
+
 # Maven build artifacts
 target/
 pom.xml.tag
