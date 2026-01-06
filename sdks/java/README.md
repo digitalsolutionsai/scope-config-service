@@ -15,12 +15,103 @@ A Java client for the ScopeConfig gRPC service with caching support.
 ## Prerequisites
 
 - Java 22+
-- Maven 3.9+
-- Buf CLI for protobuf generation
+- Maven 3.9+ or Gradle 8+
 
-## Installation
+## Quick Start
+
+### Installation
+
+This package is published to **GitHub Packages**. Follow these steps to install:
+
+#### Option 1: Maven (Recommended)
+
+**1. Create a GitHub Personal Access Token:**
+
+- Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+- Click **"Generate new token (classic)"**
+- Give it a name (e.g., `maven-packages`)
+- Select scope: **`read:packages`**
+- Click **Generate token** and copy it
+
+**2. Configure Maven to use GitHub Packages:**
+
+Add the following to your `~/.m2/settings.xml`:
+
+```xml
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+    <server>
+      <id>github</id>
+      <username>YOUR_GITHUB_USERNAME</username>
+      <password>YOUR_GITHUB_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+```
+
+> ⚠️ **Security Note**: Never commit `settings.xml` with hardcoded tokens to version control. For CI/CD pipelines, use environment variables or encrypted secrets instead.
+
+**3. Add the repository and dependency to your `pom.xml`:**
+
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/digitalsolutionsai/scope-config-service</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.dsai</groupId>
+        <artifactId>scopeconfig-sdk</artifactId>
+        <version>1.0.0</version>
+    </dependency>
+</dependencies>
+```
+
+#### Option 2: Gradle
+
+**1. Configure Gradle to use GitHub Packages:**
+
+Add to your `build.gradle`:
+
+```groovy
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/digitalsolutionsai/scope-config-service")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.dsai:scopeconfig-sdk:1.0.0'
+}
+```
+
+**2. Set credentials** in `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_GITHUB_TOKEN
+```
+
+#### Option 3: Local Installation (Development)
+
+If you want to build from source:
 
 ```bash
+# Clone the repository
+git clone https://github.com/digitalsolutionsai/scope-config-service.git
+cd scope-config-service/sdks/java
+
 # Copy proto files
 mkdir -p proto
 cp -r ../../proto/config proto/
@@ -28,11 +119,17 @@ cp -r ../../proto/config proto/
 # Generate gRPC code
 buf generate proto
 
-# Build the SDK
+# Build and install to local Maven repository
 mvn clean install
 ```
 
-## Quick Start
+#### Verify Installation
+
+```bash
+mvn dependency:tree | grep scopeconfig
+```
+
+> **Access Requirements**: You need read access to the [digitalsolutionsai/scope-config-service](https://github.com/digitalsolutionsai/scope-config-service) repository to install this package.
 
 ### Using Environment Variables
 
@@ -344,7 +441,80 @@ public class MyService {
 }
 ```
 
-## Proto Generation
+## Building & Publishing
+
+### Building the JAR
+
+```bash
+# Build the JAR file (includes source and javadoc JARs)
+mvn clean package
+
+# The JARs will be in the target/ directory:
+# - scopeconfig-sdk-1.0.0.jar (main JAR)
+# - scopeconfig-sdk-1.0.0-sources.jar (source code)
+# - scopeconfig-sdk-1.0.0-javadoc.jar (documentation)
+```
+
+### Publishing to GitHub Packages
+
+**Prerequisites:**
+- GitHub Personal Access Token with `write:packages` scope
+- Access to the `digitalsolutionsai` organization
+
+**Steps:**
+
+**1. Configure Maven for publishing:**
+
+Ensure your `~/.m2/settings.xml` has write credentials:
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>github</id>
+      <username>YOUR_GITHUB_USERNAME</username>
+      <password>YOUR_GITHUB_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+```
+
+**2. Generate proto files (if not already done):**
+
+```bash
+mkdir -p proto
+cp -r ../../proto/config proto/
+buf generate proto
+```
+
+**3. Publish:**
+
+```bash
+mvn clean deploy
+```
+
+The package will be published to: `com.dsai:scopeconfig-sdk:<version>`
+
+**4. Verify:**
+
+Visit: https://github.com/digitalsolutionsai/scope-config-service/packages
+
+### Version Management
+
+Update the version in `pom.xml` before publishing:
+
+```bash
+# For bug fixes
+mvn versions:set -DnewVersion=1.0.1
+
+# For new features
+mvn versions:set -DnewVersion=1.1.0
+
+# For breaking changes
+mvn versions:set -DnewVersion=2.0.0
+```
+
+## Proto Generation (Development)
 
 Generate the proto files using buf:
 

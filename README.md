@@ -175,6 +175,89 @@ const value = await client.getValue(identifier, 'database.host', {
 });
 ```
 
+#### Publishing Java SDK to GitHub Packages
+
+**Prerequisites:**
+- GitHub Personal Access Token with `write:packages` scope
+- Access to the `digitalsolutionsai` organization
+
+**Steps:**
+
+**1. Configure Maven credentials in `~/.m2/settings.xml`:**
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>github</id>
+      <username>your-github-username</username>
+      <password>YOUR_GITHUB_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+```
+
+**2. Generate proto files and publish:**
+
+```bash
+cd sdks/java
+mkdir -p proto && cp -r ../../proto/config proto/
+buf generate proto
+mvn clean deploy
+```
+
+The package will be published to: `com.dsai:scopeconfig-sdk:<version>`
+
+**3. Verify:**
+
+Visit: https://github.com/digitalsolutionsai/scope-config-service/packages
+
+#### Using the Java SDK
+
+For detailed usage instructions, see [`sdks/java/README.md`](sdks/java/README.md).
+
+**Quick Install (Maven):**
+
+Add to your `pom.xml`:
+
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/digitalsolutionsai/scope-config-service</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.dsai</groupId>
+        <artifactId>scopeconfig-sdk</artifactId>
+        <version>1.0.0</version>
+    </dependency>
+</dependencies>
+```
+
+**Quick Usage:**
+
+```java
+import com.dsai.scopeconfig.*;
+import vn.dsai.config.v1.*;
+
+// Create client using environment variables
+try (ConfigClient client = ConfigClient.fromEnvironment().build()) {
+    ConfigIdentifier identifier = ConfigIdentifierBuilder.create("my-service")
+            .scope(Scope.PROJECT)
+            .groupId("database")
+            .projectId("proj-123")
+            .build();
+
+    Optional<String> value = client.getValue(identifier, "database.host",
+            GetValueOptions.withInheritanceAndDefaults());
+    
+    value.ifPresent(v -> System.out.println("Database host: " + v));
+}
+```
+
 ### Running with Docker Compose
 
 To run the complete stack (PostgreSQL database and config service with both gRPC and HTTP), use Docker Compose.

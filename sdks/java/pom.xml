@@ -11,6 +11,36 @@
 
     <name>ScopeConfig Java SDK</name>
     <description>Java client SDK for the ScopeConfig gRPC service</description>
+    <url>https://github.com/digitalsolutionsai/scope-config-service</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>DSAI</name>
+            <organization>Digital Solutions AI</organization>
+            <organizationUrl>https://github.com/digitalsolutionsai</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/digitalsolutionsai/scope-config-service.git</connection>
+        <developerConnection>scm:git:ssh://github.com:digitalsolutionsai/scope-config-service.git</developerConnection>
+        <url>https://github.com/digitalsolutionsai/scope-config-service/tree/main/sdks/java</url>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub digitalsolutionsai Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/digitalsolutionsai/scope-config-service</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <maven.compiler.source>22</maven.compiler.source>
@@ -126,6 +156,39 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+            </plugin>
+
+            <!-- Maven Source Plugin - generates source JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Javadoc Plugin - generates javadoc JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doclint>all,-missing</doclint>
+                </configuration>
             </plugin>
         </plugins>
     </build>
