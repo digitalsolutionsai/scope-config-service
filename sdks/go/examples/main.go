@@ -43,12 +43,20 @@ func main() {
 	}
 
 	// Example 2: Create client with explicit configuration
-	fmt.Println("\n=== Example 2: Explicit Configuration ===")
+	fmt.Println("\n=== Example 2: Explicit Configuration with Retry ===")
+
+	// Create a retry policy for handling transient failures
+	retryPolicy := scopeconfig.DefaultRetryPolicy()
+	// Customize if needed:
+	// retryPolicy.MaxRetries = 5
+	// retryPolicy.InitialBackoff = 200 * time.Millisecond
+
 	client, err := scopeconfig.NewClient(
 		scopeconfig.WithAddress("localhost:50051"),
 		scopeconfig.WithInsecure(),
 		scopeconfig.WithCache(time.Minute),
 		scopeconfig.WithBackgroundSync(30*time.Second),
+		scopeconfig.WithRetryPolicy(retryPolicy), // Enable automatic retry
 	)
 	if err != nil {
 		log.Printf("Failed to create client: %v (this is expected if server is not running)", err)
@@ -57,7 +65,7 @@ func main() {
 		return
 	}
 	defer client.Close()
-	fmt.Println("Client created successfully with explicit configuration")
+	fmt.Println("Client created successfully with retry policy enabled")
 
 	ctx := context.Background()
 

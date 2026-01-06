@@ -46,6 +46,9 @@ type Client struct {
 	syncWg       sync.WaitGroup
 	syncMu       sync.Mutex
 	syncTargets  []*configv1.ConfigIdentifier
+
+	// Retry configuration
+	retryPolicy *RetryPolicy
 }
 
 /*
@@ -104,6 +107,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		syncInterval: cfg.syncInterval,
 		syncStopChan: make(chan struct{}),
 		syncTargets:  make([]*configv1.ConfigIdentifier, 0),
+		retryPolicy:  cfg.retryPolicy,
 	}
 
 	// Initialize cache if enabled
@@ -152,7 +156,10 @@ func (c *Client) GetConfig(ctx context.Context, identifier *configv1.ConfigIdent
 		Identifier: identifier,
 	}
 
-	resp, err := c.client.GetConfig(ctx, req)
+	// Execute with retry if policy is configured
+	resp, err := retryableOperation(ctx, c.retryPolicy, "GetConfig", func() (*configv1.ScopeConfig, error) {
+		return c.client.GetConfig(ctx, req)
+	})
 	if err != nil {
 		return nil, wrapError("GetConfig", err)
 	}
@@ -188,7 +195,10 @@ func (c *Client) GetConfigCached(ctx context.Context, identifier *configv1.Confi
 		Identifier: identifier,
 	}
 
-	resp, err := c.client.GetConfig(ctx, req)
+	// Execute with retry if policy is configured
+	resp, err := retryableOperation(ctx, c.retryPolicy, "GetConfigCached", func() (*configv1.ScopeConfig, error) {
+		return c.client.GetConfig(ctx, req)
+	})
 	if err != nil {
 		// On error, try to return stale cache
 		if c.cacheEnabled && c.cache != nil {
@@ -250,7 +260,10 @@ func (c *Client) UpdateConfig(
 		User:       user,
 	}
 
-	resp, err := c.client.UpdateConfig(ctx, req)
+	// Execute with retry if policy is configured
+	resp, err := retryableOperation(ctx, c.retryPolicy, "UpdateConfig", func() (*configv1.ScopeConfig, error) {
+		return c.client.UpdateConfig(ctx, req)
+	})
 	if err != nil {
 		return nil, wrapError("UpdateConfig", err)
 	}
@@ -274,7 +287,10 @@ func (c *Client) GetConfigTemplate(ctx context.Context, identifier *configv1.Con
 		Identifier: identifier,
 	}
 
-	resp, err := c.client.GetConfigTemplate(ctx, req)
+	// Execute with retry if policy is configured
+	resp, err := retryableOperation(ctx, c.retryPolicy, "GetConfigTemplate", func() (*configv1.ConfigTemplate, error) {
+		return c.client.GetConfigTemplate(ctx, req)
+	})
 	if err != nil {
 		return nil, wrapError("GetConfigTemplate", err)
 	}
@@ -308,7 +324,10 @@ func (c *Client) GetConfigTemplateCached(ctx context.Context, identifier *config
 		Identifier: identifier,
 	}
 
-	resp, err := c.client.GetConfigTemplate(ctx, req)
+	// Execute with retry if policy is configured
+	resp, err := retryableOperation(ctx, c.retryPolicy, "GetConfigTemplateCached", func() (*configv1.ConfigTemplate, error) {
+		return c.client.GetConfigTemplate(ctx, req)
+	})
 	if err != nil {
 		// On error, try to return stale cache
 		if c.cacheEnabled && c.cache != nil {

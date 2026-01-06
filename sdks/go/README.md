@@ -8,6 +8,7 @@ A lightweight, idiomatic Go client for interacting with the ScopeConfig gRPC ser
 - **Template caching** for default value lookups
 - **Background sync** to refresh cached configs periodically
 - **Stale cache fallback** when server is unavailable
+- **Automatic retry** with exponential backoff for transient failures
 - **GetValue** with inheritance and default value support
 - **Environment variable support** for configuration
 - **Automatic template loading** from YAML files
@@ -283,6 +284,73 @@ host, err := client.GetValueString(ctx, identifier, "database.host", &scopeconfi
 })
 ```
 
+### Automatic Retry with Exponential Backoff
+
+The SDK supports automatic retry for transient failures (e.g., network issues, temporary server unavailability) with configurable exponential backoff.
+
+#### Using Default Retry Policy
+
+```go
+// Create a client with default retry policy
+client, err := scopeconfig.NewClient(
+    scopeconfig.WithAddress("localhost:50051"),
+    scopeconfig.WithInsecure(),
+    scopeconfig.WithRetryPolicy(scopeconfig.DefaultRetryPolicy()),
+)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+// All gRPC calls will now automatically retry on transient failures
+// Default: 3 retries, 100ms initial backoff, 10s max backoff, 2x multiplier
+config, err := client.GetConfig(ctx, identifier)
+```
+
+#### Custom Retry Policy
+
+```go
+// Create a custom retry policy
+retryPolicy := &scopeconfig.RetryPolicy{
+    MaxRetries:        5,                      // Maximum number of retry attempts
+    InitialBackoff:    200 * time.Millisecond, // Initial backoff duration
+    MaxBackoff:        5 * time.Second,        // Maximum backoff duration
+    BackoffMultiplier: 2.0,                    // Backoff multiplier (exponential)
+    RetryableStatusCodes: []codes.Code{        // Optional: customize retryable codes
+        codes.Unavailable,
+        codes.DeadlineExceeded,
+    },
+    OnRetry: func(attempt int, err error) {
+        // Optional: custom callback on each retry
+        log.Printf("Retry attempt %d: %v", attempt, err)
+    },
+}
+
+client, err := scopeconfig.NewClient(
+    scopeconfig.WithAddress("localhost:50051"),
+    scopeconfig.WithInsecure(),
+    scopeconfig.WithRetryPolicy(retryPolicy),
+)
+```
+
+#### Retryable Errors
+
+By default, the following gRPC status codes trigger a retry:
+- `Unavailable` - Server unavailable (temporary network issue)
+- `DeadlineExceeded` - Request timeout
+- `ResourceExhausted` - Rate limiting or resource exhaustion
+- `Aborted` - Operation aborted (may succeed on retry)
+- `Internal` - Internal server error (may be transient)
+
+Non-retryable errors (e.g., `NotFound`, `InvalidArgument`, `PermissionDenied`) return immediately without retry.
+
+#### Retry Behavior
+
+- **Exponential backoff**: Each retry waits longer than the previous one (InitialBackoff × Multiplier^(attempt-1))
+- **Max backoff cap**: Backoff duration never exceeds `MaxBackoff`
+- **Context cancellation**: Respects context deadlines and cancellations
+- **Combined with caching**: Works seamlessly with cache fallback for maximum resilience
+
 ## Automatic Template Loading
 
 The SDK supports automatic loading of configuration templates from YAML files. Simply place your template files in a `templates` directory and the SDK will load them automatically.
@@ -461,6 +529,7 @@ client, err := scopeconfig.NewClient(
 - `WithDialOptions(opts ...grpc.DialOption)` - Add custom gRPC dial options
 - `WithCache(ttl time.Duration)` - Enable caching with specified TTL (default: 1 minute)
 - `WithBackgroundSync(interval time.Duration)` - Enable background sync (default: 30 seconds)
+- `WithRetryPolicy(policy *RetryPolicy)` - Enable automatic retry with exponential backoff
 
 ### GetValue Options
 

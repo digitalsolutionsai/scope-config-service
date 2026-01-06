@@ -41,6 +41,9 @@ type clientConfig struct {
 	// Background sync settings
 	syncEnabled  bool
 	syncInterval time.Duration
+
+	// Retry settings
+	retryPolicy *RetryPolicy
 }
 
 // FromEnvironment creates client options from environment variables.
@@ -145,5 +148,35 @@ func WithBackgroundSync(interval time.Duration) ClientOption {
 	return func(c *clientConfig) {
 		c.syncEnabled = true
 		c.syncInterval = interval
+	}
+}
+
+// WithRetryPolicy enables automatic retry with exponential backoff for transient failures.
+// If not set, requests will not be retried on failure.
+//
+// Example with default policy:
+//
+//	client, err := NewClient(
+//	    WithAddress("localhost:50051"),
+//	    WithInsecure(),
+//	    WithRetryPolicy(DefaultRetryPolicy()),
+//	)
+//
+// Example with custom policy:
+//
+//	policy := &RetryPolicy{
+//	    MaxRetries:        5,
+//	    InitialBackoff:    200 * time.Millisecond,
+//	    MaxBackoff:        5 * time.Second,
+//	    BackoffMultiplier: 2.0,
+//	}
+//	client, err := NewClient(
+//	    WithAddress("localhost:50051"),
+//	    WithInsecure(),
+//	    WithRetryPolicy(policy),
+//	)
+func WithRetryPolicy(policy *RetryPolicy) ClientOption {
+	return func(c *clientConfig) {
+		c.retryPolicy = policy
 	}
 }
