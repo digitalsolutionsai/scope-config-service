@@ -190,6 +190,67 @@ try (ConfigClient client = ConfigClient.builder()
 | `backgroundSyncEnabled` | - | `false` | Enable background sync |
 | `backgroundSyncInterval` | - | `30 seconds` | Sync interval |
 
+## Caching Behavior
+
+The SDK provides built-in caching to minimize gRPC calls and improve performance.
+
+### In-Memory Cache
+
+- **Config values** are cached by group identifier (service name, group ID, scope, project/store/user IDs)
+- **Templates** are cached for default value lookups
+- Cache entries expire after the configured TTL (default: 1 minute)
+
+### Stale Cache Fallback
+
+When the server is unavailable, the SDK automatically falls back to cached data even if expired:
+
+```java
+// If server is down, returns stale cached data with a warning log
+ScopeConfig config = client.getConfigCached(identifier);
+```
+
+### Background Sync (Auto Refresh)
+
+Enable background sync to automatically refresh cached configs at regular intervals:
+
+```java
+try (ConfigClient client = ConfigClient.builder()
+        .host("localhost")
+        .port(50051)
+        .insecure()
+        .cacheEnabled(true)
+        .cacheTtl(Duration.ofMinutes(5))
+        .backgroundSyncEnabled(true)                    // Enable auto refresh
+        .backgroundSyncInterval(Duration.ofSeconds(30)) // Refresh every 30 seconds
+        .build()) {
+    
+    // Configs are automatically refreshed in the background
+    // First call populates cache, subsequent calls use cached data
+    ScopeConfig config = client.getConfigCached(identifier);
+}
+```
+
+### Cache Management
+
+```java
+// Invalidate cache for specific config
+client.invalidateCache(identifier);
+
+// Clear all cached configs and templates
+client.clearCache();
+
+// Check if caching is enabled
+boolean enabled = client.isCacheEnabled();
+```
+
+### Cache Flow
+
+1. **First request**: Fetches from server, stores in cache
+2. **Subsequent requests**: Returns cached data if not expired
+3. **Expired cache + server available**: Fetches fresh data, updates cache
+4. **Expired cache + server unavailable**: Returns stale cached data (fallback)
+5. **Background sync**: Periodically refreshes all cached entries
+
 ## API Reference
 
 ### Client Methods
@@ -527,6 +588,59 @@ cp -r ../../proto/config proto/
 
 # Generate Java code
 buf generate proto
+```
+
+## CI/CD Build (GitHub Actions)
+
+The SDK is automatically built and published via GitHub Actions when a tag is pushed.
+
+### Automated Build Workflow
+
+The workflow is defined in `.github/workflows/build-sdks.yml` and triggers on tags matching `sdks/java/v*`.
+
+**What the workflow does:**
+
+1. Sets up Java 22 with GitHub Packages authentication
+2. Copies proto files from the repository root
+3. Generates Java code from proto files using buf
+4. Extracts version from tag and updates `pom.xml`
+5. Builds the JAR (including source and javadoc JARs)
+6. Publishes to GitHub Packages
+7. Creates a GitHub Release with the SDK artifact
+
+### Triggering a Release
+
+To release a new version of the Java SDK:
+
+```bash
+# Create and push a version tag
+git tag sdks/java/v1.0.1
+git push origin sdks/java/v1.0.1
+```
+
+This will:
+- Build the SDK with version `1.0.1`
+- Publish `com.dsai:scopeconfig-sdk:1.0.1` to GitHub Packages
+- Create a GitHub Release with the SDK tarball
+
+### CI/CD for Consuming Projects
+
+In your project's CI/CD pipeline, configure Maven to authenticate with GitHub Packages:
+
+```yaml
+# GitHub Actions example
+- name: Set up Java
+  uses: actions/setup-java@v4
+  with:
+    distribution: 'temurin'
+    java-version: '22'
+    server-id: github
+    settings-path: ${{ github.workspace }}
+
+- name: Build with Maven
+  run: mvn clean package -s $GITHUB_WORKSPACE/settings.xml
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## License
