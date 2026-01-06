@@ -66,7 +66,7 @@ Add the following to your `~/.m2/settings.xml`:
 
 <dependencies>
     <dependency>
-        <groupId>com.dsai</groupId>
+        <groupId>vn.dsai</groupId>
         <artifactId>scopeconfig-sdk</artifactId>
         <version>1.0.0</version>
     </dependency>
@@ -92,7 +92,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.dsai:scopeconfig-sdk:1.0.0'
+    implementation 'vn.dsai:scopeconfig-sdk:1.0.0'
 }
 ```
 
@@ -134,7 +134,7 @@ mvn dependency:tree | grep scopeconfig
 ### Using Environment Variables
 
 ```java
-import com.dsai.scopeconfig.*;
+import vn.dsai.scopeconfig.*;
 import vn.dsai.config.v1.*;
 
 // Environment variables:
@@ -324,8 +324,8 @@ The SDK supports automatic loading of configuration templates from YAML files. S
 3. Load templates on client initialization
 
 ```java
-import com.dsai.scopeconfig.ConfigClient;
-import com.dsai.scopeconfig.TemplateLoader;
+import vn.dsai.scopeconfig.ConfigClient;
+import vn.dsai.scopeconfig.TemplateLoader;
 
 try (ConfigClient client = ConfigClient.fromEnvironment().build()) {
     // Auto-load all templates from the templates directory
@@ -458,7 +458,7 @@ Run the example:
 mvn clean package
 
 # Run the example
-mvn exec:java -Dexec.mainClass="com.dsai.scopeconfig.examples.BasicUsage"
+mvn exec:java -Dexec.mainClass="vn.dsai.scopeconfig.examples.BasicUsage"
 ```
 
 ### Spring Boot Integration
@@ -554,7 +554,7 @@ buf generate proto
 mvn clean deploy
 ```
 
-The package will be published to: `com.dsai:scopeconfig-sdk:<version>`
+The package will be published to: `vn.dsai:scopeconfig-sdk:<version>`
 
 **4. Verify:**
 
@@ -620,7 +620,7 @@ git push origin sdks/java/v1.0.1
 
 This will:
 - Build the SDK with version `1.0.1`
-- Publish `com.dsai:scopeconfig-sdk:1.0.1` to GitHub Packages
+- Publish `vn.dsai:scopeconfig-sdk:1.0.1` to GitHub Packages
 - Create a GitHub Release with the SDK tarball
 
 ### CI/CD for Consuming Projects
