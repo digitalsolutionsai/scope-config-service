@@ -44,8 +44,9 @@ jobs:
       - name: Update pom.xml version
         working-directory: sdks/java
         run: |
-          # Use sed to update version (avoids issues with Maven extensions loading)
-          sed -i "s/<version>1.0.0<\/version>/<version>${{ steps.extract_version.outputs.version }}<\/version>/" pom.xml
+          # Use sed to update the project version (line 9 in pom.xml, after artifactId)
+          # This avoids issues with Maven extensions loading when using mvn versions:set
+          sed -i '/<artifactId>scopeconfig-sdk<\/artifactId>/,/<version>/{s/<version>[^<]*<\/version>/<version>${{ steps.extract_version.outputs.version }}<\/version>/}' pom.xml
           echo "Updated pom.xml version to ${{ steps.extract_version.outputs.version }}"
           grep -A1 "<artifactId>scopeconfig-sdk</artifactId>" pom.xml
 
