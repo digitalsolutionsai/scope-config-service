@@ -1,0 +1,58 @@
+name: Build Python SDK
+
+on:
+  push:
+    tags:
+      - 'sdks/python/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: false
+
+env:
+  BUF_VERSION: '1.57.2'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: ${{ env.BUF_VERSION }}
+
+      - name: Install dependencies
+        working-directory: sdks/python
+        run: |
+          pip install -r requirements.txt
+          pip install build twine
+
+      - name: Copy proto files
+        working-directory: sdks/python
+        run: |
+          mkdir -p proto
+          cp -r ../../proto/config proto/
+
+      - name: Generate proto files for Python SDK
+        working-directory: sdks/python
+        run: buf generate || true
+
+      - name: Create Python SDK artifact
+        run: |
+          cd sdks
+          tar -czf python-sdk.tar.gz python/
+          
+      - name: Upload Python SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdk
+          path: sdks/python-sdk.tar.gz

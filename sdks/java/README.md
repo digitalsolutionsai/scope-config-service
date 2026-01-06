@@ -596,7 +596,7 @@ The SDK is automatically built and published via GitHub Actions when a tag is pu
 
 ### Automated Build Workflow
 
-The workflow is defined in `.github/workflows/build-sdks.yml` and triggers on tags matching `sdks/java/v*`.
+The workflow is defined in `.github/workflows/build-java-sdk.yml` and triggers on tags matching `sdks/java/v*`.
 
 **What the workflow does:**
 

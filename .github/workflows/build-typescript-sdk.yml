@@ -1,0 +1,89 @@
+name: Build TypeScript SDK
+
+on:
+  push:
+    tags:
+      - 'sdks/typescript/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: false
+
+env:
+  BUF_VERSION: '1.57.2'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@digitalsolutionsai'
+
+      - name: Install buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: ${{ env.BUF_VERSION }}
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+            # Expects tag format: sdks/typescript/v1.0.0
+            VERSION=${TAG#sdks/typescript/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        working-directory: sdks/typescript
+        run: |
+          npm version ${{ steps.extract_version.outputs.version }} --no-git-tag-version --allow-same-version
+
+      - name: Install dependencies
+        working-directory: sdks/typescript
+        run: npm ci
+
+      - name: Copy proto files
+        working-directory: sdks/typescript
+        run: |
+          mkdir -p proto
+          cp -r ../../proto/config proto/
+
+      - name: Generate proto files for TypeScript SDK
+        working-directory: sdks/typescript
+        run: npx buf generate || true  # Continue even if buf generate has issues
+
+      - name: Build TypeScript SDK
+        working-directory: sdks/typescript
+        run: npm run build
+
+      - name: Publish to GitHub Packages
+        working-directory: sdks/typescript
+        run: npm publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create TypeScript SDK artifact
+        run: |
+          cd sdks
+          tar -czf typescript-sdk.tar.gz typescript/
+          
+      - name: Upload TypeScript SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-sdk
+          path: sdks/typescript-sdk.tar.gz

@@ -1,0 +1,68 @@
+name: Build Java SDK
+
+on:
+  push:
+    tags:
+      - 'sdks/java/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '22'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+            # Expects tag format: sdks/java/v1.0.0
+            VERSION=${TAG#sdks/java/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update pom.xml version
+        working-directory: sdks/java
+        run: |
+          mvn versions:set -DnewVersion=${{ steps.extract_version.outputs.version }} -DgenerateBackupPoms=false
+
+      - name: Build Java SDK with Maven
+        working-directory: sdks/java
+        run: mvn clean package -DskipTests
+
+      - name: Publish to GitHub Packages
+        working-directory: sdks/java
+        run: mvn deploy -DskipTests -s $GITHUB_WORKSPACE/settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Java SDK artifact
+        run: |
+          cd sdks
+          tar -czf java-sdk.tar.gz java/
+          
+      - name: Upload Java SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-sdk
+          path: sdks/java-sdk.tar.gz

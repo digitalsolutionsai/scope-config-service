@@ -1,0 +1,108 @@
+name: Release SDK
+
+on:
+  workflow_run:
+    workflows: 
+      - "Build Go SDK"
+      - "Build TypeScript SDK"
+      - "Build Python SDK"
+      - "Build Java SDK"
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get triggering workflow info
+        id: workflow_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=manual-release" >> $GITHUB_OUTPUT
+            echo "sdk_name=Manual" >> $GITHUB_OUTPUT
+          else
+            # Get the tag from the triggering workflow
+            TAG="${{ github.event.workflow_run.head_branch }}"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            
+            # Determine SDK name from workflow
+            WORKFLOW="${{ github.event.workflow_run.name }}"
+            case "$WORKFLOW" in
+              "Build Go SDK") SDK_NAME="Go" ;;
+              "Build TypeScript SDK") SDK_NAME="TypeScript" ;;
+              "Build Python SDK") SDK_NAME="Python" ;;
+              "Build Java SDK") SDK_NAME="Java" ;;
+              *) SDK_NAME="Unknown" ;;
+            esac
+            echo "sdk_name=$SDK_NAME" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download artifact from triggering workflow
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+
+      - name: List artifacts
+        run: |
+          ls -la artifacts/ 2>/dev/null || echo "No artifacts directory"
+          find artifacts -type f -print 2>/dev/null || echo "No artifacts found"
+
+      - name: Prepare release content
+        id: prepare_release
+        run: |
+          TAG="${{ steps.workflow_info.outputs.tag }}"
+          SDK_NAME="${{ steps.workflow_info.outputs.sdk_name }}"
+          
+          BODY="## ScopeConfig $SDK_NAME SDK Release $TAG\n\nThis release contains the $SDK_NAME SDK library for interacting with the ScopeConfig gRPC service.\n\n"
+          ASSETS=""
+
+          if [ -f "artifacts/go-sdk/go-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/go-sdk/go-sdk.tar.gz\n"
+            BODY="${BODY}### Go SDK\n- **Language:** Go 1.24+\n- **Download:** \`go-sdk.tar.gz\`\n\n"
+          fi
+          if [ -f "artifacts/typescript-sdk/typescript-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/typescript-sdk/typescript-sdk.tar.gz\n"
+            BODY="${BODY}### TypeScript SDK\n- **Language:** Node.js 20+\n- **Download:** \`typescript-sdk.tar.gz\`\n- **npm:** \`@digitalsolutionsai/scopeconfig-sdk\`\n\n"
+          fi
+          if [ -f "artifacts/python-sdk/python-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/python-sdk/python-sdk.tar.gz\n"
+            BODY="${BODY}### Python SDK\n- **Language:** Python 3.11+\n- **Download:** \`python-sdk.tar.gz\`\n\n"
+          fi
+          if [ -f "artifacts/java-sdk/java-sdk.tar.gz" ]; then
+            ASSETS="${ASSETS}artifacts/java-sdk/java-sdk.tar.gz\n"
+            BODY="${BODY}### Java SDK\n- **Language:** Java 22+\n- **Download:** \`java-sdk.tar.gz\`\n- **Maven:** \`vn.dsai:scopeconfig-sdk\`\n\n"
+          fi
+
+          STATIC_BODY="### Features\n\nAll SDKs include:\n- **In-memory caching** for config values (reduces gRPC calls)\n- **Template caching** for default value lookups\n- **Background sync** to refresh cached configs periodically\n- **Stale cache fallback** when server is unavailable\n- **GetValue** with inheritance and default value support\n- **Environment variable support** for configuration\n\n### Environment Variables\n\n| Variable | Default | Description |\n|----------|---------|-------------|\n| \`GRPC_SCOPE_CONFIG_HOST\` | \`localhost\` | Server host |\n| \`GRPC_SCOPE_CONFIG_PORT\` | \`50051\` | Server port |\n| \`GRPC_SCOPE_CONFIG_USE_TLS\` | \`false\` | Enable TLS |\n\n### Scope Hierarchy\n\n\`\`\`\nSYSTEM\n├── PROJECT → STORE\n└── USER\n\`\`\`\n\nInheritance:\n- STORE → PROJECT → SYSTEM\n- USER → SYSTEM\n- PROJECT → SYSTEM\n"
+          BODY="${BODY}${STATIC_BODY}"
+          
+          echo "assets<<EOF" >> "${GITHUB_OUTPUT}"
+          echo -e "$ASSETS" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+
+          echo "body<<EOF" >> "${GITHUB_OUTPUT}"
+          echo -e "$BODY" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+
+      - name: Create Release
+        if: ${{ steps.prepare_release.outputs.assets != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.workflow_info.outputs.tag }}
+          name: ScopeConfig ${{ steps.workflow_info.outputs.sdk_name }} SDK ${{ steps.workflow_info.outputs.tag }}
+          body: ${{ steps.prepare_release.outputs.body }}
+          files: ${{ steps.prepare_release.outputs.assets }}
+          draft: false
+          prerelease: ${{ contains(steps.workflow_info.outputs.tag, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
