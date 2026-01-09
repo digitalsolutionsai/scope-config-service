@@ -348,9 +348,11 @@ export class ConfigClient {
     options?: GetValueOptions
   ): Promise<string | null> {
     const opts = options || {};
+    // When useDefault is explicitly false, tell the server not to return template defaults
+    const useTemplateDefaults = opts.useDefault !== false;
 
     // Try to get value from current scope (uses cached group config)
-    const value = await this.getValueFromScope(identifier, path);
+    const value = await this.getValueFromScope(identifier, path, useTemplateDefaults);
     if (value !== null) {
       return value;
     }
@@ -359,7 +361,7 @@ export class ConfigClient {
     if (opts.inherit) {
       const parentIdentifiers = this.getParentIdentifiers(identifier);
       for (const parentId of parentIdentifiers) {
-        const parentValue = await this.getValueFromScope(parentId, path);
+        const parentValue = await this.getValueFromScope(parentId, path, useTemplateDefaults);
         if (parentValue !== null) {
           return parentValue;
         }
@@ -367,6 +369,7 @@ export class ConfigClient {
     }
 
     // If useDefault is enabled, try to get default from template
+    // (This is now redundant since server handles it, but kept for explicit client-side fallback)
     if (opts.useDefault) {
       const defaultValue = await this.getDefaultValue(identifier, path);
       if (defaultValue !== null) {
@@ -379,14 +382,19 @@ export class ConfigClient {
 
   /**
    * Gets a value from a specific scope's configuration.
+   * @param useTemplateDefaults - If false, server won't return template defaults when no config exists
    */
   private async getValueFromScope(
     identifier: ConfigIdentifier,
-    path: string
+    path: string,
+    useTemplateDefaults: boolean = true
   ): Promise<string | null> {
     try {
-      const config = await this.getConfigCached(identifier);
-      const field = config.fields.find((f) => f.path === path);
+      const config = await this.promisify("GetConfig", {
+        identifier: this.toProtoIdentifier(identifier),
+        use_template_defaults: useTemplateDefaults
+      });
+      const field = config.fields.find((f: any) => f.path === path);
       return field?.value || null;
     } catch {
       return null;

@@ -6,6 +6,9 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "github.com/digitalsolutionsai/scope-config-service/config/v1;configv1";
+option java_package = "vn.dsai.config.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ConfigProto";
 
 // ConfigService is the main service for managing and retrieving configurations.
 service ConfigService {
@@ -137,6 +140,9 @@ message GetConfigRequest {
   // Optional: If specified, only the field with this path will be returned.
   // If omitted, all fields for the group will be returned.
   string path = 2;
+  // Optional: If true or not set, returns template default values when no config exists.
+  // If false, returns empty fields when no config exists.
+  optional bool use_template_defaults = 3;
 }
 
 message GetConfigByVersionRequest {
@@ -145,6 +151,9 @@ message GetConfigByVersionRequest {
   // Optional: If specified, only the field with this path will be returned.
   // If omitted, all fields for the group will be returned.
   string path = 3;
+  // Optional: If true or not set, returns template default values when no config exists.
+  // If false, returns empty fields when no config exists.
+  optional bool use_template_defaults = 4;
 }
 
 message UpdateConfigRequest {

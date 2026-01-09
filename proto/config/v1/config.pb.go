@@ -694,9 +694,12 @@ type GetConfigRequest struct {
 	Identifier *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	// Optional: If specified, only the field with this path will be returned.
 	// If omitted, all fields for the group will be returned.
-	Path          string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Optional: If true or not set, returns template default values when no config exists.
+	// If false, returns empty fields when no config exists.
+	UseTemplateDefaults *bool `protobuf:"varint,3,opt,name=use_template_defaults,json=useTemplateDefaults,proto3,oneof" json:"use_template_defaults,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetConfigRequest) Reset() {
@@ -743,15 +746,25 @@ func (x *GetConfigRequest) GetPath() string {
 	return ""
 }
 
+func (x *GetConfigRequest) GetUseTemplateDefaults() bool {
+	if x != nil && x.UseTemplateDefaults != nil {
+		return *x.UseTemplateDefaults
+	}
+	return false
+}
+
 type GetConfigByVersionRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Identifier *ConfigIdentifier      `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Version    int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	// Optional: If specified, only the field with this path will be returned.
 	// If omitted, all fields for the group will be returned.
-	Path          string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Path string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	// Optional: If true or not set, returns template default values when no config exists.
+	// If false, returns empty fields when no config exists.
+	UseTemplateDefaults *bool `protobuf:"varint,4,opt,name=use_template_defaults,json=useTemplateDefaults,proto3,oneof" json:"use_template_defaults,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetConfigByVersionRequest) Reset() {
@@ -803,6 +816,13 @@ func (x *GetConfigByVersionRequest) GetPath() string {
 		return x.Path
 	}
 	return ""
+}
+
+func (x *GetConfigByVersionRequest) GetUseTemplateDefaults() bool {
+	if x != nil && x.UseTemplateDefaults != nil {
+		return *x.UseTemplateDefaults
+	}
+	return false
 }
 
 type UpdateConfigRequest struct {
@@ -1379,18 +1399,22 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x11group_description\x18\x04 \x01(\tR\x10groupDescription\x12>\n" +
 	"\x06fields\x18\x05 \x03(\v2&.vn.dsai.config.v1.ConfigFieldTemplateR\x06fields\x12\x1d\n" +
 	"\n" +
-	"sort_order\x18\x06 \x01(\x05R\tsortOrder\"k\n" +
+	"sort_order\x18\x06 \x01(\x05R\tsortOrder\"\xbe\x01\n" +
 	"\x10GetConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\x8e\x01\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x127\n" +
+	"\x15use_template_defaults\x18\x03 \x01(\bH\x00R\x13useTemplateDefaults\x88\x01\x01B\x18\n" +
+	"\x16_use_template_defaults\"\xe1\x01\n" +
 	"\x19GetConfigByVersionRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x05R\aversion\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\"\xa6\x01\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x127\n" +
+	"\x15use_template_defaults\x18\x04 \x01(\bH\x00R\x13useTemplateDefaults\x88\x01\x01B\x18\n" +
+	"\x16_use_template_defaults\"\xa6\x01\n" +
 	"\x13UpdateConfigRequest\x12C\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
@@ -1462,7 +1486,8 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\fDeleteConfig\x12&.vn.dsai.config.v1.DeleteConfigRequest\x1a\x16.google.protobuf.Empty\x12g\n" +
 	"\x13ApplyConfigTemplate\x12-.vn.dsai.config.v1.ApplyConfigTemplateRequest\x1a!.vn.dsai.config.v1.ConfigTemplate\x12c\n" +
 	"\x11GetConfigTemplate\x12+.vn.dsai.config.v1.GetConfigTemplateRequest\x1a!.vn.dsai.config.v1.ConfigTemplate\x12t\n" +
-	"\x13ListConfigTemplates\x12-.vn.dsai.config.v1.ListConfigTemplatesRequest\x1a..vn.dsai.config.v1.ListConfigTemplatesResponseBGZEgithub.com/digitalsolutionsai/scope-config-service/config/v1;configv1b\x06proto3"
+	"\x13ListConfigTemplates\x12-.vn.dsai.config.v1.ListConfigTemplatesRequest\x1a..vn.dsai.config.v1.ListConfigTemplatesResponseBi\n" +
+	"\x11vn.dsai.config.v1B\vConfigProtoP\x01ZEgithub.com/digitalsolutionsai/scope-config-service/config/v1;configv1b\x06proto3"
 
 var (
 	file_config_v1_config_proto_rawDescOnce sync.Once
@@ -1560,6 +1585,8 @@ func file_config_v1_config_proto_init() {
 	if File_config_v1_config_proto != nil {
 		return
 	}
+	file_config_v1_config_proto_msgTypes[7].OneofWrappers = []any{}
+	file_config_v1_config_proto_msgTypes[8].OneofWrappers = []any{}
 	file_config_v1_config_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

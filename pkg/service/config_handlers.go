@@ -54,7 +54,13 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 	)
 
 	if err == sql.ErrNoRows {
-		// No config exists, try to get template default values
+		// No config exists
+		// Check if the user explicitly disabled template defaults
+		if req.UseTemplateDefaults != nil && !*req.UseTemplateDefaults {
+			// User explicitly set use_template_defaults=false, return empty config
+			return &configv1.ScopeConfig{VersionInfo: cv, Fields: []*configv1.ConfigField{}}, nil
+		}
+		// Otherwise, try to get template default values (default behavior)
 		templateFields, err := s.getTemplateDefaultFields(ctx, req.Identifier.ServiceName, req.Identifier.GroupId, req.Path, scope)
 		if err != nil {
 			return nil, err
@@ -95,11 +101,18 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 
 	// If we should use template fallback, try to get template default values
 	if shouldUseTemplateFallback {
-		templateFields, err := s.getTemplateDefaultFields(ctx, req.Identifier.ServiceName, req.Identifier.GroupId, req.Path, scope)
-		if err != nil {
-			return nil, err
+		// Check if the user explicitly disabled template defaults
+		if req.UseTemplateDefaults != nil && !*req.UseTemplateDefaults {
+			// User explicitly set use_template_defaults=false, return empty fields
+			fields = []*configv1.ConfigField{}
+		} else {
+			// Otherwise, try to get template default values (default behavior)
+			templateFields, err := s.getTemplateDefaultFields(ctx, req.Identifier.ServiceName, req.Identifier.GroupId, req.Path, scope)
+			if err != nil {
+				return nil, err
+			}
+			fields = templateFields
 		}
-		fields = templateFields
 	} else {
 		// Build the query for config fields
 		fieldQuery := `SELECT path, value FROM config_field WHERE config_version_id = $1 AND version = $2`
