@@ -246,15 +246,22 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 		return nil, err
 	}
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback()
+
 	var cv configv1.ConfigVersion
 	cv.Identifier = req.Identifier
 	var createdAt, updatedAt sql.NullTime
 
+	// 1. Update config_version table to set published_version
 	query := `UPDATE config_version SET published_version = $1, updated_at = NOW(), updated_by = $2
 			  WHERE service_name = $3 AND scope = $4 AND scope_id = $5 AND group_id = $6
 			  RETURNING id, latest_version, published_version, created_at, updated_at`
 
-	err = s.db.QueryRowContext(ctx, query, req.VersionToPublish, req.User, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
+	err = tx.QueryRowContext(ctx, query, req.VersionToPublish, req.User, req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId).Scan(
 		&cv.Id, &cv.LatestVersion, &cv.PublishedVersion, &createdAt, &updatedAt,
 	)
 
@@ -262,9 +269,26 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 		return nil, status.Error(codes.NotFound, "config identifier not found")
 	}
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to publish version: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to update config version: %v", err)
 	}
 
+	// 2. Update config_version_history table to set publication audit for this version
+	res, err := tx.ExecContext(ctx, "UPDATE config_version_history SET published_by = $1, published_at = NOW() WHERE config_version_id = $2 AND version = $3",
+		req.User, cv.Id, req.VersionToPublish)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to update publication history: %v", err)
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, status.Errorf(codes.NotFound, "version %d not found in history", req.VersionToPublish)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to commit transaction: %v", err)
+	}
+
+	// Set response fields
 	if createdAt.Valid {
 		cv.CreatedAt = timestamppb.New(createdAt.Time)
 	}
@@ -298,7 +322,7 @@ func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHi
 		limit = 10 // Default limit
 	}
 
-	historyQuery := `SELECT version, created_at, created_by FROM config_version_history
+	historyQuery := `SELECT version, created_at, created_by, published_at, published_by FROM config_version_history
                      WHERE config_version_id = $1 ORDER BY created_at DESC LIMIT $2`
 	rows, err := s.db.QueryContext(ctx, historyQuery, configVersionID, limit)
 	if err != nil {
@@ -310,10 +334,18 @@ func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHi
 	for rows.Next() {
 		entry := &configv1.VersionHistoryEntry{}
 		var createdAt time.Time
-		if err := rows.Scan(&entry.Version, &createdAt, &entry.CreatedBy); err != nil {
+		var pbAt sql.NullTime
+		var pbBy sql.NullString
+		if err := rows.Scan(&entry.Version, &createdAt, &entry.CreatedBy, &pbAt, &pbBy); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to scan history entry: %v", err)
 		}
 		entry.CreatedAt = timestamppb.New(createdAt)
+		if pbAt.Valid {
+			entry.PublishedAt = timestamppb.New(pbAt.Time)
+		}
+		if pbBy.Valid {
+			entry.PublishedBy = &pbBy.String
+		}
 		history = append(history, entry)
 	}
 

@@ -181,6 +181,8 @@ message VersionHistoryEntry {
     int32 version = 1;
     google.protobuf.Timestamp created_at = 2;
     string created_by = 3;
+    optional google.protobuf.Timestamp published_at = 4;
+    optional string published_by = 5;
 }
 
 message GetConfigHistoryResponse {

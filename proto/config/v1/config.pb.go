@@ -1046,6 +1046,8 @@ type VersionHistoryEntry struct {
 	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	CreatedBy     string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	PublishedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
+	PublishedBy   *string                `protobuf:"bytes,5,opt,name=published_by,json=publishedBy,proto3,oneof" json:"published_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1097,6 +1099,20 @@ func (x *VersionHistoryEntry) GetCreatedAt() *timestamppb.Timestamp {
 func (x *VersionHistoryEntry) GetCreatedBy() string {
 	if x != nil {
 		return x.CreatedBy
+	}
+	return ""
+}
+
+func (x *VersionHistoryEntry) GetPublishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return nil
+}
+
+func (x *VersionHistoryEntry) GetPublishedBy() string {
+	if x != nil && x.PublishedBy != nil {
+		return *x.PublishedBy
 	}
 	return ""
 }
@@ -1435,13 +1451,17 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"identifier\x18\x01 \x01(\v2#.vn.dsai.config.v1.ConfigIdentifierR\n" +
 	"identifier\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x89\x01\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x97\x02\n" +
 	"\x13VersionHistoryEntry\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\x03 \x01(\tR\tcreatedBy\"\\\n" +
+	"created_by\x18\x03 \x01(\tR\tcreatedBy\x12B\n" +
+	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vpublishedAt\x88\x01\x01\x12&\n" +
+	"\fpublished_by\x18\x05 \x01(\tH\x01R\vpublishedBy\x88\x01\x01B\x0f\n" +
+	"\r_published_atB\x0f\n" +
+	"\r_published_by\"\\\n" +
 	"\x18GetConfigHistoryResponse\x12@\n" +
 	"\ahistory\x18\x01 \x03(\v2&.vn.dsai.config.v1.VersionHistoryEntryR\ahistory\"o\n" +
 	"\x1aApplyConfigTemplateRequest\x12=\n" +
@@ -1549,35 +1569,36 @@ var file_config_v1_config_proto_depIdxs = []int32{
 	2,  // 17: vn.dsai.config.v1.DeleteConfigRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
 	2,  // 18: vn.dsai.config.v1.GetConfigHistoryRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
 	21, // 19: vn.dsai.config.v1.VersionHistoryEntry.created_at:type_name -> google.protobuf.Timestamp
-	15, // 20: vn.dsai.config.v1.GetConfigHistoryResponse.history:type_name -> vn.dsai.config.v1.VersionHistoryEntry
-	8,  // 21: vn.dsai.config.v1.ApplyConfigTemplateRequest.template:type_name -> vn.dsai.config.v1.ConfigTemplate
-	2,  // 22: vn.dsai.config.v1.GetConfigTemplateRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
-	8,  // 23: vn.dsai.config.v1.ListConfigTemplatesResponse.templates:type_name -> vn.dsai.config.v1.ConfigTemplate
-	9,  // 24: vn.dsai.config.v1.ConfigService.GetConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
-	9,  // 25: vn.dsai.config.v1.ConfigService.GetLatestConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
-	10, // 26: vn.dsai.config.v1.ConfigService.GetConfigByVersion:input_type -> vn.dsai.config.v1.GetConfigByVersionRequest
-	14, // 27: vn.dsai.config.v1.ConfigService.GetConfigHistory:input_type -> vn.dsai.config.v1.GetConfigHistoryRequest
-	11, // 28: vn.dsai.config.v1.ConfigService.UpdateConfig:input_type -> vn.dsai.config.v1.UpdateConfigRequest
-	12, // 29: vn.dsai.config.v1.ConfigService.PublishVersion:input_type -> vn.dsai.config.v1.PublishVersionRequest
-	13, // 30: vn.dsai.config.v1.ConfigService.DeleteConfig:input_type -> vn.dsai.config.v1.DeleteConfigRequest
-	17, // 31: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:input_type -> vn.dsai.config.v1.ApplyConfigTemplateRequest
-	18, // 32: vn.dsai.config.v1.ConfigService.GetConfigTemplate:input_type -> vn.dsai.config.v1.GetConfigTemplateRequest
-	19, // 33: vn.dsai.config.v1.ConfigService.ListConfigTemplates:input_type -> vn.dsai.config.v1.ListConfigTemplatesRequest
-	5,  // 34: vn.dsai.config.v1.ConfigService.GetConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	5,  // 35: vn.dsai.config.v1.ConfigService.GetLatestConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	5,  // 36: vn.dsai.config.v1.ConfigService.GetConfigByVersion:output_type -> vn.dsai.config.v1.ScopeConfig
-	16, // 37: vn.dsai.config.v1.ConfigService.GetConfigHistory:output_type -> vn.dsai.config.v1.GetConfigHistoryResponse
-	5,  // 38: vn.dsai.config.v1.ConfigService.UpdateConfig:output_type -> vn.dsai.config.v1.ScopeConfig
-	3,  // 39: vn.dsai.config.v1.ConfigService.PublishVersion:output_type -> vn.dsai.config.v1.ConfigVersion
-	22, // 40: vn.dsai.config.v1.ConfigService.DeleteConfig:output_type -> google.protobuf.Empty
-	8,  // 41: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
-	8,  // 42: vn.dsai.config.v1.ConfigService.GetConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
-	20, // 43: vn.dsai.config.v1.ConfigService.ListConfigTemplates:output_type -> vn.dsai.config.v1.ListConfigTemplatesResponse
-	34, // [34:44] is the sub-list for method output_type
-	24, // [24:34] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	21, // 20: vn.dsai.config.v1.VersionHistoryEntry.published_at:type_name -> google.protobuf.Timestamp
+	15, // 21: vn.dsai.config.v1.GetConfigHistoryResponse.history:type_name -> vn.dsai.config.v1.VersionHistoryEntry
+	8,  // 22: vn.dsai.config.v1.ApplyConfigTemplateRequest.template:type_name -> vn.dsai.config.v1.ConfigTemplate
+	2,  // 23: vn.dsai.config.v1.GetConfigTemplateRequest.identifier:type_name -> vn.dsai.config.v1.ConfigIdentifier
+	8,  // 24: vn.dsai.config.v1.ListConfigTemplatesResponse.templates:type_name -> vn.dsai.config.v1.ConfigTemplate
+	9,  // 25: vn.dsai.config.v1.ConfigService.GetConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
+	9,  // 26: vn.dsai.config.v1.ConfigService.GetLatestConfig:input_type -> vn.dsai.config.v1.GetConfigRequest
+	10, // 27: vn.dsai.config.v1.ConfigService.GetConfigByVersion:input_type -> vn.dsai.config.v1.GetConfigByVersionRequest
+	14, // 28: vn.dsai.config.v1.ConfigService.GetConfigHistory:input_type -> vn.dsai.config.v1.GetConfigHistoryRequest
+	11, // 29: vn.dsai.config.v1.ConfigService.UpdateConfig:input_type -> vn.dsai.config.v1.UpdateConfigRequest
+	12, // 30: vn.dsai.config.v1.ConfigService.PublishVersion:input_type -> vn.dsai.config.v1.PublishVersionRequest
+	13, // 31: vn.dsai.config.v1.ConfigService.DeleteConfig:input_type -> vn.dsai.config.v1.DeleteConfigRequest
+	17, // 32: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:input_type -> vn.dsai.config.v1.ApplyConfigTemplateRequest
+	18, // 33: vn.dsai.config.v1.ConfigService.GetConfigTemplate:input_type -> vn.dsai.config.v1.GetConfigTemplateRequest
+	19, // 34: vn.dsai.config.v1.ConfigService.ListConfigTemplates:input_type -> vn.dsai.config.v1.ListConfigTemplatesRequest
+	5,  // 35: vn.dsai.config.v1.ConfigService.GetConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	5,  // 36: vn.dsai.config.v1.ConfigService.GetLatestConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	5,  // 37: vn.dsai.config.v1.ConfigService.GetConfigByVersion:output_type -> vn.dsai.config.v1.ScopeConfig
+	16, // 38: vn.dsai.config.v1.ConfigService.GetConfigHistory:output_type -> vn.dsai.config.v1.GetConfigHistoryResponse
+	5,  // 39: vn.dsai.config.v1.ConfigService.UpdateConfig:output_type -> vn.dsai.config.v1.ScopeConfig
+	3,  // 40: vn.dsai.config.v1.ConfigService.PublishVersion:output_type -> vn.dsai.config.v1.ConfigVersion
+	22, // 41: vn.dsai.config.v1.ConfigService.DeleteConfig:output_type -> google.protobuf.Empty
+	8,  // 42: vn.dsai.config.v1.ConfigService.ApplyConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
+	8,  // 43: vn.dsai.config.v1.ConfigService.GetConfigTemplate:output_type -> vn.dsai.config.v1.ConfigTemplate
+	20, // 44: vn.dsai.config.v1.ConfigService.ListConfigTemplates:output_type -> vn.dsai.config.v1.ListConfigTemplatesResponse
+	35, // [35:45] is the sub-list for method output_type
+	25, // [25:35] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_config_v1_config_proto_init() }
@@ -1587,6 +1608,7 @@ func file_config_v1_config_proto_init() {
 	}
 	file_config_v1_config_proto_msgTypes[7].OneofWrappers = []any{}
 	file_config_v1_config_proto_msgTypes[8].OneofWrappers = []any{}
+	file_config_v1_config_proto_msgTypes[13].OneofWrappers = []any{}
 	file_config_v1_config_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

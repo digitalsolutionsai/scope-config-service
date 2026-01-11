@@ -2,11 +2,12 @@ package httpgateway
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
+	"github.com/go-chi/chi/v5"
 )
 
 // Gateway represents the HTTP gateway that wraps the gRPC client.
@@ -325,17 +326,28 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use authenticated user email if userName not provided in request body
-	userName := req.UserName
-	if userName == "" {
-		userName = r.Header.Get("X-User-Name")
+	// Prioritize Gateway headers for audit trail
+	userName := r.Header.Get("X-User-Name")
+	userEmail := r.Header.Get("X-User-Email")
+
+	finalUser := ""
+	if userName != "" {
+		if userEmail != "" {
+			finalUser = fmt.Sprintf("%s (%s)", userName, userEmail)
+		} else {
+			finalUser = userName
+		}
+	} else if req.UserName != "" {
+		// Fallback to body-provided user only if gateway headers are missing (unlikely in production)
+		finalUser = req.UserName
 	}
-	if userName == "" {
-		userName = GetUserEmail(r.Context())
+
+	if finalUser == "" {
+		finalUser = GetUserEmail(r.Context())
 	}
-	
+
 	// If still empty (no auth), require it
-	if userName == "" {
+	if finalUser == "" {
 		WriteError(w, &validationError{message: "userName is required when authentication is disabled"})
 		return
 	}
@@ -348,11 +360,11 @@ func (g *Gateway) PublishConfig(w http.ResponseWriter, r *http.Request) {
 		StoreId:     req.StoreId,
 		UserId:      req.UserId,
 	}
-	
+
 	publishResp, err := g.client.PublishVersion(r.Context(), &configv1.PublishVersionRequest{
 		Identifier:       identifier,
 		VersionToPublish: req.Version,
-		User:             userName,
+		User:             finalUser,
 	})
 	if err != nil {
 		WriteError(w, err)
@@ -407,17 +419,28 @@ func (g *Gateway) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use authenticated user email if userName not provided in request body
-	userName := req.UserName
-	if userName == "" {
-		userName = r.Header.Get("X-User-Name")
+	// Prioritize Gateway headers for audit trail
+	userName := r.Header.Get("X-User-Name")
+	userEmail := r.Header.Get("X-User-Email")
+
+	finalUser := ""
+	if userName != "" {
+		if userEmail != "" {
+			finalUser = fmt.Sprintf("%s (%s)", userName, userEmail)
+		} else {
+			finalUser = userName
+		}
+	} else if req.UserName != "" {
+		// Fallback to body-provided user only if gateway headers are missing (unlikely in production)
+		finalUser = req.UserName
 	}
-	if userName == "" {
-		userName = GetUserEmail(r.Context())
+
+	if finalUser == "" {
+		finalUser = GetUserEmail(r.Context())
 	}
 
 	// If still empty (no auth), require it
-	if userName == "" {
+	if finalUser == "" {
 		WriteError(w, &validationError{message: "userName is required"})
 		return
 	}
@@ -462,7 +485,7 @@ func (g *Gateway) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	updateResp, err := g.client.UpdateConfig(r.Context(), &configv1.UpdateConfigRequest{
 		Identifier: identifier,
 		Fields:     fields,
-		User:       userName,
+		User:       finalUser,
 	})
 	if err != nil {
 		WriteError(w, err)
