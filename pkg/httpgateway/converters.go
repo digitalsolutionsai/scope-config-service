@@ -6,22 +6,22 @@ import (
 
 // TemplateResponse represents a clean JSON response for a template.
 type TemplateResponse struct {
-	ServiceName  string                      `json:"serviceName"`
-	ServiceLabel string                      `json:"serviceLabel"`
-	GroupId      string                      `json:"groupId"`
-	GroupLabel   string                      `json:"groupLabel"`
-	Description  string                      `json:"description"`
-	Fields       []TemplateFieldResponse     `json:"fields"`
+	ServiceName  string                  `json:"serviceName"`
+	ServiceLabel string                  `json:"serviceLabel"`
+	GroupId      string                  `json:"groupId"`
+	GroupLabel   string                  `json:"groupLabel"`
+	Description  string                  `json:"description"`
+	Fields       []TemplateFieldResponse `json:"fields"`
 }
 
 // TemplateFieldResponse represents a single field in the template.
 type TemplateFieldResponse struct {
-	Path         string              `json:"path"`
-	Label        string              `json:"label"`
-	Description  string              `json:"description"`
-	Type         string              `json:"type"`
-	DefaultValue string              `json:"defaultValue"`
-	DisplayOn    []string            `json:"displayOn"`
+	Path         string                `json:"path"`
+	Label        string                `json:"label"`
+	Description  string                `json:"description"`
+	Type         string                `json:"type"`
+	DefaultValue string                `json:"defaultValue"`
+	DisplayOn    []string              `json:"displayOn"`
 	Options      []ValueOptionResponse `json:"options,omitempty"`
 }
 
@@ -33,18 +33,18 @@ type ValueOptionResponse struct {
 
 // ConfigResponse represents a clean JSON response for a configuration.
 type ConfigResponse struct {
-	ServiceName      string                 `json:"serviceName"`
-	Scope            string                 `json:"scope"`
-	GroupId          string                 `json:"groupId"`
-	ProjectId        string                 `json:"projectId,omitempty"`
-	StoreId          string                 `json:"storeId,omitempty"`
-	UserId           string                 `json:"userId,omitempty"`
-	CurrentVersion   int32                  `json:"currentVersion"`
-	LatestVersion    int32                  `json:"latestVersion"`
-	PublishedVersion int32                  `json:"publishedVersion,omitempty"`
-	Fields           map[string]string      `json:"fields"`
-	CreatedAt        string                 `json:"createdAt,omitempty"`
-	UpdatedAt        string                 `json:"updatedAt,omitempty"`
+	ServiceName      string            `json:"serviceName"`
+	Scope            string            `json:"scope"`
+	GroupId          string            `json:"groupId"`
+	ProjectId        string            `json:"projectId,omitempty"`
+	StoreId          string            `json:"storeId,omitempty"`
+	UserId           string            `json:"userId,omitempty"`
+	CurrentVersion   int32             `json:"currentVersion"`
+	LatestVersion    int32             `json:"latestVersion"`
+	PublishedVersion int32             `json:"publishedVersion,omitempty"`
+	Fields           map[string]string `json:"fields"`
+	CreatedAt        string            `json:"createdAt,omitempty"`
+	UpdatedAt        string            `json:"updatedAt,omitempty"`
 }
 
 // HistoryResponse represents a clean JSON response for version history.
@@ -52,11 +52,12 @@ type HistoryResponse struct {
 	History []HistoryEntryResponse `json:"history"`
 }
 
-// HistoryEntryResponse represents a single history entry.
 type HistoryEntryResponse struct {
-	Version   int32  `json:"version"`
-	CreatedAt string `json:"createdAt"`
-	CreatedBy string `json:"createdBy"`
+	Version     int32  `json:"version"`
+	CreatedAt   string `json:"createdAt"`
+	CreatedBy   string `json:"createdBy"`
+	PublishedAt string `json:"publishedAt,omitempty"`
+	PublishedBy string `json:"publishedBy,omitempty"`
 }
 
 // VersionResponse represents a clean JSON response for a config version.
@@ -156,10 +157,21 @@ func convertHistoryToJSON(history *configv1.GetConfigHistoryResponse) HistoryRes
 			createdAt = entry.CreatedAt.AsTime().Format("2006-01-02T15:04:05Z")
 		}
 
+		publishedAt := ""
+		publishedBy := ""
+		if entry.PublishedAt != nil {
+			publishedAt = entry.PublishedAt.AsTime().Format("2006-01-02T15:04:05Z")
+		}
+		if entry.PublishedBy != nil {
+			publishedBy = *entry.PublishedBy
+		}
+
 		entries[i] = HistoryEntryResponse{
-			Version:   entry.Version,
-			CreatedAt: createdAt,
-			CreatedBy: entry.CreatedBy,
+			Version:     entry.Version,
+			CreatedAt:   createdAt,
+			CreatedBy:   entry.CreatedBy,
+			PublishedAt: publishedAt,
+			PublishedBy: publishedBy,
 		}
 	}
 
