@@ -53,6 +53,10 @@ jobs:
         run: |
           # Trigger a rollout restart to pick up the new image hash
           ssh dev-server "kubectl rollout restart deployment config-service -n dsai-dev"
+          
+          # Wait for the rollout to complete successfully before pruning
+          # This ensures the new image is 'in use' and won't be deleted
+          ssh dev-server "kubectl rollout status deployment/config-service -n dsai-dev --timeout=60s"
 
       - name: Cleanup Unused Images
         run: |
