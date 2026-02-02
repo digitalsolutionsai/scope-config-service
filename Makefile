@@ -49,6 +49,10 @@ run-httpgateway: build-httpgateway
 # ====================================================================================
 up:
 	@echo "Starting services with Docker Compose..."
+	@docker compose -f compose.postgres.yml -f compose.yml up -d
+
+up-build:
+	@echo "Starting services with Docker Compose..."
 	@docker compose -f compose.postgres.yml -f compose.yml up -d --build
 
 down:
