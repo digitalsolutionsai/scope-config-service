@@ -26,4 +26,8 @@ bin/
 # Configuration files
 configs/
 .venv
-*.log 
+*.log
+
+# Node.js
+node_modules/
+dist/ 
