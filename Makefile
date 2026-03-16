@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down swagger-gen test test-go test-go-sdk test-ts-sdk
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down swagger-gen test test-go test-go-sdk test-ts-sdk docker-build docker-push
 
 # ====================================================================================
 # PROTO
@@ -67,6 +67,9 @@ run-httpgateway: build-httpgateway
 # ====================================================================================
 # DOCKER
 # ====================================================================================
+DOCKERHUB_REPO ?= dsailoivo/scope-config
+TAG ?= latest
+
 up:
 	@echo "Starting services with Docker Compose..."
 	@docker compose up -d --build
@@ -78,6 +81,16 @@ down:
 ps:
 	@echo "Listing running containers..."
 	@docker compose ps
+
+docker-build:
+	@echo "Building Docker image $(DOCKERHUB_REPO):$(TAG)..."
+	@docker build -t $(DOCKERHUB_REPO):$(TAG) .
+	@echo "Docker build done."
+
+docker-push: docker-build
+	@echo "Pushing $(DOCKERHUB_REPO):$(TAG) to Docker Hub..."
+	@docker push $(DOCKERHUB_REPO):$(TAG)
+	@echo "Docker push done."
 
 # ====================================================================================
 # DATABASE
