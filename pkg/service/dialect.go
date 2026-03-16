@@ -11,12 +11,15 @@ import (
 
 // arrayParam returns a driver-compatible value for inserting a string array.
 // PostgreSQL uses pq.Array; SQLite stores a JSON-encoded text.
-func arrayParam(dialect database.Dialect, values []string) interface{} {
+func arrayParam(dialect database.Dialect, values []string) (interface{}, error) {
 	if dialect == database.DialectPostgres {
-		return pq.Array(values)
+		return pq.Array(values), nil
 	}
-	data, _ := json.Marshal(values)
-	return string(data)
+	data, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal array to JSON: %w", err)
+	}
+	return string(data), nil
 }
 
 // arrayScanner implements sql.Scanner for reading a string array column.

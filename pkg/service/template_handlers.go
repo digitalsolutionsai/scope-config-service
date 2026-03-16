@@ -78,7 +78,12 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 			optionsJSON = []byte("null")
 		}
 
-		_, err := stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, arrayParam(s.dialect, displayOn), optionsJSON, field.SortOrder)
+		arrayVal, err := arrayParam(s.dialect, displayOn)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to encode display_on for field '%s': %v", field.Path, err)
+		}
+
+		_, err = stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, arrayVal, optionsJSON, field.SortOrder)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to insert template field '%s': %v", field.Path, err)
 		}

@@ -80,11 +80,13 @@ func runPostgresMigrations(dbURL string) error {
 	return nil
 }
 
+// SQLiteInitFile is the path to the SQLite schema initialization SQL file.
+const SQLiteInitFile = "db/sqlite_init.sql"
+
 func initSQLiteSchema(db *sql.DB) error {
-	sqlFile := "db/sqlite_init.sql"
-	data, err := os.ReadFile(sqlFile)
+	data, err := os.ReadFile(SQLiteInitFile)
 	if err != nil {
-		return fmt.Errorf("failed to read SQLite init SQL from %s: %w", sqlFile, err)
+		return fmt.Errorf("failed to read SQLite init SQL from %s: %w", SQLiteInitFile, err)
 	}
 	if _, err := db.Exec(string(data)); err != nil {
 		return fmt.Errorf("failed to initialize SQLite schema: %w", err)
