@@ -13,9 +13,14 @@ services:
     ports:
       - "50051:50051"  # gRPC port
       - "8080:8080"    # HTTP port
+    volumes:
+      - config_data:/app/data  # Persistent storage for SQLite (used when DATABASE_URL is not set)
     networks:
       - postgres_network
       - gateway_shared_network
+
+volumes:
+  config_data:
 
 networks:
   postgres_network:

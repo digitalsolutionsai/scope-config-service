@@ -26,4 +26,10 @@ bin/
 # Configuration files
 configs/
 .venv
-*.log 
+*.log
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+data/ 

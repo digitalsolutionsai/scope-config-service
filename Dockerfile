@@ -34,6 +34,9 @@ WORKDIR /app
 # Copy the migrations. The application runs them on startup.
 COPY --from=builder /app/db/migrations ./db/migrations
 
+# Copy the SQLite schema init file for fallback database support.
+COPY --from=builder /app/db/sqlite_init.sql ./db/sqlite_init.sql
+
 # Copy the seed templates. The application imports them on startup.
 COPY --from=builder /app/templates ./templates
 
@@ -43,6 +46,9 @@ COPY --from=builder /app/config-cli /app/config-cli
 
 # Create a symlink for the config CLI to make it available in the PATH.
 RUN ln -s /app/config-cli /usr/local/bin/config-cli
+
+# Create the data directory for SQLite persistence.
+RUN mkdir -p /app/data
 
 # This will run the server when the container starts.
 CMD ["/app/server"]

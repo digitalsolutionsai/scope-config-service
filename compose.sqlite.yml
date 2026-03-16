@@ -1,0 +1,25 @@
+# Standalone Docker Compose for running the config-service with SQLite.
+# No external PostgreSQL database is required.
+#
+# Usage:
+#   docker compose -f compose.sqlite.yml up -d
+#
+services:
+  config-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - GRPC_PORT=50051
+      - HTTP_PORT=8080
+      - SQLITE_DB_PATH=/app/data/config.db
+      # DATABASE_URL is intentionally not set — SQLite is used as the default.
+    ports:
+      - "50051:50051"  # gRPC port
+      - "8080:8080"    # HTTP port
+    volumes:
+      - config_data:/app/data  # Persistent storage for SQLite database
+
+volumes:
+  config_data:

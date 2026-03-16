@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down migrate-up migrate-down swagger-gen
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down up-sqlite down-sqlite migrate-up migrate-down swagger-gen
 
 # ====================================================================================
 # PROTO
@@ -48,16 +48,28 @@ run-httpgateway: build-httpgateway
 # DOCKER
 # ====================================================================================
 up:
-	@echo "Starting services with Docker Compose..."
+	@echo "Starting services with Docker Compose (PostgreSQL)..."
 	@docker compose -f compose.postgres.yml -f compose.yml up -d
 
 up-build:
-	@echo "Starting services with Docker Compose..."
+	@echo "Starting services with Docker Compose (PostgreSQL, rebuild)..."
 	@docker compose -f compose.postgres.yml -f compose.yml up -d --build
+
+up-sqlite:
+	@echo "Starting services with Docker Compose (SQLite)..."
+	@docker compose -f compose.sqlite.yml up -d
+
+up-sqlite-build:
+	@echo "Starting services with Docker Compose (SQLite, rebuild)..."
+	@docker compose -f compose.sqlite.yml up -d --build
 
 down:
 	@echo "Stopping services..."
 	@docker compose -f compose.postgres.yml -f compose.yml down
+
+down-sqlite:
+	@echo "Stopping SQLite services..."
+	@docker compose -f compose.sqlite.yml down
 
 ps:
 	@echo "Listing running containers..."
