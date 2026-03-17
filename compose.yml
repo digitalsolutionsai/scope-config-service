@@ -15,9 +15,11 @@ services:
       - "8080:8080"    # HTTP port
     volumes:
       - config_data:/app/data  # Persistent storage for SQLite (used when DATABASE_URL is not set)
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - postgres_network
-      - gateway_shared_network
 
 volumes:
   config_data:
@@ -25,5 +27,3 @@ volumes:
 networks:
   postgres_network:
     driver: bridge
-  gateway_shared_network:
-    external: true
