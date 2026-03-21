@@ -73,6 +73,11 @@ TAG ?= latest
 up:
 	@echo "Starting services with Docker Compose..."
 	@docker compose up -d --build
+	@docker compose -f compose.postgres.yml -f compose.yml up -d
+
+up-build:
+	@echo "Starting services with Docker Compose..."
+	@docker compose -f compose.postgres.yml -f compose.yml up -d --build
 
 down:
 	@echo "Stopping services..."

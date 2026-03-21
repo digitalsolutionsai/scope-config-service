@@ -87,7 +87,7 @@ groups:
         label: "Verification Keys"
         description: "List of secret keys for CloudFront origin verification"
         type: "ARRAY_STRING"
-        defaultValue: "your-very-strong-and-random-secret-key-a,a-newer-strong-and-random-secret-key-b"
+        defaultValue: '["your-very-strong-and-random-secret-key-a","a-newer-strong-and-random-secret-key-b"]' 
         sortOrder: 100000
         displayOn:
           - "SYSTEM"

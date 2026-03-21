@@ -1,0 +1,220 @@
+name: Deploy to K3s
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: 'Target environment (e.g., dev, demo)'
+      k8s_namespace:
+        required: true
+        type: string
+        description: 'Kubernetes namespace (e.g., dsai-dev)'
+      host_alias:
+        required: true
+        type: string
+        description: 'SSH Host alias (e.g., dev-server)'
+      use_cloudflared:
+        required: false
+        type: boolean
+        default: false
+        description: 'Whether to use Cloudflared tunnel for SSH connection'
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
+      CF_CLIENT_ID:
+        required: false
+      CF_CLIENT_SECRET:
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Cloudflared
+        if: ${{ inputs.use_cloudflared }}
+        run: |
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+          cloudflared --version
+
+      - name: Setup SSH Config
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          if [ "${{ inputs.use_cloudflared }}" = "true" ]; then
+            # Setup SSH Config with Cloudflared ProxyCommand using Service Token
+            cat <<EOF > ~/.ssh/config
+          Host ${{ inputs.host_alias }}
+            HostName ${{ vars.SSH_HOST }}
+            User ${{ vars.SSH_USER }}
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_CLIENT_ID }} --secret ${{ secrets.CF_CLIENT_SECRET }}
+          EOF
+          else
+            # Setup SSH Config (Direct Access)
+            cat <<EOF > ~/.ssh/config
+          Host ${{ inputs.host_alias }}
+            HostName ${{ vars.SSH_HOST }}
+            User ${{ vars.SSH_USER }}
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          EOF
+          fi
+
+      - name: Build Docker Image
+        run: |
+          # Build the image with the specified configuration
+          docker build -t asia-southeast1-docker.pkg.dev/dsai-production/scope-config-service/scope-config-service:${{ inputs.environment }}-latest -f Dockerfile .
+
+      - name: Push Image to Server
+        run: |
+          # Save image locally and pipe it directly to K3s import on the remote server
+          docker save asia-southeast1-docker.pkg.dev/dsai-production/scope-config-service/scope-config-service:${{ inputs.environment }}-latest | ssh ${{ inputs.host_alias }} "sudo k3s ctr images import -"
+
+      - name: Restart Deployment
+        run: |
+          # Trigger a rollout restart to pick up the new image hash
+          ssh ${{ inputs.host_alias }} "kubectl rollout restart deployment config-service -n ${{ inputs.k8s_namespace }}"
+
+      - name: Verify Deployment
+        run: |
+          # Wait for rollout to finish to prevent pruning the new image if it's not yet in use
+          ssh ${{ inputs.host_alias }} "kubectl rollout status deployment/config-service -n ${{ inputs.k8s_namespace }} --timeout=60s"
+
+      - name: Cleanup Unused Images
+        run: |
+          # Prune unused container images to free up disk space
+          ssh ${{ inputs.host_alias }} "sudo k3s crictl rmi --prune"
+
+      - name: Send Slack notification on success
+        if: success()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "✅ Deployment Successful: scope-config-service (${{ inputs.environment }})",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ ${{ inputs.environment }} Deployment Successful"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*
+${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*
+${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:*
+${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*
+${{ inputs.environment }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Send Slack notification on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "❌ Deployment Failed: scope-config-service (${{ inputs.environment }})",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "❌ ${{ inputs.environment }} Deployment Failed"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*
+${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*
+${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:*
+${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*
+${{ inputs.environment }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                      "style": "danger"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

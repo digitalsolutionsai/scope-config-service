@@ -1,0 +1,20 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/reusable-deploy-k3s.yml
+    with:
+      environment: dev
+      k8s_namespace: dsai-dev
+      host_alias: dev-server
+      use_cloudflared: true
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CF_CLIENT_ID: ${{ secrets.CF_CLIENT_ID }}
+      CF_CLIENT_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
