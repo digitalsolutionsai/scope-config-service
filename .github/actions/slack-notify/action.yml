@@ -1,0 +1,152 @@
+name: 'Slack Notification'
+description: 'Sends a standardized Slack notification'
+inputs:
+  status:
+    description: 'Status of the workflow (started, success, or failure)'
+    required: true
+  environment:
+    description: 'Deployment environment'
+    required: true
+  image_size:
+    description: 'Size of the docker image'
+    required: false
+  webhook_url:
+    description: 'Slack webhook URL'
+    required: true
+  version:
+    description: 'Version/Tag being deployed (optional)'
+    required: false
+  custom_message:
+    description: 'Custom message for release notes (optional)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build Slack payload
+      id: build_payload
+      shell: bash
+      env:
+        STATUS: ${{ inputs.status }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        IMAGE_SIZE: ${{ inputs.image_size }}
+        VERSION: ${{ inputs.version }}
+        CUSTOM_MESSAGE: ${{ inputs.custom_message }}
+        REPOSITORY: ${{ github.repository }}
+        REF_NAME: ${{ github.ref_name }}
+        ACTOR: ${{ github.actor }}
+        WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        # Determine status-dependent values
+        case "$STATUS" in
+          started)
+            EMOJI="🚀"
+            STATUS_TEXT="Started"
+            BUTTON_STYLE="primary"
+            FOOTER_TEXT=""
+            ;;
+          success)
+            EMOJI="✅"
+            STATUS_TEXT="Successful"
+            BUTTON_STYLE="primary"
+            FOOTER_TEXT=""
+            ;;
+          *)
+            EMOJI="❌"
+            STATUS_TEXT="Failed"
+            BUTTON_STYLE="danger"
+            FOOTER_TEXT="⚠️ *Action Required:* Please check the workflow logs for details."
+            ;;
+        esac
+
+        HEADER_TEXT="${EMOJI} ${ENVIRONMENT} Deployment ${STATUS_TEXT}"
+        PLAIN_TEXT="${EMOJI} Deployment ${STATUS_TEXT}: ${REPOSITORY##*/} (${ENVIRONMENT})"
+
+        # Build the required fields array
+        # Use jq to build the JSON fields safely
+        FIELDS=$(jq -n \
+          --arg repo "$REPOSITORY" \
+          --arg ref "$REF_NAME" \
+          --arg actor "$ACTOR" \
+          --arg env "$ENVIRONMENT" \
+          '[
+            {"type":"mrkdwn","text":"*Repository:*\n\($repo)"},
+            {"type":"mrkdwn","text":"*Ref:*\n\($ref)"},
+            {"type":"mrkdwn","text":"*Triggered by:*\n\($actor)"},
+            {"type":"mrkdwn","text":"*Environment:*\n\($env)"}
+          ]')
+
+        # Append optional image size field
+        if [ -n "$IMAGE_SIZE" ]; then
+          FIELDS=$(echo "$FIELDS" | jq --arg size "$IMAGE_SIZE" \
+            '. + [{"type":"mrkdwn","text":"*Image Size:*\n\($size)"}]')
+        fi
+
+        # Append optional version field
+        if [ -n "$VERSION" ]; then
+          FIELDS=$(echo "$FIELDS" | jq --arg ver "$VERSION" \
+            '. + [{"type":"mrkdwn","text":"*Version:*\n\($ver)"}]')
+        fi
+
+        # Build blocks array
+        BLOCKS=$(jq -n \
+          --arg header "$HEADER_TEXT" \
+          --argjson fields "$FIELDS" \
+          --arg url "$WORKFLOW_URL" \
+          --arg btn_style "$BUTTON_STYLE" \
+          '[
+            {
+              "type": "header",
+              "text": {"type": "plain_text", "text": $header}
+            },
+            {
+              "type": "section",
+              "fields": $fields
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {"type": "plain_text", "text": "View Workflow"},
+                  "url": $url,
+                  "style": $btn_style
+                }
+              ]
+            }
+          ]')
+
+        # Insert optional footer block before actions block when there is content
+        if [ -n "$FOOTER_TEXT" ]; then
+          FOOTER_BLOCK=$(jq -n --arg footer "$FOOTER_TEXT" \
+            '{"type":"section","text":{"type":"mrkdwn","text":$footer}}')
+          BLOCKS=$(echo "$BLOCKS" | jq --argjson fb "$FOOTER_BLOCK" \
+            '.[0:2] + [$fb] + .[2:]')
+        fi
+
+        # Insert optional release notes block before the actions block
+        if [ -n "$CUSTOM_MESSAGE" ]; then
+          RELEASE_BLOCK=$(jq -n --arg msg "$CUSTOM_MESSAGE" \
+            '{"type":"section","text":{"type":"mrkdwn","text":"*Release Notes:*\n```\($msg)```"}}')
+          BLOCKS=$(echo "$BLOCKS" | jq --argjson rb "$RELEASE_BLOCK" \
+            '.[0:2] + [$rb] + .[2:]')
+        fi
+
+        # Assemble final payload
+        PAYLOAD=$(jq -n \
+          --arg text "$PLAIN_TEXT" \
+          --argjson blocks "$BLOCKS" \
+          '{"text": $text, "blocks": $blocks}')
+
+        # Write to a uniquely-named temp file to avoid race conditions on shared runners
+        PAYLOAD_FILE=$(mktemp "${TMPDIR:-/tmp}/slack-payload-XXXXXX.json")
+        echo "$PAYLOAD" > "$PAYLOAD_FILE"
+        echo "payload_file=$PAYLOAD_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Send Slack notification
+      uses: slackapi/slack-github-action@v1.27.0
+      with:
+        payload-file-path: ${{ steps.build_payload.outputs.payload_file }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ inputs.webhook_url }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
