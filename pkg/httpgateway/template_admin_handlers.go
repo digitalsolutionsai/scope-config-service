@@ -261,15 +261,10 @@ func (ag *AdminGateway) SetTemplateActive(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	activeVal := 0
-	if req.Active {
-		activeVal = 1
-	}
-
 	result, err := ag.db.ExecContext(
 		context.Background(),
-		`UPDATE config_template SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE service_name = ? AND group_id = ?`,
-		activeVal, serviceName, groupId,
+		`UPDATE config_template SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE service_name = $2 AND group_id = $3`,
+		req.Active, serviceName, groupId,
 	)
 	if err != nil {
 		WriteError(w, err)
@@ -340,9 +335,9 @@ func (ag *AdminGateway) ListAllTemplates(w http.ResponseWriter, r *http.Request)
 			defer rows.Close()
 			for rows.Next() {
 				var svc, grp string
-				var active int
+				var active bool
 				if rows.Scan(&svc, &grp, &active) == nil {
-					activeMap[svc+"/"+grp] = active == 1
+					activeMap[svc+"/"+grp] = active
 				}
 			}
 		}
