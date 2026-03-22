@@ -120,23 +120,19 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Repository:*
-${{ github.repository }}"
+                      "text": "*Repository:*\n${{ github.repository }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Branch:*
-${{ github.ref_name }}"
+                      "text": "*Branch:*\n${{ github.ref_name }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Triggered by:*
-${{ github.actor }}"
+                      "text": "*Triggered by:*\n${{ github.actor }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Environment:*
-${{ inputs.environment }}"
+                      "text": "*Environment:*\n${{ inputs.environment }}"
                     }
                   ]
                 },
@@ -179,23 +175,19 @@ ${{ inputs.environment }}"
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Repository:*
-${{ github.repository }}"
+                      "text": "*Repository:*\n${{ github.repository }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Branch:*
-${{ github.ref_name }}"
+                      "text": "*Branch:*\n${{ github.ref_name }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Triggered by:*
-${{ github.actor }}"
+                      "text": "*Triggered by:*\n${{ github.actor }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Environment:*
-${{ inputs.environment }}"
+                      "text": "*Environment:*\n${{ inputs.environment }}"
                     }
                   ]
                 },
