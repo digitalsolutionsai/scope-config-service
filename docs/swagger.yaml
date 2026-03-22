@@ -1,6 +1,69 @@
 basePath: /api/v1
 definitions:
-  pkg_httpgateway.PublishRequest:
+  httpgateway.ImportFieldInfo:
+    properties:
+      defaultValue:
+        type: string
+      description:
+        type: string
+      displayOn:
+        items:
+          type: string
+        type: array
+      label:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/httpgateway.ImportOption'
+        type: array
+      path:
+        type: string
+      sortOrder:
+        type: integer
+      type:
+        type: string
+    type: object
+  httpgateway.ImportGroupInfo:
+    properties:
+      description:
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/httpgateway.ImportFieldInfo'
+        type: array
+      id:
+        type: string
+      label:
+        type: string
+      sortOrder:
+        type: integer
+    type: object
+  httpgateway.ImportOption:
+    properties:
+      label:
+        type: string
+      value:
+        type: string
+    type: object
+  httpgateway.ImportServiceInfo:
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+    type: object
+  httpgateway.ImportTemplateRequest:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/httpgateway.ImportGroupInfo'
+        type: array
+      service:
+        $ref: '#/definitions/httpgateway.ImportServiceInfo'
+      userName:
+        type: string
+    type: object
+  httpgateway.PublishRequest:
     properties:
       projectId:
         type: string
@@ -13,7 +76,12 @@ definitions:
       version:
         type: integer
     type: object
-  pkg_httpgateway.UpdateConfigRequest:
+  httpgateway.SetTemplateActiveRequest:
+    properties:
+      active:
+        type: boolean
+    type: object
+  httpgateway.UpdateConfigRequest:
     properties:
       fields:
         additionalProperties:
@@ -139,7 +207,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/pkg_httpgateway.UpdateConfigRequest'
+          $ref: '#/definitions/httpgateway.UpdateConfigRequest'
       produces:
       - application/json
       responses:
@@ -320,7 +388,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/pkg_httpgateway.PublishRequest'
+          $ref: '#/definitions/httpgateway.PublishRequest'
       produces:
       - application/json
       responses:
@@ -345,6 +413,70 @@ paths:
             additionalProperties: true
             type: object
       summary: Publish configuration version
+      tags:
+      - Configuration
+  /config/{serviceName}/scope/{scope}/version/{version}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a specific version of the configuration.
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: Scope level
+        in: path
+        name: scope
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: version
+        required: true
+        type: integer
+      - description: Configuration group ID
+        in: query
+        name: groupId
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: projectId
+        type: string
+      - description: Store ID
+        in: query
+        name: storeId
+        type: string
+      - description: User ID
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configuration version details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Configuration not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get configuration by version
       tags:
       - Configuration
   /config/{serviceName}/template:
@@ -395,18 +527,23 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves a list of active configuration templates. Only templates
-        with is_active=true are returned.
+      description: |-
+        Retrieves a list of configuration templates. By default, only active templates are returned.
+        Use ?includeInactive=true to return both active and inactive templates (useful for admin UI).
       parameters:
       - description: Filter by service name
         in: query
         name: serviceName
         type: string
+      - description: Include inactive templates
+        in: query
+        name: includeInactive
+        type: boolean
       produces:
       - application/json
       responses:
         "200":
-          description: List of active templates
+          description: List of templates
           schema:
             additionalProperties: true
             type: object
@@ -415,7 +552,86 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: List active configuration templates
+      summary: List configuration templates
+      tags:
+      - Templates
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Applies one or more configuration template groups from a JSON body (mirrors YAML format).
+        Each group is upserted independently; results are returned per group.
+      parameters:
+      - description: Template import request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpgateway.ImportTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Per-group import results
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Import / upsert configuration templates
+      tags:
+      - Templates
+  /config/templates/{serviceName}/{groupId}/active:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Toggles the is_active flag on a template. Inactive templates are hidden from
+        the normal config UI and not returned by GET /api/v1/config/templates (unless includeInactive=true).
+      parameters:
+      - description: Service name
+        in: path
+        name: serviceName
+        required: true
+        type: string
+      - description: Group ID
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: Active state to set
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpgateway.SetTemplateActiveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated active state
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Template not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Enable or disable a configuration template
       tags:
       - Templates
 schemes:

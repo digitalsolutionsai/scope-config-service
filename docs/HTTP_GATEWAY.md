@@ -8,6 +8,8 @@ The HTTP Gateway provides a REST API wrapper around the gRPC Scope Configuration
 - [Authentication](#authentication)
 - [API Endpoints](#api-endpoints)
   - [List Templates](#list-templates)
+  - [Import Template](#import-template)
+  - [Toggle Active Template](#toggle-active-template)
   - [Get Template](#get-template)
   - [Get Configuration (Published)](#get-configuration-published)
   - [Update Configuration](#update-configuration)
@@ -145,6 +147,9 @@ curl -X GET "http://localhost:8080/api/v1/config/templates"
 
 # Get active templates for a specific service
 curl -X GET "http://localhost:8080/api/v1/config/templates?serviceName=payment"
+
+# Get ALL templates including inactive ones (Admin view)
+curl -X GET "http://localhost:8080/api/v1/config/templates?includeInactive=true"
 ```
 
 **Example Response:**
@@ -169,6 +174,81 @@ curl -X GET "http://localhost:8080/api/v1/config/templates?serviceName=payment"
       "fields": [...]
     }
   ]
+}
+```
+
+---
+
+### Import Template
+
+Creates or updates a template group from a JSON payload (which normally mirrors the YAML file definition).
+
+- **Method:** `POST`
+- **Path:** `/api/v1/config/templates`
+- **Headers:** `X-User-Name: admin@example.com` (Required if not authenticated)
+
+**Example Request Payload:**
+```json
+{
+  "service": {
+    "id": "chatbot",
+    "label": "Chatbot Service"
+  },
+  "groups": [
+    {
+      "id": "ai-settings",
+      "label": "AI Settings",
+      "sortOrder": 100000,
+      "fields": [
+        {
+          "path": "ai-provider",
+          "label": "AI Provider",
+          "type": "STRING",
+          "defaultValue": "google",
+          "displayOn": ["SYSTEM"]
+        }
+      ]
+    }
+  ],
+  "userName": "admin@example.com"
+}
+```
+
+**Example Response:**
+```json
+{
+  "results": [
+    {
+      "serviceName": "chatbot",
+      "groupId": "ai-settings",
+      "status": "ok"
+    }
+  ]
+}
+```
+
+---
+
+### Toggle Active Template
+
+Enables or disables a template group by toggling its `is_active` status. Inactive templates are hidden from normal config UI views.
+
+- **Method:** `PATCH`
+- **Path:** `/api/v1/config/templates/{serviceName}/{groupId}/active`
+
+**Example Request:**
+```bash
+curl -X PATCH "http://localhost:8080/api/v1/config/templates/chatbot/ai-settings/active" \
+  -H "Content-Type: application/json" \
+  -d '{"active": false}'
+```
+
+**Example Response:**
+```json
+{
+  "active": false,
+  "groupId": "ai-settings",
+  "serviceName": "chatbot"
 }
 ```
 

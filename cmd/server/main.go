@@ -72,7 +72,7 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 
 	// Start the HTTP gateway server
-	startHTTPGateway(grpcPort, httpPort)
+	startHTTPGateway(db, grpcPort, httpPort)
 }
 
 func startGRPCServer(db *sql.DB, dialect database.Dialect, port string) {
@@ -102,7 +102,7 @@ func startGRPCServer(db *sql.DB, dialect database.Dialect, port string) {
 	}
 }
 
-func startHTTPGateway(grpcPort, httpPort string) {
+func startHTTPGateway(db *sql.DB, grpcPort, httpPort string) {
 	log.Println("Starting HTTP Gateway...")
 
 	// Connect to local gRPC server
@@ -124,7 +124,10 @@ func startHTTPGateway(grpcPort, httpPort string) {
 	// Create HTTP router without authentication
 	// Authentication is handled at the API Gateway level (e.g., Spring Gateway)
 	log.Println("HTTP service is public - authentication handled at gateway level")
-	router := httpgateway.NewRouter(client)
+	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
+		Client: client,
+		DB:     db,
+	})
 
 	// Create HTTP server
 	server := &http.Server{

@@ -19,7 +19,5 @@ services:
       - "50051:50051"  # gRPC port
       - "8080:8080"    # HTTP port
     volumes:
-      - config_data:/app/data  # Persistent storage for SQLite database
-
-volumes:
-  config_data:
+      - ./data:/app/data  # Persistent storage for SQLite database
+      - ./templates.example:/app/templates.example:ro  # Example templates (read-only)

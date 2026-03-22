@@ -20,7 +20,7 @@ const docTemplate = `{
     "paths": {
         "/config/templates": {
             "get": {
-                "description": "Retrieves a list of active configuration templates. Only templates with is_active=true are returned.",
+                "description": "Retrieves a list of configuration templates. By default, only active templates are returned.\nUse ?includeInactive=true to return both active and inactive templates (useful for admin UI).",
                 "consumes": [
                     "application/json"
                 ],
@@ -30,18 +30,134 @@ const docTemplate = `{
                 "tags": [
                     "Templates"
                 ],
-                "summary": "List active configuration templates",
+                "summary": "List configuration templates",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Filter by service name",
                         "name": "serviceName",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include inactive templates",
+                        "name": "includeInactive",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of active templates",
+                        "description": "List of templates",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Applies one or more configuration template groups from a JSON body (mirrors YAML format).\nEach group is upserted independently; results are returned per group.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Import / upsert configuration templates",
+                "parameters": [
+                    {
+                        "description": "Template import request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpgateway.ImportTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Per-group import results",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/config/templates/{serviceName}/{groupId}/active": {
+            "patch": {
+                "description": "Toggles the is_active flag on a template. Inactive templates are hidden from\nthe normal config UI and not returned by GET /api/v1/config/templates (unless includeInactive=true).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Enable or disable a configuration template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "serviceName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Active state to set",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpgateway.SetTemplateActiveRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated active state",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Template not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -182,7 +298,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pkg_httpgateway.UpdateConfigRequest"
+                            "$ref": "#/definitions/httpgateway.UpdateConfigRequest"
                         }
                     }
                 ],
@@ -437,13 +553,106 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pkg_httpgateway.PublishRequest"
+                            "$ref": "#/definitions/httpgateway.PublishRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Published configuration version details",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Configuration not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/config/{serviceName}/scope/{scope}/version/{version}": {
+            "get": {
+                "description": "Retrieves a specific version of the configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Get configuration by version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "serviceName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scope level",
+                        "name": "scope",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Version number",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Configuration group ID",
+                        "name": "groupId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Store ID",
+                        "name": "storeId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configuration version details",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -536,7 +745,104 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "pkg_httpgateway.PublishRequest": {
+        "httpgateway.ImportFieldInfo": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayOn": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "label": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpgateway.ImportOption"
+                    }
+                },
+                "path": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpgateway.ImportGroupInfo": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpgateway.ImportFieldInfo"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                }
+            }
+        },
+        "httpgateway.ImportOption": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpgateway.ImportServiceInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpgateway.ImportTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpgateway.ImportGroupInfo"
+                    }
+                },
+                "service": {
+                    "$ref": "#/definitions/httpgateway.ImportServiceInfo"
+                },
+                "userName": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpgateway.PublishRequest": {
             "type": "object",
             "properties": {
                 "projectId": {
@@ -556,7 +862,15 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_httpgateway.UpdateConfigRequest": {
+        "httpgateway.SetTemplateActiveRequest": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "httpgateway.UpdateConfigRequest": {
             "type": "object",
             "properties": {
                 "fields": {
