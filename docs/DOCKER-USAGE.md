@@ -27,28 +27,34 @@ A configuration is an *instance* of a template for a specific scope (e.g., a spe
 
 ## Quick Start
 
-The easiest way to run the Scope Config Service is using Docker Compose.
+The service supports two database backends: **SQLite** (built-in, zero setup) and **PostgreSQL** (for high availability).
 
-### 1. Create a [.env] file
-```env
-# Database connection string
-DATABASE_URL=postgresql://user:password@postgres:5432/config_db?sslmode=disable
+### Mode 1: SQLite (Built-in Default)
+Run the service instantly without any external database dependencies. All data is persisted to a local volume.
 
-# Service ports (optional, defaults shown)
-GRPC_PORT=50051
-HTTP_PORT=8080
-```
-
-### 2. Run with Docker Compose
-```bash
-docker compose up -d
-```
-
-### Example [compose.yml]
 ```yaml
+# compose.yml
 services:
   config-service:
-    image: dsailoivo/scope-config:latest
+    image: dsailoivo/scope-config:0.1.0  # Or latest
+    ports:
+      - "50051:50051" # gRPC
+      - "8080:8080"   # HTTP Gateway
+    volumes:
+      - config_data:/app/data
+
+volumes:
+  config_data:
+```
+
+### Mode 2: PostgreSQL
+Connect to an external PostgreSQL database by providing the `DATABASE_URL` environment variable.
+
+```yaml
+# compose.yml
+services:
+  config-service:
+    image: dsailoivo/scope-config:0.1.0  # Or latest
     ports:
       - "50051:50051" # gRPC
       - "8080:8080"   # HTTP Gateway
@@ -64,13 +70,17 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=config_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 10s
       timeout: 5s
       retries: 5
-```
 
+volumes:
+  postgres_data:
+```
 ## API Documentation
 
 Once running, you can access:
