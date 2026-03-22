@@ -33,3 +33,7 @@ configs/
 *.db-wal
 *.db-shm
 data/ 
+
+# Node.js
+node_modules/
+dist/ 

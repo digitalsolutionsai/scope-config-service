@@ -15,7 +15,9 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     environment: production  # Use the production environment for secrets
-    
+    outputs:
+      image_size_mb: ${{ steps.image_size.outputs.size_mb }}
+
     permissions:
       contents: read
       id-token: write  # Required for Workload Identity Federation
@@ -68,8 +70,19 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
+      - name: Get image size
+        id: image_size
+        run: |
+          IMAGE_REF="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ steps.extract_tag.outputs.tag }}"
+          docker pull "$IMAGE_REF"
+          SIZE_BYTES=$(docker inspect "$IMAGE_REF" --format='{{.Size}}')
+          SIZE_MB=$(awk "BEGIN {printf \"%.2f\", $SIZE_BYTES/1024/1024}")
+          echo "size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
+          echo "size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+          echo "Image size: ${SIZE_MB} MB"
+
       - name: Image digest
-        run: echo "Image pushed successfully with tag ${{ steps.extract_tag.outputs.tag }}"
+        run: echo "Image pushed successfully with tag ${{ steps.extract_tag.outputs.tag }} (Size - ${{ steps.image_size.outputs.size_mb }} MB)"
 
   deploy:
     runs-on: ubuntu-latest
@@ -106,37 +119,14 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send Slack notification on deployment start
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: ./.github/actions/slack-notify
         with:
-          payload: |
-            {
-              "text": "🚀 Deployment Started: scope-config-service - ${{ steps.extract_tag.outputs.tag }}",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🚀 Deployment Started: scope-config-service"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*Service:*\n`scope-config-service`" },
-                    { "type": "mrkdwn", "text": "*Version:*\n`${{ steps.extract_tag.outputs.tag }}`" }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Release Notes:*\n```${{ steps.get_tag_message.outputs.message }}```"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          status: 'started'
+          environment: 'Production'
+          version: ${{ steps.extract_tag.outputs.tag }}
+          image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
+          custom_message: ${{ steps.get_tag_message.outputs.message }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
       
       - name: Authenticate to Google Cloud
         id: auth
@@ -148,180 +138,68 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
-      - name: Deploy to production instance
+      - name: Deploy to K3s production cluster
+        id: k3s_deploy
         env:
           INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME }}
           INSTANCE_ZONE: ${{ vars.GCP_INSTANCE_ZONE }}
           TAG_VERSION: ${{ steps.extract_tag.outputs.tag }}
-          SERVICE_NAME: ${{ vars.DOCKER_SERVICE_NAME || 'scope-config-service' }}
+          SERVICE_NAME: "config-service"
+          IMAGE_PATH: "asia-southeast1-docker.pkg.dev/dsai-production/scope-config-service/scope-config-service"
         run: |
           echo "Deploying to instance: $INSTANCE_NAME in zone: $INSTANCE_ZONE"
           echo "Service: $SERVICE_NAME"
           echo "Version: $TAG_VERSION"
           
-          # Create deployment command with variable substitution
-          DEPLOY_COMMAND="set -e && \
-          echo '=== Navigating to docker-compose directory ===' && \
-          cd /opt/docker-compose && \
-          echo '=== Current .env version ===' && \
-          grep SCOPE_CONFIG_SERVICE_VERSION .env || echo 'SCOPE_CONFIG_SERVICE_VERSION not found' && \
-          echo '=== Updating .env file with new version ===' && \
-          if grep -q '^SCOPE_CONFIG_SERVICE_VERSION=' .env; then \
-            sudo sed -i 's/^SCOPE_CONFIG_SERVICE_VERSION=.*/SCOPE_CONFIG_SERVICE_VERSION=${TAG_VERSION}/' .env; \
-          else \
-            echo 'SCOPE_CONFIG_SERVICE_VERSION=${TAG_VERSION}' | sudo tee -a .env; \
-          fi && \
-          echo '=== New .env version ===' && \
-          grep SCOPE_CONFIG_SERVICE_VERSION .env && \
-          echo '=== Pulling Docker image for service: ${SERVICE_NAME} ===' && \
-          sudo docker compose pull ${SERVICE_NAME} && \
-          echo '=== Restarting service: ${SERVICE_NAME} ===' && \
-          sudo docker compose up -d ${SERVICE_NAME} && \
-          echo '=== Cleaning up old Docker images ===' && \
-          CONTAINER_ID=\$(sudo docker compose ps -q ${SERVICE_NAME} | head -1) && \
-          CURRENT_IMAGE_ID=\$(sudo docker inspect --format='{{.Image}}' \"\$CONTAINER_ID\" 2>/dev/null | sed 's/sha256://') && \
-          IMAGE_REPO=\$(sudo docker inspect --format='{{.Config.Image}}' \"\$CONTAINER_ID\" 2>/dev/null | sed 's/:.*//') && \
-          echo \"Current running image ID: \$CURRENT_IMAGE_ID\" && \
-          echo \"Image repository from running service: \$IMAGE_REPO\" && \
-          sudo docker images \"\$IMAGE_REPO\" --format '{{.ID}} {{.Repository}}:{{.Tag}}' --no-trunc | while read IMAGE_ID IMAGE_TAG; do \
-            SHORT_IMAGE_ID=\$(echo \"\$IMAGE_ID\" | sed 's/sha256://') && \
-            if [ \"\$SHORT_IMAGE_ID\" != \"\$CURRENT_IMAGE_ID\" ]; then \
-              echo \"Removing old image: \$IMAGE_TAG\" && \
-              if ! sudo docker rmi -f \"\$IMAGE_ID\" 2>&1; then \
-                echo \"Warning: Failed to remove image \$IMAGE_TAG, it may be in use by another container\"; \
-              fi; \
-            else \
-              echo \"Keeping current image: \$IMAGE_TAG\"; \
-            fi; \
-          done && \
-          echo '=== Pruning dangling images ===' && \
-          sudo docker image prune -f && \
+          # Create deployment command using kubectl to natively update K3s deployment
+          DEPLOY_COMMAND="export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && \
+          echo '=== Initiating rolling update for deployment/${SERVICE_NAME} ===' && \
+          sudo kubectl set image deployment/${SERVICE_NAME} ${SERVICE_NAME}=${IMAGE_PATH}:${TAG_VERSION} -n dsai-prd && \
+          echo '=== Waiting for rollout to complete ===' && \
+          sudo kubectl rollout status deployment/${SERVICE_NAME} -n dsai-prd --timeout=120s && \
+          echo '=== Wait 10s for old pods to terminate ===' && \
+          sleep 10 && \
+          echo '=== Pruning unused images from containerd ===' && \
+          sudo k3s crictl rmi --prune || true && \
+          POD_NAMES=\$(sudo kubectl get pods -n dsai-prd -l app=${SERVICE_NAME} --no-headers -o custom-columns=\":metadata.name\" | paste -sd, -) && \
+          echo \"PODS_LIST=\$POD_NAMES\" && \
           echo '=== Deployment completed successfully ==='"
           
-          # Replace placeholders with actual values
-          DEPLOY_COMMAND="${DEPLOY_COMMAND//\$\{TAG_VERSION\}/$TAG_VERSION}"
-          DEPLOY_COMMAND="${DEPLOY_COMMAND//\$\{SERVICE_NAME\}/$SERVICE_NAME}"
-          
           # SSH to instance and deploy
-          gcloud compute ssh "$INSTANCE_NAME" \
+          OUTPUT=$(gcloud compute ssh "$INSTANCE_NAME" \
             --zone="$INSTANCE_ZONE" \
             --tunnel-through-iap \
-            --command="$DEPLOY_COMMAND"
+            --command="$DEPLOY_COMMAND")
+            
+          echo "$OUTPUT"
+          
+          # Extract pods list and expose it to other steps
+          PODS=$(echo "$OUTPUT" | grep -oP '(?<=^PODS_LIST=).*' || true)
+          if [ -z "$PODS" ]; then
+            PODS="Unknown (Failed to parse pods)"
+          fi
+          echo "pods=$PODS" >> $GITHUB_OUTPUT
       
       - name: Send Slack notification on success
         if: success()
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: ./.github/actions/slack-notify
         with:
-          payload: |
-            {
-              "text": "✅ Deployment Successful",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "✅ Deployment Successful"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:*\n${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Version:*\n${{ steps.extract_tag.outputs.tag }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Triggered by:*\n${{ github.actor }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Environment:*\nProduction"
-                    }
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Workflow"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          status: 'success'
+          environment: 'Production'
+          version: ${{ steps.extract_tag.outputs.tag }}
+          image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
+          custom_message: |
+            ${{ steps.get_tag_message.outputs.message }}
+            
+            Pods: ${{ steps.k3s_deploy.outputs.pods }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
       
       - name: Send Slack notification on failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: ./.github/actions/slack-notify
         with:
-          payload: |
-            {
-              "text": "❌ Deployment Failed",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "❌ Deployment Failed"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:*\n${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Version:*\n${{ steps.extract_tag.outputs.tag }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Triggered by:*\n${{ github.actor }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Environment:*\nProduction"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "⚠️ *Action Required:* Please check the workflow logs for details."
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Workflow"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                      "style": "danger"
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          status: 'failure'
+          environment: 'Production'
+          version: ${{ steps.extract_tag.outputs.tag }}
+          image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
