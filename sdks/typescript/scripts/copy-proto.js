@@ -52,7 +52,8 @@ function main() {
     const dest = path.resolve(args[0]);
     // If the destination looks like it already includes the proto path structure,
     // use it directly. Otherwise, append the proto path.
-    if (dest.endsWith(path.join("proto", "config", "v1"))) {
+    const protoSuffix = path.join("proto", "config", "v1");
+    if (path.normalize(dest).endsWith(path.normalize(protoSuffix))) {
       destDir = dest;
     } else {
       destDir = path.join(dest, "proto", "config", "v1");

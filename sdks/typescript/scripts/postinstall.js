@@ -53,7 +53,10 @@ function main() {
   } catch (err) {
     // Don't fail the install if copy fails
     console.warn(
-      "[@digitalsolutionsai/scopeconfig] Warning: Could not copy proto file:",
+      "[@digitalsolutionsai/scopeconfig] Warning: Could not copy proto file from",
+      srcProto,
+      "to",
+      destProto + ":",
       err.message
     );
   }

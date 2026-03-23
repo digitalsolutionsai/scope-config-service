@@ -76,13 +76,11 @@ describe("resolveProtoPath", () => {
 
   it("falls back to package-relative path when env var file does not exist", () => {
     process.env.SCOPE_CONFIG_PROTO_PATH = "/nonexistent/env/path.proto";
-    // First call: env var path → false, second call: package path → true
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      return (
-        String(p) !== "/nonexistent/env/path.proto" &&
-        String(p).includes(path.join("proto", "config", "v1", "config.proto"))
-      );
-    });
+    // Call 1: env var path → false
+    // Call 2: package-relative path → true
+    mockFs.existsSync
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
 
     const result = resolveProtoPath();
     expect(result).toContain(
@@ -91,13 +89,9 @@ describe("resolveProtoPath", () => {
   });
 
   it("returns package-relative path when it exists", () => {
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      // Only the package-relative path exists
-      return String(p).includes("src") || String(p).includes("dist");
-    });
-
-    // If the package-relative path exists, it should be returned
+    // Call 1: package-relative path → true
     mockFs.existsSync.mockReturnValueOnce(true);
+
     const result = resolveProtoPath();
     expect(result).toContain(
       path.join("proto", "config", "v1", "config.proto")
@@ -112,9 +106,11 @@ describe("resolveProtoPath", () => {
       "v1",
       "config.proto"
     );
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      return String(p) === cwdPath;
-    });
+    // Call 1: package-relative path → false
+    // Call 2: cwd-relative path → true
+    mockFs.existsSync
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
 
     const result = resolveProtoPath();
     expect(result).toBe(cwdPath);
