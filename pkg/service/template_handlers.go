@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
-	"github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -29,7 +28,7 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 		INSERT INTO config_template (service_name, group_id, service_label, group_label, group_description, sort_order, created_by, updated_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
 		ON CONFLICT (service_name, group_id) DO UPDATE
-		SET service_label = $3, group_label = $4, group_description = $5, sort_order = $6, updated_at = NOW(), updated_by = $7
+		SET service_label = $3, group_label = $4, group_description = $5, sort_order = $6, updated_at = CURRENT_TIMESTAMP, updated_by = $7
 		RETURNING id`
 
 	err = tx.QueryRowContext(ctx, upsertQuery,
@@ -79,7 +78,12 @@ func (s *server) ApplyConfigTemplate(ctx context.Context, req *configv1.ApplyCon
 			optionsJSON = []byte("null")
 		}
 
-		_, err := stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, pq.Array(displayOn), optionsJSON, field.SortOrder)
+		arrayVal, err := arrayParam(s.dialect, displayOn)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to encode display_on for field '%s': %v", field.Path, err)
+		}
+
+		_, err = stmt.ExecContext(ctx, templateID, field.Path, field.Label, field.Description, field.Type.String(), field.DefaultValue, arrayVal, optionsJSON, field.SortOrder)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to insert template field '%s': %v", field.Path, err)
 		}
@@ -137,7 +141,7 @@ func (s *server) GetConfigTemplate(ctx context.Context, req *configv1.GetConfigT
 		var displayOn []string
 		var optionsJSON sql.NullString // Use sql.NullString to handle NULL JSONB
 
-		if err := rows.Scan(&field.Path, &field.Label, &field.Description, &fieldType, &field.DefaultValue, pq.Array(&displayOn), &optionsJSON, &field.SortOrder); err != nil {
+		if err := rows.Scan(&field.Path, &field.Label, &field.Description, &fieldType, &field.DefaultValue, newArrayScanner(s.dialect, &displayOn), &optionsJSON, &field.SortOrder); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to scan template field: %v", err)
 		}
 

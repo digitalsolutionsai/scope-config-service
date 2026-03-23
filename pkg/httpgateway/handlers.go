@@ -21,16 +21,8 @@ func NewGateway(client configv1.ConfigServiceClient) *Gateway {
 }
 
 // ListTemplates handles GET /api/v1/config/templates
-//
-// @Summary List active configuration templates
-// @Description Retrieves a list of active configuration templates. Only templates with is_active=true are returned.
-// @Tags Templates
-// @Accept json
-// @Produce json
-// @Param serviceName query string false "Filter by service name"
-// @Success 200 {object} map[string]interface{} "List of active templates"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /config/templates [get]
+// ListTemplates handles getting templates for user interface.
+// This is superseded by AdminGateway.ListAllTemplates in routing.
 func (g *Gateway) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	serviceName := r.URL.Query().Get("serviceName")
 

@@ -26,4 +26,14 @@ bin/
 # Configuration files
 configs/
 .venv
-*.log 
+*.log
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+data/ 
+
+# Node.js
+node_modules/
+dist/ 

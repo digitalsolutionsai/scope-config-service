@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
-	"time"
 
+	"github.com/digitalsolutionsai/scope-config-service/pkg/database"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,7 +45,7 @@ func (s *server) getConfig(ctx context.Context, req *configv1.GetConfigRequest, 
 
 	cv := &configv1.ConfigVersion{Identifier: req.Identifier}
 	var publishedVersion sql.NullInt32
-	var createdAt, updatedAt sql.NullTime
+	var createdAt, updatedAt flexNullTime
 
 	query := `SELECT id, latest_version, published_version, created_at, updated_at FROM config_version
               WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
@@ -183,8 +183,12 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 	var latestVersion int32
 	newVersion := int32(1)
 
-	row := tx.QueryRowContext(ctx, `SELECT id, latest_version FROM config_version
-        WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4 FOR UPDATE`,
+	selectQuery := `SELECT id, latest_version FROM config_version
+        WHERE service_name = $1 AND scope = $2 AND scope_id = $3 AND group_id = $4`
+	if s.dialect == database.DialectPostgres {
+		selectQuery += " FOR UPDATE"
+	}
+	row := tx.QueryRowContext(ctx, selectQuery,
 		req.Identifier.ServiceName, scope.String(), scopeID, req.Identifier.GroupId)
 
 	if err = row.Scan(&configVersionID, &latestVersion); err == sql.ErrNoRows {
@@ -195,7 +199,7 @@ func (s *server) UpdateConfig(ctx context.Context, req *configv1.UpdateConfigReq
 
 	} else if err == nil {
 		newVersion = latestVersion + 1
-		_, err = tx.ExecContext(ctx, `UPDATE config_version SET latest_version = $1, updated_at = NOW(), updated_by = $2 WHERE id = $3`,
+		_, err = tx.ExecContext(ctx, `UPDATE config_version SET latest_version = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE id = $3`,
 			newVersion, req.User, configVersionID)
 	}
 
@@ -254,10 +258,10 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 
 	var cv configv1.ConfigVersion
 	cv.Identifier = req.Identifier
-	var createdAt, updatedAt sql.NullTime
+	var createdAt, updatedAt flexNullTime
 
 	// 1. Update config_version table to set published_version
-	query := `UPDATE config_version SET published_version = $1, updated_at = NOW(), updated_by = $2
+	query := `UPDATE config_version SET published_version = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
 			  WHERE service_name = $3 AND scope = $4 AND scope_id = $5 AND group_id = $6
 			  RETURNING id, latest_version, published_version, created_at, updated_at`
 
@@ -273,7 +277,7 @@ func (s *server) PublishVersion(ctx context.Context, req *configv1.PublishVersio
 	}
 
 	// 2. Update config_version_history table to set publication audit for this version
-	res, err := tx.ExecContext(ctx, "UPDATE config_version_history SET published_by = $1, published_at = NOW() WHERE config_version_id = $2 AND version = $3",
+	res, err := tx.ExecContext(ctx, "UPDATE config_version_history SET published_by = $1, published_at = CURRENT_TIMESTAMP WHERE config_version_id = $2 AND version = $3",
 		req.User, cv.Id, req.VersionToPublish)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update publication history: %v", err)
@@ -333,13 +337,13 @@ func (s *server) GetConfigHistory(ctx context.Context, req *configv1.GetConfigHi
 	var history []*configv1.VersionHistoryEntry
 	for rows.Next() {
 		entry := &configv1.VersionHistoryEntry{}
-		var createdAt time.Time
-		var pbAt sql.NullTime
+		var createdAt flexTime
+		var pbAt flexNullTime
 		var pbBy sql.NullString
 		if err := rows.Scan(&entry.Version, &createdAt, &entry.CreatedBy, &pbAt, &pbBy); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to scan history entry: %v", err)
 		}
-		entry.CreatedAt = timestamppb.New(createdAt)
+		entry.CreatedAt = timestamppb.New(createdAt.Time)
 		if pbAt.Valid {
 			entry.PublishedAt = timestamppb.New(pbAt.Time)
 		}
@@ -394,12 +398,23 @@ func (s *server) getTemplateDefaultFields(ctx context.Context, serviceName, grou
 
 	// Build the query for template fields with default values
 	// Only include fields that are displayable for the current scope
-	fieldQuery := `SELECT path, default_value 
-	               FROM config_template_field 
-	               WHERE config_template_id = $1 
-	               AND default_value IS NOT NULL 
-	               AND default_value != '' 
-	               AND ($2 = ANY(display_on) OR 'SYSTEM' = ANY(display_on))`
+	var fieldQuery string
+	if s.dialect == database.DialectSQLite {
+		fieldQuery = `SELECT path, default_value 
+		               FROM config_template_field 
+		               WHERE config_template_id = $1 
+		               AND default_value IS NOT NULL 
+		               AND default_value != '' 
+		               AND (EXISTS (SELECT 1 FROM json_each(display_on) WHERE json_each.value = $2)
+		                    OR EXISTS (SELECT 1 FROM json_each(display_on) WHERE json_each.value = 'SYSTEM'))`
+	} else {
+		fieldQuery = `SELECT path, default_value 
+		               FROM config_template_field 
+		               WHERE config_template_id = $1 
+		               AND default_value IS NOT NULL 
+		               AND default_value != '' 
+		               AND ($2 = ANY(display_on) OR 'SYSTEM' = ANY(display_on))`
+	}
 	args := []interface{}{templateID, scope.String()}
 
 	if pathFilter != "" {

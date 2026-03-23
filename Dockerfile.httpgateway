@@ -1,6 +1,6 @@
 # ---- Builder Stage ----
 # Use the official Go image as a builder.
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Set the working directory inside the container.
 WORKDIR /app
@@ -23,8 +23,20 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/httpgateway ./cmd/httpgateway
 # Use a minimal base image for the final container.
 FROM alpine:3.22
 
+# OCI image metadata labels.
+LABEL org.opencontainers.image.title="Scope Config Service - HTTP Gateway" \
+      org.opencontainers.image.description="Standalone HTTP/REST gateway for the Scope Config Service" \
+      org.opencontainers.image.url="https://github.com/digitalsolutionsai/scope-config-service" \
+      org.opencontainers.image.source="https://github.com/digitalsolutionsai/scope-config-service" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Digital Solutions AI" \
+      org.opencontainers.image.version="0.1.0"
+
 # Add ca-certificates to make TLS connections.
 RUN apk add --no-cache ca-certificates
+
+# Create a non-root user and group for security.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Set the working directory.
 WORKDIR /app
@@ -32,8 +44,18 @@ WORKDIR /app
 # Copy the binary from the builder stage.
 COPY --from=builder /app/httpgateway /app/httpgateway
 
+# Ensure the non-root user owns the application files.
+RUN chown -R appuser:appgroup /app
+
 # Expose the HTTP port.
 EXPOSE 8080
+
+# Switch to non-root user.
+USER appuser
+
+# Health check: verify the HTTP gateway is responsive.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/swagger/doc.json || exit 1
 
 # Run the HTTP gateway when the container starts.
 CMD ["/app/httpgateway"]

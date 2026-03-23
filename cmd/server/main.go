@@ -10,14 +10,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/digitalsolutionsai/scope-config-service/pkg/database"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/seedloader"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/service"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -25,22 +22,31 @@ import (
 func main() {
 	log.Println("Starting ScopeConfig Service...")
 
-	// Use the DATABASE_URL from the environment, with a fallback for local development.
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://user:password@localhost:5555/config_db?sslmode=disable"
+	// Detect database dialect and DSN from environment.
+	// If DATABASE_URL is set, PostgreSQL is used. Otherwise, SQLite is the default.
+	dialect, dsn := database.DetectDialect()
+	log.Printf("Using database dialect: %s", dialect)
+
+	// For PostgreSQL, run migrations before opening the connection.
+	if dialect == database.DialectPostgres {
+		if err := database.RunMigrations(dialect, dsn, nil); err != nil {
+			log.Fatalf("Failed to run database migrations: %v", err)
+		}
 	}
 
-	// Run database migrations before connecting.
-	migrationsPath := "file://db/migrations"
-	runMigrations(dbURL, migrationsPath)
-
-	// Connect to the database.
-	db, err := sql.Open("postgres", dbURL)
+	// Open the database connection.
+	db, err := database.Open(dialect, dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	// For SQLite, initialize the schema after opening the connection.
+	if dialect == database.DialectSQLite {
+		if err := database.RunMigrations(dialect, dsn, db); err != nil {
+			log.Fatalf("Failed to initialize SQLite schema: %v", err)
+		}
+	}
 
 	if err := db.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
@@ -60,29 +66,16 @@ func main() {
 	}
 
 	// Start the gRPC server in a goroutine
-	go startGRPCServer(db, grpcPort)
+	go startGRPCServer(db, dialect, grpcPort)
 
 	// Give gRPC server a moment to start
 	time.Sleep(500 * time.Millisecond)
 
 	// Start the HTTP gateway server
-	startHTTPGateway(grpcPort, httpPort)
+	startHTTPGateway(db, grpcPort, httpPort)
 }
 
-func runMigrations(databaseURL string, migrationsPath string) {
-	m, err := migrate.New(migrationsPath, databaseURL)
-	if err != nil {
-		log.Fatalf("Failed to create migrate instance: %v", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("Failed to apply migrations: %v", err)
-	}
-
-	log.Println("Database migrations applied successfully.")
-}
-
-func startGRPCServer(db *sql.DB, port string) {
+func startGRPCServer(db *sql.DB, dialect database.Dialect, port string) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		log.Fatalf("Failed to listen on port %s: %v", port, err)
@@ -90,7 +83,7 @@ func startGRPCServer(db *sql.DB, port string) {
 
 	s := grpc.NewServer()
 	// Pass the database connection to the service.
-	configService := service.NewConfigService(db)
+	configService := service.NewConfigService(db, dialect)
 	configv1.RegisterConfigServiceServer(s, configService)
 
 	// Load and apply seed templates after server is initialized
@@ -109,7 +102,7 @@ func startGRPCServer(db *sql.DB, port string) {
 	}
 }
 
-func startHTTPGateway(grpcPort, httpPort string) {
+func startHTTPGateway(db *sql.DB, grpcPort, httpPort string) {
 	log.Println("Starting HTTP Gateway...")
 
 	// Connect to local gRPC server
@@ -131,7 +124,10 @@ func startHTTPGateway(grpcPort, httpPort string) {
 	// Create HTTP router without authentication
 	// Authentication is handled at the API Gateway level (e.g., Spring Gateway)
 	log.Println("HTTP service is public - authentication handled at gateway level")
-	router := httpgateway.NewRouter(client)
+	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
+		Client: client,
+		DB:     db,
+	})
 
 	// Create HTTP server
 	server := &http.Server{

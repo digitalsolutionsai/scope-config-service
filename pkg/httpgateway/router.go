@@ -1,6 +1,8 @@
 package httpgateway
 
 import (
+	"database/sql"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
@@ -13,6 +15,7 @@ import (
 type RouterConfig struct {
 	Client         configv1.ConfigServiceClient
 	AuthMiddleware *AuthMiddleware
+	DB             *sql.DB // for admin operations that need direct DB access
 }
 
 // NewRouter creates a new HTTP router with all the gateway endpoints.
@@ -26,6 +29,7 @@ func NewRouter(client configv1.ConfigServiceClient) *chi.Mux {
 // NewRouterWithConfig creates a new HTTP router with custom configuration.
 func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 	gateway := NewGateway(config.Client)
+	adminGW := NewAdminGateway(config.Client, config.DB)
 	r := chi.NewRouter()
 
 	// Middleware
@@ -44,8 +48,16 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 		httpSwagger.URL("/swagger/doc.json"),
 	))
 
-	// Global templates list endpoint
-	r.Get("/api/v1/config/templates", gateway.ListTemplates)
+	// Built-in Admin UI
+	r.Get("/admin", ServeAdminUI)
+	r.Get("/admin/", ServeAdminUI)
+
+	// Global templates list — supports ?includeInactive=true for admin UI
+	r.Get("/api/v1/config/templates", adminGW.ListAllTemplates)
+	// Import / upsert one or more template groups
+	r.Post("/api/v1/config/templates", adminGW.ImportTemplate)
+	// Toggle is_active on a template
+	r.Patch("/api/v1/config/templates/{serviceName}/{groupId}/active", adminGW.SetTemplateActive)
 
 	// API routes - all under /api/v1/config/{serviceName} for consistent path-based routing
 	// Each service has one template, so template is nested under service path
