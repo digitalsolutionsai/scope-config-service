@@ -70,6 +70,8 @@ The server will start both gRPC (port 50051) and HTTP (port 8080) services.
 |----------|---------|-------------|
 | `GRPC_PORT` | `50051` | Port for the gRPC service |
 | `HTTP_PORT` | `8080` | Port for the HTTP gateway |
+| `AUTH_USER` | _(empty)_ | Basic Auth username. Both `AUTH_USER` and `AUTH_PASSWORD` must be set to enable Basic Auth. |
+| `AUTH_PASSWORD` | _(empty)_ | Basic Auth password. Both `AUTH_USER` and `AUTH_PASSWORD` must be set to enable Basic Auth. |
 | `KEYCLOAK_PUBLIC_KEY` | _(none)_ | RSA public key from Keycloak for JWT validation (PEM or base64 format). If not set, authentication is disabled. |
 | `KEYCLOAK_CLIENT` | `dsai-console` | Keycloak client name to check for roles |
 | `KEYCLOAK_ROLES` | `ROLE_ADMIN` | Comma-separated list of required roles (user needs at least one) |
@@ -79,6 +81,37 @@ The server will start both gRPC (port 50051) and HTTP (port 8080) services.
 ---
 
 ## Authentication
+
+### Basic Auth (Optional)
+
+The service supports optional HTTP Basic Authentication for protecting admin and config routes. When enabled, clients must provide valid credentials via the standard `Authorization: Basic <base64>` header.
+
+**Configuration:**
+- Set `AUTH_USER` and `AUTH_PASSWORD` environment variables to enable Basic Auth
+- If either variable is empty or unset, the service runs in open mode (no Basic Auth required)
+- Swagger documentation (`/swagger/*`) remains publicly accessible regardless of configuration
+
+**Protected routes** (require Basic Auth when enabled):
+- `/admin` — Admin UI
+- `/api/v1/config/templates` — Template management API
+- `/api/v1/config/{serviceName}/**` — Config API
+
+**Example requests:**
+
+```bash
+# With Basic Auth enabled
+curl -u admin:secret http://localhost:8080/api/v1/config/templates
+
+# Or with explicit header
+curl -H "Authorization: Basic YWRtaW46c2VjcmV0" http://localhost:8080/api/v1/config/templates
+
+# Swagger remains accessible without auth
+curl http://localhost:8080/swagger/index.html
+```
+
+**Open mode** (internal/gateway deployment): When `AUTH_USER` or `AUTH_PASSWORD` is not set, all routes are accessible without authentication. This is suitable for deployments behind an API gateway or on a private network.
+
+### Keycloak JWT Authentication
 
 **Authentication is handled at the API Gateway level** (e.g., Spring Cloud Gateway, Kong, Nginx).
 

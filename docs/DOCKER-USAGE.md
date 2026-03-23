@@ -29,6 +29,30 @@ A configuration is an *instance* of a template for a specific scope (e.g., a spe
 
 The service supports two database backends: **SQLite** (built-in, zero setup) and **PostgreSQL** (for high availability).
 
+### One-Line Docker Run
+
+```bash
+docker run -d -p 50051:50051 -p 8080:8080 -v config_data:/app/data dsailoivo/scope-config:0.1.1
+```
+
+This starts the service with SQLite (default), exposes gRPC on port `50051` and the HTTP gateway on port `8080`, and persists data to a named volume.
+
+To enable Basic Auth, pass credentials via environment variables:
+
+```bash
+docker run -d -p 50051:50051 -p 8080:8080 -v config_data:/app/data \
+  -e AUTH_USER=admin -e AUTH_PASSWORD=secret \
+  dsailoivo/scope-config:0.1.1
+```
+
+To connect to PostgreSQL instead of SQLite:
+
+```bash
+docker run -d -p 50051:50051 -p 8080:8080 \
+  -e DATABASE_URL=postgresql://user:password@host:5432/config_db?sslmode=disable \
+  dsailoivo/scope-config:0.1.1
+```
+
 ### Mode 1: SQLite (Built-in Default)
 Run the service instantly without any external database dependencies. All data is persisted to a local volume.
 
@@ -54,7 +78,7 @@ Connect to an external PostgreSQL database by providing the `DATABASE_URL` envir
 # compose.yml
 services:
   config-service:
-    image: dsailoivo/scope-config:0.1.0  # Or latest
+    image: dsailoivo/scope-config:latest
     ports:
       - "50051:50051" # gRPC
       - "8080:8080"   # HTTP Gateway

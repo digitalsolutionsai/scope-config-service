@@ -33,7 +33,7 @@ LABEL org.opencontainers.image.title="Scope Config Service" \
       org.opencontainers.image.documentation="https://github.com/digitalsolutionsai/scope-config-service/blob/main/README.md" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Digital Solutions AI" \
-      org.opencontainers.image.version="0.1.0"
+      org.opencontainers.image.version="0.1.1"
 
 # Add ca-certificates to make TLS connections.
 RUN apk add --no-cache ca-certificates
