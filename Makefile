@@ -1,4 +1,4 @@
-.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down up-sqlite down-sqlite migrate-up migrate-down swagger-gen test test-go test-go-sdk test-ts-sdk docker-build docker-push
+.PHONY: proto-gen build-cli build-server build-httpgateway run-server run-httpgateway up down up-sqlite down-sqlite migrate-up migrate-down swagger-gen test test-go test-go-sdk test-ts-sdk docker-build docker-push bump bump-patch bump-minor bump-major
 
 # ====================================================================================
 # PROTO
@@ -107,6 +107,42 @@ docker-push: docker-build
 	@echo "Pushing $(DOCKERHUB_REPO):$(TAG) to Docker Hub..."
 	@docker push $(DOCKERHUB_REPO):$(TAG)
 	@echo "Docker push done."
+
+# ====================================================================================
+# VERSION
+# ====================================================================================
+# Read current version from the Go source of truth.
+CURRENT_VERSION := $(shell grep 'const Version' pkg/version/version.go | sed 's/.*"\(.*\)"/\1/')
+
+# Usage:
+#   make bump-patch          # 0.1.1 -> 0.1.2
+#   make bump-minor          # 0.1.1 -> 0.2.0
+#   make bump-major          # 0.1.1 -> 1.0.0
+#   make bump VERSION=0.3.0  # set an explicit version
+
+bump-patch:
+	@$(MAKE) bump VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{printf "%d.%d.%d", $$1, $$2, $$3+1}')
+
+bump-minor:
+	@$(MAKE) bump VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{printf "%d.%d.0", $$1, $$2+1}')
+
+bump-major:
+	@$(MAKE) bump VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{printf "%d.0.0", $$1+1}')
+
+bump:
+ifndef VERSION
+	$(error VERSION is required. Usage: make bump VERSION=x.y.z)
+endif
+	@echo "Bumping version: $(CURRENT_VERSION) -> $(VERSION)"
+	@sed -i 's/const Version = "$(CURRENT_VERSION)"/const Version = "$(VERSION)"/' pkg/version/version.go
+	@sed -i 's/org.opencontainers.image.version="$(CURRENT_VERSION)"/org.opencontainers.image.version="$(VERSION)"/' Dockerfile
+	@sed -i 's/org.opencontainers.image.version="$(CURRENT_VERSION)"/org.opencontainers.image.version="$(VERSION)"/' Dockerfile.httpgateway
+	@sed -i 's/scope-config:$(CURRENT_VERSION)/scope-config:$(VERSION)/g' docs/DOCKER-USAGE.md
+	@echo "Version updated to $(VERSION) in:"
+	@echo "  - pkg/version/version.go"
+	@echo "  - Dockerfile"
+	@echo "  - Dockerfile.httpgateway"
+	@echo "  - docs/DOCKER-USAGE.md"
 
 # ====================================================================================
 # DATABASE
