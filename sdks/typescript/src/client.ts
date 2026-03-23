@@ -19,6 +19,7 @@
 import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 import * as path from "path";
+import * as fs from "fs";
 import {
   ClientOptions,
   ConfigIdentifier,
@@ -39,6 +40,76 @@ import { ConfigCache } from "./cache";
 const DEFAULT_CACHE_TTL_MS = 60000;
 /** Default sync interval: 30 seconds */
 const DEFAULT_SYNC_INTERVAL_MS = 30000;
+
+/** Environment variable for custom proto file path */
+const ENV_PROTO_PATH = "SCOPE_CONFIG_PROTO_PATH";
+
+/** Relative proto path within the package */
+const PROTO_RELATIVE_PATH = path.join("proto", "config", "v1", "config.proto");
+
+/**
+ * Returns the absolute path to the bundled config.proto file within this package.
+ * Useful for build scripts that need to copy the proto file to a specific location.
+ *
+ * @example
+ * ```typescript
+ * import { getProtoPath } from '@digitalsolutionsai/scopeconfig';
+ * console.log(getProtoPath());
+ * // → /path/to/node_modules/@digitalsolutionsai/scopeconfig/proto/config/v1/config.proto
+ * ```
+ */
+export function getProtoPath(): string {
+  return path.join(__dirname, "..", PROTO_RELATIVE_PATH);
+}
+
+/**
+ * Resolves the proto file path by checking multiple locations in order:
+ * 1. Explicit path from options.protoPath
+ * 2. SCOPE_CONFIG_PROTO_PATH environment variable
+ * 3. Package-relative path (node_modules/@digitalsolutionsai/scopeconfig/proto/)
+ * 4. Project root path (process.cwd()/proto/config/v1/config.proto)
+ *
+ * @throws {Error} if no proto file is found in any location
+ */
+export function resolveProtoPath(protoPath?: string): string {
+  // 1. Explicit path from options
+  if (protoPath) {
+    if (fs.existsSync(protoPath)) {
+      return protoPath;
+    }
+    throw new Error(
+      `Proto file not found at specified path: ${protoPath}`
+    );
+  }
+
+  // 2. Environment variable
+  const envPath = process.env[ENV_PROTO_PATH];
+  if (envPath && fs.existsSync(envPath)) {
+    return envPath;
+  }
+
+  // 3. Package-relative path (standard location when installed via npm)
+  const packagePath = path.join(__dirname, "..", PROTO_RELATIVE_PATH);
+  if (fs.existsSync(packagePath)) {
+    return packagePath;
+  }
+
+  // 4. Project root path (copied by postinstall script)
+  const cwdPath = path.resolve(process.cwd(), PROTO_RELATIVE_PATH);
+  if (fs.existsSync(cwdPath)) {
+    return cwdPath;
+  }
+
+  throw new Error(
+    `Proto file not found. Searched locations:\n` +
+      `  1. Package path: ${packagePath}\n` +
+      `  2. Project root: ${cwdPath}\n` +
+      `You can fix this by:\n` +
+      `  - Running: npx scopeconfig-copy-proto\n` +
+      `  - Setting SCOPE_CONFIG_PROTO_PATH environment variable\n` +
+      `  - Passing protoPath in ClientOptions`
+  );
+}
 
 /**
  * Creates client options from environment variables.
@@ -128,10 +199,7 @@ export class ConfigClient {
    */
   async connect(): Promise<void> {
     try {
-      const PROTO_PATH = path.join(
-        __dirname,
-        "../proto/config/v1/config.proto"
-      );
+      const PROTO_PATH = resolveProtoPath(this.options.protoPath);
       const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
         keepCase: true,
         longs: String,
