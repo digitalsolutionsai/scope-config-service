@@ -62,6 +62,8 @@ enum FieldType {
   JSON = 5;
   ARRAY_STRING = 6; // Example for an array type
   SECRET = 7;       // Sensitive field - UI should mask/hide value
+  HTML = 8;         // HTML content
+  TEXTAREA = 9;     // Multi-line plain text
 }
 
 // === MODELS ===

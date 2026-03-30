@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scope Config Admin</title>
+
+  <!-- Tailwind CSS (play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8' },
+            surface: { 50:'#f9fafb',100:'#f3f4f6',200:'#e5e7eb',300:'#d1d5db',400:'#9ca3af',500:'#6b7280',600:'#4b5563',700:'#374151',800:'#1f2937',900:'#111827' },
+            ok: '#16a34a', warn: '#d97706', danger: '#dc2626',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.css" />
+  <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } };</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.nls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.js"></script>
+  
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="/admin/styles.css" />
+</head>
+<body class="font-sans bg-surface-50 text-surface-800 flex h-screen overflow-hidden text-sm">
+
+<div id="app" class="flex w-full h-full">
+
+<!-- Sidebar -->
+<aside class="w-[280px] min-w-[280px] bg-white border-r border-surface-200 flex flex-col overflow-hidden max-md:hidden">
+  <div class="px-4 pt-5 pb-3 border-b border-surface-200">
+    <h1 class="text-[15px] font-semibold text-surface-800 flex items-center gap-2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Scope Config
+    </h1>
+    <div class="text-[11px] text-surface-400 mt-0.5">Configuration Manager</div>
+  </div>
+
+  <!-- Scope selector -->
+  <div class="px-4 py-3 border-b border-surface-200 flex flex-col gap-2">
+    <label class="text-[11px] font-semibold uppercase tracking-wider text-surface-400">Scope</label>
+    <select v-model="scope" @change="onScopeChange" class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500 transition-colors">
+      <option value="SYSTEM">SYSTEM</option>
+      <option value="PROJECT">PROJECT</option>
+      <option value="STORE">STORE</option>
+      <option value="USER">USER</option>
+    </select>
+    <div v-if="['PROJECT','STORE','USER'].includes(scope)" class="flex flex-col gap-1">
+      <label class="text-[11px] font-semibold uppercase tracking-wider text-surface-400">Project ID</label>
+      <input type="text" v-model="projectId" @change="onScopeIdChange" placeholder="project-123" class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+    </div>
+    <div v-if="['STORE','USER'].includes(scope)" class="flex flex-col gap-1">
+      <label class="text-[11px] font-semibold uppercase tracking-wider text-surface-400">Store ID</label>
+      <input type="text" v-model="storeId" @change="onScopeIdChange" placeholder="store-456" class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+    </div>
+    <div v-if="scope==='USER'" class="flex flex-col gap-1">
+      <label class="text-[11px] font-semibold uppercase tracking-wider text-surface-400">User ID</label>
+      <input type="text" v-model="userId" @change="onScopeIdChange" placeholder="user-789" class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+    </div>
+  </div>
+
+  <!-- Templates button -->
+  <button @click="openTemplatePanel" class="flex items-center gap-2 mx-4 mt-3 mb-1 px-3.5 py-2.5 rounded-lg border border-brand-200 bg-gradient-to-b from-brand-50 to-white text-brand-600 text-[13px] font-semibold cursor-pointer justify-center transition-all hover:border-brand-400 hover:shadow-md hover:-translate-y-px">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+    Import / Manage Templates
+  </button>
+
+  <!-- Nav tree -->
+  <div class="flex-1 overflow-y-auto py-2" id="nav-tree">
+    <div v-if="loadingNav" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+    <div v-else-if="templates.length===0" class="px-5 py-4 text-[12px] text-surface-400">No templates found.<br>Apply a template first.</div>
+    <div v-else v-for="(info, svc) in serviceMap" :key="svc">
+      <div class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-surface-400 cursor-pointer select-none hover:text-surface-700 transition-colors" @click="toggleService(svc)">
+        <span class="text-[10px] transition-transform duration-200" :class="{'rotate-90': openServices[svc]}">▶</span>
+        {{ info.label }}
+      </div>
+      <div v-show="openServices[svc]">
+        <div v-for="g in info.groups" :key="g.groupId"
+          class="flex items-center gap-2 py-1.5 px-4 pl-7 cursor-pointer transition-colors text-[13px]"
+          :class="g.serviceName===selectedService && g.groupId===selectedGroup ? 'bg-brand-500 text-white rounded-r-lg mr-2' : 'text-surface-500 hover:bg-surface-100 hover:text-surface-800'"
+          :title="g.description||''"
+          @click="selectGroup(g.serviceName, g.groupId)">
+          <span class="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0"></span>
+          {{ g.groupLabel || g.groupId }}
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="flex-1 flex flex-col overflow-hidden">
+  <!-- Topbar -->
+  <div class="flex items-center justify-between px-6 py-3.5 border-b border-surface-200 bg-white gap-3">
+    <div class="flex items-center gap-3">
+      <h2 class="text-base font-semibold">{{ groupTitle }}</h2>
+      <span v-if="selectedGroup" class="text-[11px] px-2 py-0.5 rounded-full bg-surface-100 text-brand-600 border border-surface-200">{{ scopeBadgeText }}</span>
+    </div>
+    <div v-if="currentConfig" class="text-[12px] text-surface-400 flex items-center gap-2.5">
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border"
+        :class="currentConfig.publishedVersion ? 'bg-green-50 text-ok border-green-200' : 'bg-amber-50 text-warn border-amber-200'">
+        {{ currentConfig.publishedVersion ? '✓ published v'+currentConfig.publishedVersion : 'not published' }}
+      </span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-blue-50 text-brand-600 border border-blue-200">
+        latest v{{ currentConfig.latestVersion }}
+      </span>
+    </div>
+    <div class="flex gap-2 items-center">
+      <input type="text" v-model="userName" placeholder="your-email (for audit)" title="Username/email used for audit trail" class="w-40 text-[12px] px-2.5 py-1.5 bg-surface-50 border border-surface-200 rounded-lg outline-none focus:border-brand-500" />
+      <button v-if="selectedGroup" @click="openHistoryPanel" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 hover:text-surface-700 transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4"/><polyline points="3 3 3 7 7 7"/></svg>
+        History
+      </button>
+      <button v-if="selectedGroup" @click="loadConfig" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] cursor-pointer border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 transition-colors" title="Reload">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.68-8.81"/></svg>
+      </button>
+      <button v-if="selectedGroup" @click="saveConfig" :disabled="saving" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-brand-500 bg-brand-500 text-white hover:opacity-85 disabled:opacity-40 transition-opacity">
+        <div v-if="saving" class="spinner" style="width:14px;height:14px;border-color:#fff;border-top-color:transparent;"></div>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        {{ dirty ? '● Save Draft' : 'Save Draft' }}
+      </button>
+      <button v-if="selectedGroup" @click="startPublish" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-ok bg-ok text-white hover:opacity-85 transition-opacity">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Publish
+      </button>
+    </div>
+  </div>
+
+  <!-- View mode banner -->
+  <div v-if="viewingVersion!==null" class="flex items-center justify-between px-4 py-2.5 bg-amber-50 border-b border-amber-200 text-[12px] text-warn gap-3">
+    <span>👁 Viewing <strong>version {{ viewingVersion }}</strong>{{ viewingVersion===currentConfig?.publishedVersion ? ' (published)' : '' }} — read-only snapshot</span>
+    <button @click="loadConfig" class="px-3 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">← Back to Latest</button>
+  </div>
+
+  <!-- Content area -->
+  <div class="flex-1 overflow-y-auto p-6">
+    <!-- Empty state -->
+    <div v-if="!selectedGroup && !loadingContent" class="flex flex-col items-center justify-center h-full text-surface-400 gap-3">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="opacity-30"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <p class="text-[15px]">Select a configuration group from the sidebar</p>
+    </div>
+    <!-- Loading -->
+    <div v-if="loadingContent" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+    <!-- Fields grid -->
+    <div v-if="selectedGroup && !loadingContent && visibleFields.length">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-surface-400 mb-3.5 pb-2 border-b border-surface-200">{{ currentTemplate?.description || 'Configuration Fields' }}</div>
+      <div class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
+        <div v-for="field in visibleFields" :key="field.path"
+          class="bg-white border border-surface-200 rounded-lg p-4 flex flex-col gap-2.5 transition-colors hover:border-brand-300"
+          :class="{'col-span-full': field.type==='JSON' || field.type==='ARRAY_STRING' || field.type==='HTML' || field.type==='TEXTAREA'}"
+          :style="viewingVersion!==null ? 'opacity:0.85' : ''">
+          <!-- Field header -->
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="text-[13px] font-semibold text-surface-800">{{ field.label || field.path }}</div>
+              <div class="text-[11px] text-surface-400 font-mono">{{ field.path }}</div>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-100 text-surface-400 border border-surface-200 shrink-0 whitespace-nowrap">{{ field.type }}</span>
+          </div>
+          <div v-if="field.description" class="text-[12px] text-surface-400 leading-relaxed">{{ field.description }}</div>
+
+          <!-- BOOLEAN -->
+          <div v-if="field.type==='BOOLEAN'" class="flex items-center gap-2.5">
+            <label class="toggle-track">
+              <input type="checkbox" :checked="fieldValues[field.path]==='true'" @change="onToggle(field.path, $event)" :disabled="viewingVersion!==null" />
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="text-[13px]">{{ fieldValues[field.path]==='true' ? 'Enabled' : 'Disabled' }}</span>
+          </div>
+
+          <!-- ENUM -->
+          <div v-else-if="field.type==='ENUM' && field.options && field.options.length">
+            <select :value="fieldValues[field.path]" @change="onFieldInput(field.path, $event.target.value)" :disabled="viewingVersion!==null"
+              class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500">
+              <option v-for="o in field.options" :key="o.value" :value="o.value">{{ o.label || o.value }}</option>
+            </select>
+          </div>
+
+          <!-- JSON -->
+          <div v-else-if="field.type==='JSON'" class="relative">
+            <textarea :id="'field-'+sanitizeId(field.path)" :value="formatJsonValue(field.path)" @input="onJsonInput(field.path, $event)" rows="6" spellcheck="false" :readonly="viewingVersion!==null"
+              class="w-full font-mono text-[12px] bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-2 resize-y pb-7 outline-none focus:border-brand-500"></textarea>
+            <button v-if="viewingVersion===null" @click="formatJsonField(field.path)" class="absolute bottom-2 right-2 px-2 py-0.5 text-[11px] rounded border border-surface-200 bg-white text-surface-500 hover:bg-surface-50 cursor-pointer">Format JSON</button>
+            <div v-if="jsonErrors[field.path]" class="text-danger text-[11px] mt-1">{{ jsonErrors[field.path] }}</div>
+          </div>
+
+          <!-- ARRAY_STRING -->
+          <div v-else-if="field.type==='ARRAY_STRING'" class="relative">
+            <textarea :value="arrayToLines(field.path)" @input="onArrayInput(field.path, $event)" rows="4" spellcheck="false" placeholder="Enter one item per line..." :readonly="viewingVersion!==null"
+              class="w-full font-mono text-[12px] bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-2 resize-y outline-none focus:border-brand-500"></textarea>
+            <div class="text-[11px] text-surface-400 mt-1">Enter one item per line. Automatically saved as a JSON array.</div>
+          </div>
+
+          <!-- HTML & TEXTAREA -->
+          <div v-else-if="field.type==='HTML' || field.type==='TEXTAREA'" class="relative mt-2">
+            <html-editor :id="'field-'+sanitizeId(field.path)" :model-value="fieldValues[field.path] || ''" @update:model-value="onFieldInput(field.path, $event)" :readonly="viewingVersion!==null"></html-editor>
+          </div>
+
+          <!-- INT / FLOAT -->
+          <div v-else-if="field.type==='INT' || field.type==='FLOAT'">
+            <input type="number" :value="fieldValues[field.path]" @input="onFieldInput(field.path, $event.target.value)" :step="field.type==='FLOAT'?'any':'1'" :readonly="viewingVersion!==null"
+              class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+          </div>
+
+          <!-- SECRET -->
+          <div v-else-if="field.type==='SECRET'" class="relative">
+            <input :type="secretVisible[field.path] ? 'text' : 'password'" :value="fieldValues[field.path]" @input="onFieldInput(field.path, $event.target.value)" placeholder="••••••••" :readonly="viewingVersion!==null"
+              class="w-full font-mono bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 pr-10 text-[13px] outline-none focus:border-brand-500" />
+            <button @click="secretVisible[field.path] = !secretVisible[field.path]" type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-surface-400 hover:text-surface-600 cursor-pointer bg-transparent border-none" title="Toggle visibility">
+              <!-- Eye icon (visible) -->
+              <svg v-if="!secretVisible[field.path]" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <!-- Eye-off icon (hidden) -->
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- STRING (default) -->
+          <div v-else>
+            <input type="text" :value="fieldValues[field.path]" @input="onFieldInput(field.path, $event.target.value)" :readonly="viewingVersion!==null"
+              class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+          </div>
+
+          <div class="text-[11px] text-surface-400">Default: <code class="bg-surface-100 px-1 py-0.5 rounded text-[11px]">{{ field.defaultValue ?? '—' }}</code></div>
+        </div>
+      </div>
+    </div>
+    <!-- No fields for scope -->
+    <div v-if="selectedGroup && !loadingContent && visibleFields.length===0 && currentTemplate" class="flex flex-col items-center justify-center h-full text-surface-400 gap-3">
+      <p>No fields configured for <strong>{{ scope }}</strong> scope.</p>
+    </div>
+  </div>
+</main>
+
+<!-- Modal overlay -->
+<div v-if="showOverlay" @click="closeAll" class="fixed inset-0 bg-black/40 z-[90]"></div>
+
+<!-- History panel -->
+<aside id="history-panel" :class="{'open': showHistory}" class="fixed right-0 top-0 bottom-0 w-[360px] bg-white border-l border-surface-200 z-[100] flex flex-col shadow-xl">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-surface-200 font-semibold">
+    <span>Version History</span>
+    <button @click="closeHistoryPanel" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">✕</button>
+  </div>
+  <div class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
+    <div v-if="loadingHistory" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+    <div v-else-if="historyItems.length===0" class="text-surface-400 py-4 text-[13px]">No history yet.</div>
+    <div v-else v-for="h in historyItems" :key="h.version" @click="viewVersion(h.version)"
+      class="bg-surface-50 border border-surface-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer transition-all hover:border-brand-300 hover:bg-surface-100"
+      :class="{'border-brand-500 bg-blue-50': h.version===viewingVersion}">
+      <div class="text-[22px] font-bold min-w-[32px] text-center"
+        :class="h.version===currentConfig?.publishedVersion ? 'text-ok' : h.version===currentConfig?.latestVersion ? 'text-brand-500' : 'text-surface-300'">{{ h.version }}</div>
+      <div class="flex-1">
+        <div class="text-[13px] font-medium">{{ h.createdBy || '—' }}</div>
+        <div class="text-[11px] text-surface-400 mt-0.5">{{ formatDate(h.createdAt) }}</div>
+        <span v-if="h.version===currentConfig?.publishedVersion" class="inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] bg-green-50 text-ok border border-green-200">✓ published</span>
+        <span v-if="h.version===currentConfig?.latestVersion" class="inline-flex mt-1 ml-1 px-2 py-0.5 rounded-full text-[10px] bg-blue-50 text-brand-500 border border-blue-200">latest</span>
+      </div>
+      <div class="flex flex-col gap-1.5 items-end">
+        <button @click.stop="viewVersion(h.version)" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">👁 View</button>
+        <button v-if="h.version!==currentConfig?.publishedVersion" @click.stop="publishVersion(h.version)" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">↑ Publish</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Publish confirm modal -->
+<div v-if="showPublishModal" class="fixed inset-0 flex items-center justify-center z-[200]">
+  <div class="fixed inset-0 bg-black/50" @click="showPublishModal=false"></div>
+  <div class="relative bg-white border border-surface-200 rounded-xl p-7 w-[400px] flex flex-col gap-5 shadow-2xl">
+    <h3 class="text-base font-semibold">Publish Configuration</h3>
+    <p class="text-[13px] text-surface-500 leading-relaxed">Make version <strong>{{ publishingVersion }}</strong> the live, published version?<br/><br/>This will update what clients and services receive as the active configuration.</p>
+    <div class="flex gap-2 justify-end">
+      <button @click="showPublishModal=false" class="px-3.5 py-1.5 rounded-lg text-[13px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">Cancel</button>
+      <button @click="confirmPublish" :disabled="publishing" class="px-3.5 py-1.5 rounded-lg text-[13px] font-medium border border-ok bg-ok text-white hover:opacity-85 disabled:opacity-40 cursor-pointer">{{ publishing ? 'Publishing…' : '✓ Publish Now' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="fixed bottom-6 right-6 flex flex-col gap-2 z-[9999]">
+  <div v-for="(t, i) in toasts" :key="t.id" class="toast-anim bg-white border border-surface-200 rounded-lg px-4 py-3 text-[13px] text-surface-700 flex items-center gap-2.5 min-w-[240px] shadow-lg"
+    :class="{'border-l-[3px] border-l-ok': t.type==='success', 'border-l-[3px] border-l-danger': t.type==='error', 'border-l-[3px] border-l-brand-500': t.type==='info'}">
+    <span>{{ t.type==='success'?'✓':t.type==='error'?'✕':'ℹ' }}</span>
+    <span>{{ t.msg }}</span>
+  </div>
+</div>
+
+<!-- Template Management Panel -->
+<aside id="tmpl-panel" :class="{'open': showTmplPanel}" class="fixed inset-0 bg-surface-50 z-[110] flex flex-col">
+  <div class="flex items-center justify-between px-7 py-4 border-b border-surface-200 font-semibold bg-white shrink-0">
+    <span>⚙ Template Management</span>
+    <div class="flex gap-2 items-center">
+      <div class="flex gap-1.5">
+        <button @click="tmplTab='import'" class="px-3.5 py-1.5 rounded-md text-[12px] font-medium cursor-pointer border transition-colors"
+          :class="tmplTab==='import' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-surface-500 border-surface-200 hover:bg-surface-50'">↑ Import</button>
+        <button @click="switchToManage" class="px-3.5 py-1.5 rounded-md text-[12px] font-medium cursor-pointer border transition-colors"
+          :class="tmplTab==='manage' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-surface-500 border-surface-200 hover:bg-surface-50'">☰ Manage</button>
+      </div>
+      <button @click="closeTmplPanel" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">✕</button>
+    </div>
+  </div>
+
+  <!-- Import pane -->
+  <div v-show="tmplTab==='import'" class="flex-1 overflow-hidden p-6 px-8 flex gap-6">
+    <!-- LEFT: editor -->
+    <div class="flex-1 flex flex-col gap-3 min-w-0">
+      <div>
+        <div class="text-[11px] font-bold uppercase tracking-wider text-surface-400 mb-2.5">YAML Template Editor</div>
+        <div class="flex gap-1 mb-1.5">
+          <button @click="importMode='paste'" class="px-3 py-1 text-[12px] rounded-md cursor-pointer border transition-colors"
+            :class="importMode==='paste' ? 'bg-surface-100 text-surface-700 border-brand-500' : 'bg-white text-surface-500 border-surface-200'">📋 Paste YAML</button>
+          <button @click="importMode='file'" class="px-3 py-1 text-[12px] rounded-md cursor-pointer border transition-colors"
+            :class="importMode==='file' ? 'bg-surface-100 text-surface-700 border-brand-500' : 'bg-white text-surface-500 border-surface-200'">📁 Upload File</button>
+        </div>
+      </div>
+      <div v-show="importMode==='paste'" class="flex-1 flex flex-col">
+        <div id="editor-container" class="flex-1 border border-surface-200 rounded-lg overflow-hidden"></div>
+      </div>
+      <div v-show="importMode==='file'" class="flex-1 flex flex-col gap-2">
+        <input type="file" accept=".yaml,.yml" @change="handleFileUpload" class="block w-full p-3.5 bg-white border-2 border-dashed border-surface-300 rounded-lg text-surface-400 cursor-pointer text-[13px]" />
+        <p class="text-[11px] text-surface-400" v-if="uploadedFileName">Loaded: {{ uploadedFileName }}</p>
+        <p class="text-[12px] text-surface-400">Once uploaded, the file content is loaded into the editor. You can then switch to the Paste YAML tab to review before applying.</p>
+      </div>
+    </div>
+    <!-- RIGHT: actions -->
+    <div class="w-[380px] min-w-[320px] flex flex-col gap-3.5 border-l border-surface-200 pl-6 overflow-y-auto">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-surface-400 mb-1">Actions</div>
+      <p class="text-[12px] text-surface-400 leading-relaxed">Paste or upload a <code class="bg-surface-100 px-1 py-0.5 rounded">.yaml</code> template file. Validate first, then apply to upsert all groups into the database.</p>
+      <div class="flex flex-col gap-2">
+        <button @click="validateYamlOnly" class="w-full justify-center inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium cursor-pointer border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 transition-colors">✓ Validate Only</button>
+        <button @click="applyImport" :disabled="importing" class="w-full justify-center inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium cursor-pointer border border-brand-500 bg-brand-500 text-white hover:opacity-85 disabled:opacity-40 transition-opacity">{{ importing ? 'Applying…' : '↑ Apply Template' }}</button>
+      </div>
+      <div v-if="validationOutput" v-html="validationOutput" class="mt-2"></div>
+      <div v-if="importResults.length" class="mt-2">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-surface-400 mb-2">Import Results</div>
+        <div v-for="r in importResults" :key="r.groupId" class="flex items-center gap-2 py-1.5 text-[13px] border-b border-surface-200 last:border-b-0">
+          <span :class="r.status==='ok' ? 'text-ok' : 'text-danger'">{{ r.status==='ok' ? '✓' : '✕' }}</span>
+          <span><strong>{{ r.groupId }}</strong> ({{ r.serviceName }})</span>
+          <span v-if="r.error" class="text-danger text-[11px] ml-auto">{{ r.error }}</span>
+        </div>
+      </div>
+      <p class="text-[11px] text-surface-400 mt-auto pt-3 border-t border-surface-200">Tip: The editor supports full YAML syntax highlighting, formatting, and standard keyboard shortcuts (Ctrl+F, etc).</p>
+    </div>
+  </div>
+
+  <!-- Manage pane -->
+  <div v-show="tmplTab==='manage'" class="flex-1 overflow-auto p-6 px-8 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <span class="text-[12px] text-surface-400">Toggle active/inactive for each template group.</span>
+      <button @click="loadTmplManageList" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">↻ Refresh</button>
+    </div>
+    <div v-if="loadingManage" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+    <div v-else-if="manageTemplates.length===0" class="text-surface-400 text-[13px] py-4">No templates found. Import one first.</div>
+    <table v-else class="mt-2 border border-surface-200 rounded-lg border-separate border-spacing-0 w-full overflow-hidden text-[13px] shadow-sm">
+      <thead class="bg-surface-50">
+        <tr>
+          <th class="px-4 py-3 border-b border-surface-200 text-[11px] uppercase text-surface-400 text-left font-semibold">Service Name</th>
+          <th class="px-4 py-3 border-b border-l border-surface-200 text-[11px] uppercase text-surface-400 text-left font-semibold">Group Name</th>
+          <th class="px-4 py-3 border-b border-l border-surface-200 text-[11px] uppercase text-surface-400 text-center font-semibold w-[70px]">Sort</th>
+          <th class="px-4 py-3 border-b border-l border-surface-200 text-[11px] uppercase text-surface-400 text-center font-semibold w-[90px]">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(t, i) in manageTemplates" :key="t.serviceName+'-'+t.groupId" :class="{'opacity-50 bg-surface-50': !t.isActive}" class="bg-white hover:bg-surface-50 transition-colors">
+          <td class="px-4 py-3.5" :class="{'border-b border-surface-200': i < manageTemplates.length-1}">
+            <div class="font-semibold text-brand-600 text-[12px] inline-block bg-blue-50 px-2 py-1 rounded-md border border-blue-200 mb-1">{{ t.serviceLabel||t.serviceName }}</div>
+            <div class="text-[11px] text-surface-400 font-mono ml-1">{{ t.serviceName }}</div>
+          </td>
+          <td class="px-4 py-3.5 border-l border-surface-200" :class="{'border-b': i < manageTemplates.length-1}">
+            <div class="font-semibold text-[13px] text-surface-800 mb-0.5">{{ t.groupLabel||t.groupId }}</div>
+            <div class="text-[11px] text-surface-400 font-mono">{{ t.groupId }}</div>
+          </td>
+          <td class="px-4 py-3.5 border-l border-surface-200 text-center text-surface-400 font-mono" :class="{'border-b': i < manageTemplates.length-1}">{{ t.sortOrder||0 }}</td>
+          <td class="px-4 py-3.5 border-l border-surface-200 text-center" :class="{'border-b': i < manageTemplates.length-1}">
+            <div class="flex items-center justify-center gap-2">
+              <label class="toggle-track" :title="t.isActive?'Disable':'Enable'">
+                <input type="checkbox" :checked="t.isActive" @change="toggleTemplateActive(t.serviceName, t.groupId, $event.target.checked, $event.target)" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="text-[11px] font-semibold px-1.5 py-0.5 rounded min-w-[50px] text-center"
+                :class="t.isActive ? 'text-ok bg-green-50' : 'text-surface-400 bg-surface-100'">{{ t.isActive ? 'Active' : 'Inactive' }}</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</aside>
+
+</div><!-- end #app -->
+
+<!-- Load App JS -->
+<script src="/admin/app.js"></script>
+
+</body>
+</html>

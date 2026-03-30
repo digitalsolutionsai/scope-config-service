@@ -89,6 +89,8 @@ const (
 	FieldType_JSON                   FieldType = 5
 	FieldType_ARRAY_STRING           FieldType = 6 // Example for an array type
 	FieldType_SECRET                 FieldType = 7 // Sensitive field - UI should mask/hide value
+	FieldType_HTML                   FieldType = 8 // HTML content
+	FieldType_TEXTAREA               FieldType = 9 // Multi-line plain text
 )
 
 // Enum value maps for FieldType.
@@ -102,6 +104,8 @@ var (
 		5: "JSON",
 		6: "ARRAY_STRING",
 		7: "SECRET",
+		8: "HTML",
+		9: "TEXTAREA",
 	}
 	FieldType_value = map[string]int32{
 		"FIELD_TYPE_UNSPECIFIED": 0,
@@ -112,6 +116,8 @@ var (
 		"JSON":                   5,
 		"ARRAY_STRING":           6,
 		"SECRET":                 7,
+		"HTML":                   8,
+		"TEXTAREA":               9,
 	}
 )
 
@@ -1484,7 +1490,7 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x06SYSTEM\x10\x01\x12\v\n" +
 	"\aPROJECT\x10\x02\x12\t\n" +
 	"\x05STORE\x10\x03\x12\b\n" +
-	"\x04USER\x10\x04*|\n" +
+	"\x04USER\x10\x04*\x94\x01\n" +
 	"\tFieldType\x12\x1a\n" +
 	"\x16FIELD_TYPE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -1495,7 +1501,9 @@ const file_config_v1_config_proto_rawDesc = "" +
 	"\x04JSON\x10\x05\x12\x10\n" +
 	"\fARRAY_STRING\x10\x06\x12\n" +
 	"\n" +
-	"\x06SECRET\x10\a2\xd4\a\n" +
+	"\x06SECRET\x10\a\x12\b\n" +
+	"\x04HTML\x10\b\x12\f\n" +
+	"\bTEXTAREA\x10\t2\xd4\a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12V\n" +
 	"\x0fGetLatestConfig\x12#.vn.dsai.config.v1.GetConfigRequest\x1a\x1e.vn.dsai.config.v1.ScopeConfig\x12b\n" +
