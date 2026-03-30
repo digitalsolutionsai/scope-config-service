@@ -161,7 +161,7 @@
       <div class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
         <div v-for="field in visibleFields" :key="field.path"
           class="bg-white border border-surface-200 rounded-lg p-4 flex flex-col gap-2.5 transition-colors hover:border-brand-300"
-          :class="{'col-span-full': field.type==='JSON' || field.type==='ARRAY_STRING' || field.type==='HTML' || field.type==='TEXTAREA'}"
+          :class="{'col-span-full': field.type==='JSON' || field.type==='ARRAY_STRING' || field.type==='HTML' || field.type==='TEXTAREA' || field.type==='MARKDOWN'}"
           :style="viewingVersion!==null ? 'opacity:0.85' : ''">
           <!-- Field header -->
           <div class="flex items-start justify-between gap-2">
