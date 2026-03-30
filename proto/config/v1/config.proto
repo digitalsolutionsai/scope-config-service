@@ -64,6 +64,7 @@ enum FieldType {
   SECRET = 7;       // Sensitive field - UI should mask/hide value
   HTML = 8;         // HTML content
   TEXTAREA = 9;     // Multi-line plain text
+  MARKDOWN = 10;    // Markdown content
 }
 
 // === MODELS ===

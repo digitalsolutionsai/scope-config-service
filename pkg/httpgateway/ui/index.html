@@ -31,6 +31,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.js"></script>
   
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <!-- App Styles -->
   <link rel="stylesheet" href="/admin/styles.css" />
@@ -204,9 +205,9 @@
             <div class="text-[11px] text-surface-400 mt-1">Enter one item per line. Automatically saved as a JSON array.</div>
           </div>
 
-          <!-- HTML & TEXTAREA -->
-          <div v-else-if="field.type==='HTML' || field.type==='TEXTAREA'" class="relative mt-2">
-            <html-editor :id="'field-'+sanitizeId(field.path)" :model-value="fieldValues[field.path] || ''" @update:model-value="onFieldInput(field.path, $event)" :readonly="viewingVersion!==null"></html-editor>
+          <!-- HTML, TEXTAREA & MARKDOWN -->
+          <div v-else-if="field.type==='HTML' || field.type==='TEXTAREA' || field.type==='MARKDOWN'" class="relative mt-2">
+            <html-editor :id="'field-'+sanitizeId(field.path)" :model-value="fieldValues[field.path] || ''" :language="field.type==='MARKDOWN' ? 'markdown' : 'html'" @update:model-value="onFieldInput(field.path, $event)" :readonly="viewingVersion!==null"></html-editor>
           </div>
 
           <!-- INT / FLOAT -->

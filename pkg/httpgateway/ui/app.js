@@ -327,7 +327,7 @@ const app = createApp({
     },
     validateTemplate(parsed) {
       // ADDED HTML AND TEXTAREA HERE
-      const VALID_TYPES = ['STRING','INT','FLOAT','BOOLEAN','JSON','ARRAY_STRING','SECRET', 'HTML', 'TEXTAREA'];
+      const VALID_TYPES = ['STRING','INT','FLOAT','BOOLEAN','JSON','ARRAY_STRING','SECRET', 'HTML', 'TEXTAREA', 'MARKDOWN'];
       const VALID_SCOPES = ['SYSTEM','PROJECT','STORE','USER'];
       const errors = [], warnings = [];
       if (!parsed.service) { errors.push('Missing top-level "service:" key'); return {errors,warnings}; }
@@ -429,7 +429,7 @@ const app = createApp({
 });
 
 app.component('html-editor', {
-  props: ['modelValue', 'readonly', 'id'],
+  props: ['modelValue', 'readonly', 'id', 'language'],
   emits: ['update:modelValue'],
   template: `
     <div class="border border-surface-200 rounded-lg overflow-hidden flex flex-col bg-white h-[400px]">
@@ -442,13 +442,21 @@ app.component('html-editor', {
       </div>
       <div v-show="tab === 'preview'" class="flex-1 overflow-auto bg-surface-50 min-h-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZTVlN2ViIiAvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZTVlN2ViIiAvPgo8L3N2Zz4=')]">
         <div class="bg-white min-h-[100%] mx-auto shadow-sm">
-          <iframe ref="previewFrame" class="w-full h-full min-h-[350px] border-none block" :srcdoc="modelValue" sandbox="allow-same-origin"></iframe>
+          <iframe ref="previewFrame" class="w-full h-full min-h-[350px] border-none block" :srcdoc="previewHtml" sandbox="allow-same-origin"></iframe>
         </div>
       </div>
     </div>
   `,
   data() {
     return { tab: 'code' };
+  },
+  computed: {
+    previewHtml() {
+      if (this.language === 'markdown' && window.marked) {
+        return marked.parse(this.modelValue || '');
+      }
+      return this.modelValue || '';
+    }
   },
   watch: {
     modelValue(val) {
@@ -469,7 +477,7 @@ app.component('html-editor', {
     if (!window.monaco) return;
     this._editor = monaco.editor.create(this.$refs.editorContainer, {
       value: this.modelValue || '',
-      language: 'html',
+      language: this.language || 'html',
       theme: 'vs',
       automaticLayout: true,
       minimap: { enabled: false },

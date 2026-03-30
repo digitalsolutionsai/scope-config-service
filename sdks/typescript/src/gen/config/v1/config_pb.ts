@@ -228,6 +228,13 @@ export interface GetConfigRequest {
      * @generated from protobuf field: string path = 2
      */
     path: string;
+    /**
+     * Optional: If true or not set, returns template default values when no config exists.
+     * If false, returns empty fields when no config exists.
+     *
+     * @generated from protobuf field: optional bool use_template_defaults = 3
+     */
+    useTemplateDefaults?: boolean;
 }
 /**
  * @generated from protobuf message vn.dsai.config.v1.GetConfigByVersionRequest
@@ -248,6 +255,13 @@ export interface GetConfigByVersionRequest {
      * @generated from protobuf field: string path = 3
      */
     path: string;
+    /**
+     * Optional: If true or not set, returns template default values when no config exists.
+     * If false, returns empty fields when no config exists.
+     *
+     * @generated from protobuf field: optional bool use_template_defaults = 4
+     */
+    useTemplateDefaults?: boolean;
 }
 /**
  * @generated from protobuf message vn.dsai.config.v1.UpdateConfigRequest
@@ -321,6 +335,14 @@ export interface VersionHistoryEntry {
      * @generated from protobuf field: string created_by = 3
      */
     createdBy: string;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp published_at = 4
+     */
+    publishedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional string published_by = 5
+     */
+    publishedBy?: string;
 }
 /**
  * @generated from protobuf message vn.dsai.config.v1.GetConfigHistoryResponse
@@ -453,7 +475,25 @@ export enum FieldType {
      *
      * @generated from protobuf enum value: SECRET = 7;
      */
-    SECRET = 7
+    SECRET = 7,
+    /**
+     * HTML content
+     *
+     * @generated from protobuf enum value: HTML = 8;
+     */
+    HTML = 8,
+    /**
+     * Multi-line plain text
+     *
+     * @generated from protobuf enum value: TEXTAREA = 9;
+     */
+    TEXTAREA = 9,
+    /**
+     * Markdown content
+     *
+     * @generated from protobuf enum value: MARKDOWN = 10;
+     */
+    MARKDOWN = 10
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class ConfigIdentifier$Type extends MessageType<ConfigIdentifier> {
@@ -1024,7 +1064,8 @@ class GetConfigRequest$Type extends MessageType<GetConfigRequest> {
     constructor() {
         super("vn.dsai.config.v1.GetConfigRequest", [
             { no: 1, name: "identifier", kind: "message", T: () => ConfigIdentifier },
-            { no: 2, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 2, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "use_template_defaults", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<GetConfigRequest>): GetConfigRequest {
@@ -1045,6 +1086,9 @@ class GetConfigRequest$Type extends MessageType<GetConfigRequest> {
                 case /* string path */ 2:
                     message.path = reader.string();
                     break;
+                case /* optional bool use_template_defaults */ 3:
+                    message.useTemplateDefaults = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1063,6 +1107,9 @@ class GetConfigRequest$Type extends MessageType<GetConfigRequest> {
         /* string path = 2; */
         if (message.path !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.path);
+        /* optional bool use_template_defaults = 3; */
+        if (message.useTemplateDefaults !== undefined)
+            writer.tag(3, WireType.Varint).bool(message.useTemplateDefaults);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1079,7 +1126,8 @@ class GetConfigByVersionRequest$Type extends MessageType<GetConfigByVersionReque
         super("vn.dsai.config.v1.GetConfigByVersionRequest", [
             { no: 1, name: "identifier", kind: "message", T: () => ConfigIdentifier },
             { no: 2, name: "version", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "use_template_defaults", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<GetConfigByVersionRequest>): GetConfigByVersionRequest {
@@ -1104,6 +1152,9 @@ class GetConfigByVersionRequest$Type extends MessageType<GetConfigByVersionReque
                 case /* string path */ 3:
                     message.path = reader.string();
                     break;
+                case /* optional bool use_template_defaults */ 4:
+                    message.useTemplateDefaults = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1125,6 +1176,9 @@ class GetConfigByVersionRequest$Type extends MessageType<GetConfigByVersionReque
         /* string path = 3; */
         if (message.path !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.path);
+        /* optional bool use_template_defaults = 4; */
+        if (message.useTemplateDefaults !== undefined)
+            writer.tag(4, WireType.Varint).bool(message.useTemplateDefaults);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1365,7 +1419,9 @@ class VersionHistoryEntry$Type extends MessageType<VersionHistoryEntry> {
         super("vn.dsai.config.v1.VersionHistoryEntry", [
             { no: 1, name: "version", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 2, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 3, name: "created_by", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "created_by", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "published_at", kind: "message", T: () => Timestamp },
+            { no: 5, name: "published_by", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<VersionHistoryEntry>): VersionHistoryEntry {
@@ -1390,6 +1446,12 @@ class VersionHistoryEntry$Type extends MessageType<VersionHistoryEntry> {
                 case /* string created_by */ 3:
                     message.createdBy = reader.string();
                     break;
+                case /* optional google.protobuf.Timestamp published_at */ 4:
+                    message.publishedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.publishedAt);
+                    break;
+                case /* optional string published_by */ 5:
+                    message.publishedBy = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1411,6 +1473,12 @@ class VersionHistoryEntry$Type extends MessageType<VersionHistoryEntry> {
         /* string created_by = 3; */
         if (message.createdBy !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.createdBy);
+        /* optional google.protobuf.Timestamp published_at = 4; */
+        if (message.publishedAt)
+            Timestamp.internalBinaryWrite(message.publishedAt, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional string published_by = 5; */
+        if (message.publishedBy !== undefined)
+            writer.tag(5, WireType.LengthDelimited).string(message.publishedBy);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
