@@ -1,4 +1,4 @@
-export { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir } from "./client";
+export { ConfigClient, createOptionsFromEnv, loadTemplatesFromDir, getProtoPath, resolveProtoPath } from "./client";
 
 export { IdentifierBuilder, createIdentifier } from "./identifier";
 

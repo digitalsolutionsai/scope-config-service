@@ -160,6 +160,7 @@ interface ClientOptions {
   cacheTtlMs?: number;                 // Cache TTL in ms (default: 60000)
   backgroundSyncEnabled?: boolean;     // Enable background sync (default: false)
   backgroundSyncIntervalMs?: number;   // Sync interval in ms (default: 30000)
+  protoPath?: string;                  // Custom path to config.proto file
 }
 ```
 
@@ -417,6 +418,69 @@ For NestJS applications, see `examples/nestjs-integration.ts` for:
 2. Creating a service wrapper with dependency injection
 3. Using the service in controllers and other services
 4. Configuring tsconfig.json paths for custom imports
+
+## Proto File Handling
+
+### Automatic Copy (Postinstall)
+
+When you install `@digitalsolutionsai/scopeconfig`, a postinstall script automatically copies the proto file to your project root at `proto/config/v1/config.proto`. This ensures the proto file is available at runtime, even in environments like **Next.js standalone mode** where files from `node_modules` are not automatically included.
+
+To skip the automatic copy, set the environment variable:
+
+```bash
+SCOPECONFIG_SKIP_POSTINSTALL=1 npm install
+```
+
+### Manual Copy
+
+You can manually copy proto files using the CLI:
+
+```bash
+# Copy to project root (default: ./proto/config/v1/config.proto)
+npx scopeconfig-copy-proto
+
+# Copy to a specific destination (e.g., for Next.js standalone)
+npx scopeconfig-copy-proto .next/standalone
+```
+
+### Custom Proto Path
+
+If you need the proto file at a non-standard location, you can specify it via:
+
+**Option 1: Environment variable**
+```bash
+export SCOPE_CONFIG_PROTO_PATH=/path/to/config.proto
+```
+
+**Option 2: Client options**
+```typescript
+const client = new ConfigClient({
+  address: 'localhost:50051',
+  protoPath: '/path/to/config.proto',
+});
+```
+
+**Option 3: Use `getProtoPath()` in build scripts**
+```typescript
+import { getProtoPath } from '@digitalsolutionsai/scopeconfig';
+// Returns the absolute path to the proto file bundled in the package
+console.log(getProtoPath());
+```
+
+### Docker / Next.js Standalone
+
+For Next.js standalone mode, the proto file is automatically copied to your project root during `npm install`. In your Dockerfile, simply copy it into the standalone output:
+
+```dockerfile
+# The proto file is already at ./proto/config/v1/config.proto (copied by postinstall)
+COPY proto/ .next/standalone/proto/
+```
+
+Or use the CLI in your Dockerfile:
+
+```dockerfile
+RUN npx scopeconfig-copy-proto .next/standalone
+```
 
 ## Proto File Generation (Optional)
 

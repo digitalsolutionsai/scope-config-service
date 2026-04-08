@@ -38,6 +38,14 @@ export interface ClientOptions {
   backgroundSyncEnabled?: boolean;
   /** Background sync interval in milliseconds (default: 30000 = 30 seconds) */
   backgroundSyncIntervalMs?: number;
+  /**
+   * Custom path to the config.proto file.
+   * Can also be set via SCOPE_CONFIG_PROTO_PATH env var.
+   * If not provided, the SDK will look for the proto file in multiple locations:
+   * 1. Package-relative path (node_modules/@digitalsolutionsai/scopeconfig/proto/)
+   * 2. Project root (process.cwd()/proto/config/v1/config.proto)
+   */
+  protoPath?: string;
 }
 
 // Scope levels for configuration

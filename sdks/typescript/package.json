@@ -11,7 +11,11 @@
     "generate": "npx buf generate",
     "lint": "eslint src --ext .ts",
     "test": "jest",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "bin": {
+    "scopeconfig-copy-proto": "scripts/copy-proto.js"
   },
   "keywords": [
     "scopeconfig",
@@ -47,7 +51,8 @@
   "files": [
     "dist",
     "src",
-    "proto"
+    "proto",
+    "scripts"
   ],
   "engines": {
     "node": ">=18.0.0"
