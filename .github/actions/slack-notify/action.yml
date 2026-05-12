@@ -1,5 +1,6 @@
 name: 'Slack Notification'
-description: 'Sends a standardized Slack notification'
+description: 'Sends a standardized Slack notification for deployment pipeline'
+
 inputs:
   status:
     description: 'Status of the workflow (started, success, or failure)'
@@ -7,6 +8,9 @@ inputs:
   environment:
     description: 'Deployment environment'
     required: true
+  title:
+    description: 'Custom title override (optional). If not set, auto-generated from environment + status'
+    required: false
   image_size:
     description: 'Size of the docker image'
     required: false
@@ -17,7 +21,7 @@ inputs:
     description: 'Version/Tag being deployed (optional)'
     required: false
   custom_message:
-    description: 'Custom message for release notes (optional)'
+    description: 'Custom message for release notes or pipeline info (optional)'
     required: false
 
 runs:
@@ -29,6 +33,7 @@ runs:
       env:
         STATUS: ${{ inputs.status }}
         ENVIRONMENT: ${{ inputs.environment }}
+        TITLE: ${{ inputs.title }}
         IMAGE_SIZE: ${{ inputs.image_size }}
         VERSION: ${{ inputs.version }}
         CUSTOM_MESSAGE: ${{ inputs.custom_message }}
@@ -41,40 +46,45 @@ runs:
         case "$STATUS" in
           started)
             EMOJI="🚀"
-            STATUS_TEXT="Started"
             BUTTON_STYLE="primary"
             FOOTER_TEXT=""
             ;;
           success)
             EMOJI="✅"
-            STATUS_TEXT="Successful"
             BUTTON_STYLE="primary"
             FOOTER_TEXT=""
             ;;
           *)
             EMOJI="❌"
-            STATUS_TEXT="Failed"
             BUTTON_STYLE="danger"
             FOOTER_TEXT="⚠️ *Action Required:* Please check the workflow logs for details."
             ;;
         esac
 
-        HEADER_TEXT="${EMOJI} ${ENVIRONMENT} Deployment ${STATUS_TEXT}"
-        PLAIN_TEXT="${EMOJI} Deployment ${STATUS_TEXT}: ${REPOSITORY##*/} (${ENVIRONMENT})"
+        # Use custom title if provided, otherwise auto-generate
+        if [ -n "$TITLE" ]; then
+          HEADER_TEXT="${TITLE}"
+        else
+          HEADER_TEXT="${EMOJI} ${ENVIRONMENT} Deployment ${STATUS^}"
+        fi
+        PLAIN_TEXT="${EMOJI} Deployment ${STATUS^}: ${REPOSITORY##*/} (${ENVIRONMENT})"
 
         # Build the required fields array
-        # Use jq to build the JSON fields safely
         FIELDS=$(jq -n \
           --arg repo "$REPOSITORY" \
           --arg ref "$REF_NAME" \
           --arg actor "$ACTOR" \
-          --arg env "$ENVIRONMENT" \
           '[
             {"type":"mrkdwn","text":"*Repository:*\n\($repo)"},
             {"type":"mrkdwn","text":"*Ref:*\n\($ref)"},
-            {"type":"mrkdwn","text":"*Triggered by:*\n\($actor)"},
-            {"type":"mrkdwn","text":"*Environment:*\n\($env)"}
+            {"type":"mrkdwn","text":"*Triggered by:*\n\($actor)"}
           ]')
+
+        # Append optional environment field (only show if not already in title)
+        if [ -z "$TITLE" ]; then
+          FIELDS=$(echo "$FIELDS" | jq --arg env "$ENVIRONMENT" \
+            '. + [{"type":"mrkdwn","text":"*Environment:*\n\($env)"}]')
+        fi
 
         # Append optional image size field
         if [ -n "$IMAGE_SIZE" ]; then
@@ -124,12 +134,12 @@ runs:
             '.[0:2] + [$fb] + .[2:]')
         fi
 
-        # Insert optional release notes block before the actions block
+        # Insert optional custom message block (release notes, pipeline info, etc.)
         if [ -n "$CUSTOM_MESSAGE" ]; then
-          RELEASE_BLOCK=$(jq -n --arg msg "$CUSTOM_MESSAGE" \
-            '{"type":"section","text":{"type":"mrkdwn","text":"*Release Notes:*\n```\($msg)```"}}')
-          BLOCKS=$(echo "$BLOCKS" | jq --argjson rb "$RELEASE_BLOCK" \
-            '.[0:2] + [$rb] + .[2:]')
+          CUSTOM_BLOCK=$(jq -n --arg msg "$CUSTOM_MESSAGE" \
+            '{"type":"section","text":{"type":"mrkdwn","text":$msg}}')
+          BLOCKS=$(echo "$BLOCKS" | jq --argjson cb "$CUSTOM_BLOCK" \
+            '.[0:2] + [$cb] + .[2:]')
         fi
 
         # Assemble final payload
