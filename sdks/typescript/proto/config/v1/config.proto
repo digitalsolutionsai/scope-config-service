@@ -62,6 +62,9 @@ enum FieldType {
   JSON = 5;
   ARRAY_STRING = 6; // Example for an array type
   SECRET = 7;       // Sensitive field - UI should mask/hide value
+  HTML = 8;         // HTML content
+  TEXTAREA = 9;     // Multi-line plain text
+  MARKDOWN = 10;    // Markdown content
 }
 
 // === MODELS ===
@@ -181,6 +184,8 @@ message VersionHistoryEntry {
     int32 version = 1;
     google.protobuf.Timestamp created_at = 2;
     string created_by = 3;
+    optional google.protobuf.Timestamp published_at = 4;
+    optional string published_by = 5;
 }
 
 message GetConfigHistoryResponse {

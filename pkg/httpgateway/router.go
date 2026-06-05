@@ -2,6 +2,7 @@ package httpgateway
 
 import (
 	"database/sql"
+	"net/http"
 
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"github.com/go-chi/chi/v5"
@@ -56,9 +57,12 @@ func NewRouterWithConfig(config RouterConfig) *chi.Mux {
 			r.Use(config.AuthMiddleware.Middleware)
 		}
 
-		// Built-in Admin UI
-		r.Get("/admin", ServeAdminUI)
-		r.Get("/admin/", ServeAdminUI)
+		// Built-in Admin UI (serving static files from embedded FS)
+		uiFS := AdminUIFS()
+		r.Handle("/admin/*", http.StripPrefix("/admin/", http.FileServer(uiFS)))
+		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+			ServeAdminUI(w, r)
+		})
 
 		// Global templates list — supports ?includeInactive=true for admin UI
 		r.Get("/api/v1/config/templates", adminGW.ListAllTemplates)
