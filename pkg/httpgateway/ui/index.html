@@ -21,17 +21,17 @@
     }
   </script>
 
-  <!-- External scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-  
+  <!-- External scripts (self-hosted; CDN-free) -->
+  <script src="/admin/vendor/js-yaml.min.js"></script>
+  <script src="/admin/vendor/marked.min.js"></script>
+
   <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.css" />
   <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } };</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.nls.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.js"></script>
-  
+
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <!-- App Styles -->
   <link rel="stylesheet" href="/admin/styles.css" />
@@ -79,23 +79,37 @@
     Import / Manage Templates
   </button>
 
+  <!-- Search filter -->
+  <div class="px-4 mt-2">
+    <div class="relative">
+      <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" v-model="navSearch" placeholder="Filter groups..." class="w-full pl-7 pr-7 py-1.5 bg-surface-50 border border-surface-200 rounded-md text-[12px] outline-none focus:border-brand-500" />
+      <button v-if="navSearch" @click="navSearch=''" class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 cursor-pointer bg-transparent border-none text-[14px] leading-none p-0" title="Clear">✕</button>
+    </div>
+  </div>
+
   <!-- Nav tree -->
   <div class="flex-1 overflow-y-auto py-2" id="nav-tree">
     <div v-if="loadingNav" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
     <div v-else-if="templates.length===0" class="px-5 py-4 text-[12px] text-surface-400">No templates found.<br>Apply a template first.</div>
-    <div v-else v-for="(info, svc) in serviceMap" :key="svc">
+    <div v-else-if="filteredServiceMap && Object.keys(filteredServiceMap).length===0" class="px-5 py-4 text-[12px] text-surface-400 flex flex-col gap-2">
+      <span>No groups match "<strong class="text-surface-600">{{ navSearch }}</strong>"</span>
+      <button @click="navSearch=''" class="text-brand-500 hover:underline self-start text-[12px]">Clear filter</button>
+    </div>
+    <div v-else v-for="(info, svc) in filteredServiceMap" :key="svc">
       <div class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-surface-400 cursor-pointer select-none hover:text-surface-700 transition-colors" @click="toggleService(svc)">
         <span class="text-[10px] transition-transform duration-200" :class="{'rotate-90': openServices[svc]}">▶</span>
         {{ info.label }}
+        <span class="ml-auto text-[10px] font-mono text-surface-400">{{ info.groups.length }}</span>
       </div>
-      <div v-show="openServices[svc]">
+      <div v-show="openServices[svc] || navSearch">
         <div v-for="g in info.groups" :key="g.groupId"
           class="flex items-center gap-2 py-1.5 px-4 pl-7 cursor-pointer transition-colors text-[13px]"
           :class="g.serviceName===selectedService && g.groupId===selectedGroup ? 'bg-brand-500 text-white rounded-r-lg mr-2' : 'text-surface-500 hover:bg-surface-100 hover:text-surface-800'"
           :title="g.description||''"
           @click="selectGroup(g.serviceName, g.groupId)">
           <span class="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0"></span>
-          {{ g.groupLabel || g.groupId }}
+          <span v-html="highlightMatch(g.groupLabel || g.groupId)"></span>
         </div>
       </div>
     </div>
@@ -103,7 +117,46 @@
 </aside>
 
 <!-- Main content -->
-<main class="flex-1 flex flex-col overflow-hidden">
+<main class="flex-1 flex flex-row overflow-hidden min-w-0">
+  <!-- Version History (left side, always visible when a group is selected) -->
+  <aside v-if="selectedGroup" class="w-[300px] min-w-[300px] max-md:hidden border-r border-surface-200 bg-white flex flex-col overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-surface-200">
+      <h3 class="text-[13px] font-semibold text-surface-800">Version History</h3>
+      <span class="text-[11px] text-surface-400" v-if="historyItems.length">{{ historyItems.length }} version{{ historyItems.length===1?'':'s' }}</span>
+    </div>
+    <div class="flex-1 overflow-y-auto py-1">
+      <div v-if="loadingHistory" class="flex items-center justify-center py-10"><div class="spinner"></div></div>
+      <div v-else-if="historyItems.length===0" class="px-4 py-6 text-[12px] text-surface-400 text-center">No history yet.<br><span class="text-[11px]">Save a draft to create version 1.</span></div>
+      <div v-else v-for="h in historyItems" :key="h.version" @click="viewVersion(h.version)"
+        class="px-4 py-2.5 cursor-pointer transition-colors border-l-[3px] hover:bg-surface-50"
+        :class="isActiveVersion(h) ? 'border-l-brand-500 bg-blue-50' : 'border-l-transparent'"
+        :title="'Version ' + h.version + (h.createdBy ? ' · by ' + h.createdBy : '')">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[15px] font-bold leading-none"
+                :class="h.version===currentConfig?.publishedVersion ? 'text-ok' : h.version===currentConfig?.latestVersion ? 'text-brand-500' : 'text-surface-400'">
+                v{{ h.version }}
+              </span>
+              <span v-if="h.version===currentConfig?.publishedVersion" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-50 text-ok border border-green-200">Active</span>
+              <span v-else-if="h.version===currentConfig?.latestVersion" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-warn border border-amber-200">Draft</span>
+              <span v-else-if="h.publishedAt" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-brand-500 border border-blue-200 opacity-60">Published</span>
+            </div>
+            <div class="text-[11px] text-surface-500 mt-1 truncate">{{ h.createdBy || '—' }}</div>
+            <div class="text-[10px] text-surface-400 mt-0.5">{{ formatDate(h.createdAt) }}</div>
+          </div>
+          <button v-if="h.version!==currentConfig?.publishedVersion" @click.stop="startPublishVersion(h.version)"
+            class="text-[11px] px-2 py-1 rounded border border-ok text-ok bg-white hover:bg-green-50 font-medium cursor-pointer shrink-0 transition-colors"
+            title="Publish this version (make it live)">
+            ↑ Publish
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Content area (form) -->
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
   <!-- Topbar -->
   <div class="flex items-center justify-between px-6 py-3.5 border-b border-surface-200 bg-white gap-3">
     <div class="flex items-center gap-3">
@@ -121,10 +174,6 @@
     </div>
     <div class="flex gap-2 items-center">
       <input type="text" v-model="userName" placeholder="your-email (for audit)" title="Username/email used for audit trail" class="w-40 text-[12px] px-2.5 py-1.5 bg-surface-50 border border-surface-200 rounded-lg outline-none focus:border-brand-500" />
-      <button v-if="selectedGroup" @click="openHistoryPanel" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 hover:text-surface-700 transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4"/><polyline points="3 3 3 7 7 7"/></svg>
-        History
-      </button>
       <button v-if="selectedGroup" @click="loadConfig" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] cursor-pointer border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 transition-colors" title="Reload">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.68-8.81"/></svg>
       </button>
@@ -133,7 +182,7 @@
         <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         {{ dirty ? '● Save Draft' : 'Save Draft' }}
       </button>
-      <button v-if="selectedGroup" @click="startPublish" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-ok bg-ok text-white hover:opacity-85 transition-opacity">
+      <button v-if="selectedGroup && false" @click="startPublish" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-ok bg-ok text-white hover:opacity-85 transition-opacity">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
         Publish
       </button>
@@ -147,7 +196,7 @@
   </div>
 
   <!-- Content area -->
-  <div class="flex-1 overflow-y-auto p-6">
+  <div class="flex-1 overflow-y-auto p-6 min-w-0">
     <!-- Empty state -->
     <div v-if="!selectedGroup && !loadingContent" class="flex flex-col items-center justify-center h-full text-surface-400 gap-3">
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="opacity-30"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
@@ -213,7 +262,8 @@
           <!-- INT / FLOAT -->
           <div v-else-if="field.type==='INT' || field.type==='FLOAT'">
             <input type="number" :value="fieldValues[field.path]" @input="onFieldInput(field.path, $event.target.value)" :step="field.type==='FLOAT'?'any':'1'" :readonly="viewingVersion!==null"
-              class="w-full bg-surface-50 border border-surface-200 rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500" />
+              :class="['w-full bg-surface-50 border rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-brand-500', jsonErrors[field.path] ? 'border-danger' : 'border-surface-200']" />
+            <div v-if="jsonErrors[field.path]" class="text-danger text-[11px] mt-1">{{ jsonErrors[field.path] }}</div>
           </div>
 
           <!-- SECRET -->
@@ -249,45 +299,22 @@
       <p>No fields configured for <strong>{{ scope }}</strong> scope.</p>
     </div>
   </div>
+  </div><!-- end content wrapper -->
 </main>
 
 <!-- Modal overlay -->
 <div v-if="showOverlay" @click="closeAll" class="fixed inset-0 bg-black/40 z-[90]"></div>
-
-<!-- History panel -->
-<aside id="history-panel" :class="{'open': showHistory}" class="fixed right-0 top-0 bottom-0 w-[360px] bg-white border-l border-surface-200 z-[100] flex flex-col shadow-xl">
-  <div class="flex items-center justify-between px-5 py-4 border-b border-surface-200 font-semibold">
-    <span>Version History</span>
-    <button @click="closeHistoryPanel" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">✕</button>
-  </div>
-  <div class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
-    <div v-if="loadingHistory" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
-    <div v-else-if="historyItems.length===0" class="text-surface-400 py-4 text-[13px]">No history yet.</div>
-    <div v-else v-for="h in historyItems" :key="h.version" @click="viewVersion(h.version)"
-      class="bg-surface-50 border border-surface-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer transition-all hover:border-brand-300 hover:bg-surface-100"
-      :class="{'border-brand-500 bg-blue-50': h.version===viewingVersion}">
-      <div class="text-[22px] font-bold min-w-[32px] text-center"
-        :class="h.version===currentConfig?.publishedVersion ? 'text-ok' : h.version===currentConfig?.latestVersion ? 'text-brand-500' : 'text-surface-300'">{{ h.version }}</div>
-      <div class="flex-1">
-        <div class="text-[13px] font-medium">{{ h.createdBy || '—' }}</div>
-        <div class="text-[11px] text-surface-400 mt-0.5">{{ formatDate(h.createdAt) }}</div>
-        <span v-if="h.version===currentConfig?.publishedVersion" class="inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] bg-green-50 text-ok border border-green-200">✓ published</span>
-        <span v-if="h.version===currentConfig?.latestVersion" class="inline-flex mt-1 ml-1 px-2 py-0.5 rounded-full text-[10px] bg-blue-50 text-brand-500 border border-blue-200">latest</span>
-      </div>
-      <div class="flex flex-col gap-1.5 items-end">
-        <button @click.stop="viewVersion(h.version)" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">👁 View</button>
-        <button v-if="h.version!==currentConfig?.publishedVersion" @click.stop="publishVersion(h.version)" class="px-2.5 py-1 rounded-md text-[12px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">↑ Publish</button>
-      </div>
-    </div>
-  </div>
-</aside>
 
 <!-- Publish confirm modal -->
 <div v-if="showPublishModal" class="fixed inset-0 flex items-center justify-center z-[200]">
   <div class="fixed inset-0 bg-black/50" @click="showPublishModal=false"></div>
   <div class="relative bg-white border border-surface-200 rounded-xl p-7 w-[400px] flex flex-col gap-5 shadow-2xl">
     <h3 class="text-base font-semibold">Publish Configuration</h3>
-    <p class="text-[13px] text-surface-500 leading-relaxed">Make version <strong>{{ publishingVersion }}</strong> the live, published version?<br/><br/>This will update what clients and services receive as the active configuration.</p>
+    <p class="text-[13px] text-surface-500 leading-relaxed">
+      Make version <strong>{{ publishingVersion }}</strong> the live, published version?<br/>
+      <span v-if="publishingVersion !== currentConfig?.latestVersion" class="text-warn">⚠ This is not the latest version (v{{ currentConfig?.latestVersion }}). Publishing will skip the newer draft(s).</span>
+      <br/><br/>This will update what clients and services receive as the active configuration.
+    </p>
     <div class="flex gap-2 justify-end">
       <button @click="showPublishModal=false" class="px-3.5 py-1.5 rounded-lg text-[13px] border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 cursor-pointer">Cancel</button>
       <button @click="confirmPublish" :disabled="publishing" class="px-3.5 py-1.5 rounded-lg text-[13px] font-medium border border-ok bg-ok text-white hover:opacity-85 disabled:opacity-40 cursor-pointer">{{ publishing ? 'Publishing…' : '✓ Publish Now' }}</button>

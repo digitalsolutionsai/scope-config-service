@@ -22,6 +22,10 @@
 /* Monaco container */
 #editor-container { min-height:0; height:100%; }
 
+/* Search highlight (mark) */
+mark { background-color: #fef3c7; color: inherit; padding: 0 2px; border-radius: 2px; }
+.bg-danger { background-color: #fef2f2; }
+
 /* History panel slide */
 #history-panel { transform:translateX(100%); transition:transform .25s ease; }
 #history-panel.open { transform:translateX(0); }
