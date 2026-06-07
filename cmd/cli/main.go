@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/digitalsolutionsai/scope-config-service/pkg/version"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 
 	"github.com/spf13/cobra"
@@ -12,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const cliVersion = "0.1.0"
+var cliVersion = version.Version
 
 var (
 	cfgFile     string

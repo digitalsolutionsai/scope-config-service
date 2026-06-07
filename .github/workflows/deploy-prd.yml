@@ -5,6 +5,10 @@ on:
     tags:
       - '*-prd'  # Triggers on tags ending with -prd, e.g., 2511.02.1-prd
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: asia-southeast1-docker.pkg.dev
   PROJECT_ID: dsai-production
@@ -14,13 +18,14 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    environment: production  # Use the production environment for secrets
+    environment: production
     outputs:
       image_size_mb: ${{ steps.image_size.outputs.size_mb }}
+      tag: ${{ steps.extract_tag.outputs.tag }}
 
     permissions:
       contents: read
-      id-token: write  # Required for Workload Identity Federation
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -43,7 +48,7 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-        
+
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
@@ -84,20 +89,38 @@ jobs:
       - name: Image digest
         run: echo "Image pushed successfully with tag ${{ steps.extract_tag.outputs.tag }} (Size - ${{ steps.image_size.outputs.size_mb }} MB)"
 
+      - name: Send Slack notification on success
+        if: success()
+        uses: ./.github/actions/slack-notify
+        with:
+          status: 'success'
+          environment: 'Production'
+          version: ${{ steps.extract_tag.outputs.tag }}
+          image_size: ${{ steps.image_size.outputs.size_mb }} MB
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send Slack notification on failure
+        if: failure()
+        uses: ./.github/actions/slack-notify
+        with:
+          status: 'failure'
+          environment: 'Production'
+          version: ${{ steps.extract_tag.outputs.tag }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: production  # This provides manual approval requirement
-    
+    environment: production
+
     permissions:
       contents: read
-      id-token: write  # Required for Workload Identity Federation
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required to fetch tags
+          fetch-depth: 0
 
       - name: Extract tag name
         id: extract_tag
@@ -110,7 +133,6 @@ jobs:
         id: get_tag_message
         run: |
           TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ steps.extract_tag.outputs.tag }})
-          # Escape newlines for JSON
           TAG_MESSAGE="${TAG_MESSAGE//'%'/'%25'}"
           TAG_MESSAGE="${TAG_MESSAGE//$'\n'/'\n'}"
           TAG_MESSAGE="${TAG_MESSAGE//$'\r'/'\r'}"
@@ -118,88 +140,119 @@ jobs:
           echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Send Slack notification on deployment start
+      # ============================================
+      # Message 1: Deployment Started
+      # ============================================
+      - name: "[M1] Send Slack - Deployment Started"
         uses: ./.github/actions/slack-notify
         with:
           status: 'started'
-          environment: 'Production'
+          title: '🚀 Production Deployment Started'
           version: ${{ steps.extract_tag.outputs.tag }}
-          image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
-          custom_message: ${{ steps.get_tag_message.outputs.message }}
+          custom_message: |
+            *Release Notes:*
+            ${{ steps.get_tag_message.outputs.message }}
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-      
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
+
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      
-      - name: Deploy to K3s production cluster
-        id: k3s_deploy
+          repository: digitalsolutionsai/dsai-infra
+          token: ${{ secrets.DSAI_INFRA_WRITE_TOKEN }}
+          path: dsai-infra
+
+      - name: Update production Kubernetes image tag
+        id: update_infra
         env:
-          INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME }}
-          INSTANCE_ZONE: ${{ vars.GCP_INSTANCE_ZONE }}
           TAG_VERSION: ${{ steps.extract_tag.outputs.tag }}
-          SERVICE_NAME: "config-service"
-          IMAGE_PATH: "asia-southeast1-docker.pkg.dev/dsai-production/scope-config-service/scope-config-service"
+          IMAGE_PATH: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}
+          KUSTOMIZATION_FILE: dsai-infra/k8s/overlays/prod/kustomization.yaml
         run: |
-          echo "Deploying to instance: $INSTANCE_NAME in zone: $INSTANCE_ZONE"
-          echo "Service: $SERVICE_NAME"
-          echo "Version: $TAG_VERSION"
-          
-          # Create deployment command using kubectl to natively update K3s deployment
-          DEPLOY_COMMAND="export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && \
-          echo '=== Initiating rolling update for deployment/${SERVICE_NAME} ===' && \
-          sudo kubectl set image deployment/${SERVICE_NAME} ${SERVICE_NAME}=${IMAGE_PATH}:${TAG_VERSION} -n dsai-prd && \
-          echo '=== Waiting for rollout to complete ===' && \
-          sudo kubectl rollout status deployment/${SERVICE_NAME} -n dsai-prd --timeout=120s && \
-          echo '=== Wait 10s for old pods to terminate ===' && \
-          sleep 10 && \
-          echo '=== Pruning unused images from containerd ===' && \
-          sudo k3s crictl rmi --prune || true && \
-          POD_NAMES=\$(sudo kubectl get pods -n dsai-prd -l app=${SERVICE_NAME} --no-headers -o custom-columns=\":metadata.name\" | paste -sd, -) && \
-          echo \"PODS_LIST=\$POD_NAMES\" && \
-          echo '=== Deployment completed successfully ==='"
-          
-          # SSH to instance and deploy
-          OUTPUT=$(gcloud compute ssh "$INSTANCE_NAME" \
-            --zone="$INSTANCE_ZONE" \
-            --tunnel-through-iap \
-            --command="$DEPLOY_COMMAND")
-            
-          echo "$OUTPUT"
-          
-          # Extract pods list and expose it to other steps
-          PODS=$(echo "$OUTPUT" | grep -oP '(?<=^PODS_LIST=).*' || true)
-          if [ -z "$PODS" ]; then
-            PODS="Unknown (Failed to parse pods)"
+          echo "Updating $IMAGE_PATH to tag $TAG_VERSION in $KUSTOMIZATION_FILE"
+
+          awk -v image="$IMAGE_PATH" -v tag="$TAG_VERSION" '
+            $0 == "  - name: " image {
+              in_image = 1
+              found = 1
+              print
+              next
+            }
+            in_image == 1 && $1 == "newTag:" {
+              print "    newTag: " tag
+              in_image = 0
+              next
+            }
+            { print }
+            END {
+              if (found != 1) {
+                exit 2
+              }
+            }
+          ' "$KUSTOMIZATION_FILE" > "${KUSTOMIZATION_FILE}.tmp"
+
+          mv "${KUSTOMIZATION_FILE}.tmp" "$KUSTOMIZATION_FILE"
+
+          if git -C dsai-infra diff --quiet -- k8s/overlays/prod/kustomization.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No infrastructure tag change needed"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "pods=$PODS" >> $GITHUB_OUTPUT
-      
-      - name: Send Slack notification on success
+
+      - name: Commit production Kubernetes image tag
+        id: commit_infra
+        if: steps.update_infra.outputs.changed == 'true'
+        env:
+          TAG_VERSION: ${{ steps.extract_tag.outputs.tag }}
+        run: |
+          cd dsai-infra
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/prod/kustomization.yaml
+          git commit -m "chore(prod): deploy scope-config-service ${TAG_VERSION}"
+          git push
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # ============================================
+      # Message 2: Build Completed → Triggering Infra
+      # ============================================
+      - name: "[M2] Send Slack - Build Completed, Triggering Infra"
         if: success()
         uses: ./.github/actions/slack-notify
         with:
           status: 'success'
-          environment: 'Production'
+          title: '✅ Build Completed → Triggering dsai-infra'
           version: ${{ steps.extract_tag.outputs.tag }}
           image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
           custom_message: |
-            ${{ steps.get_tag_message.outputs.message }}
-            
-            Pods: ${{ steps.k3s_deploy.outputs.pods }}
+            ⬆️ Pipeline: Build completed. dsai-infra will deploy shortly.
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-      
+
+      # ============================================
+      # Message 3: Infra Updated (after commit)
+      # ============================================
+      - name: "[M3] Send Slack - Infra Updated"
+        if: success() && steps.commit_infra.outputs.changed == 'true'
+        uses: ./.github/actions/slack-notify
+        with:
+          status: 'success'
+          title: '✅ Infra Updated → dsai-infra Deploying'
+          custom_message: |
+            Commit: `${{ steps.commit_infra.outputs.commit_sha }}`
+            ⏳ Kubernetes deployment in progress...
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # ============================================
+      # Failure: Notify on any error
+      # ============================================
       - name: Send Slack notification on failure
         if: failure()
         uses: ./.github/actions/slack-notify
         with:
           status: 'failure'
-          environment: 'Production'
+          title: '❌ Deployment Pipeline Failed'
           version: ${{ steps.extract_tag.outputs.tag }}
           image_size: ${{ needs.build-and-push.outputs.image_size_mb }} MB
+          custom_message: |
+            ⚠️ Please check the workflow logs for details.
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

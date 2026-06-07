@@ -14,13 +14,14 @@ import (
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/seedloader"
 	"github.com/digitalsolutionsai/scope-config-service/pkg/service"
+	"github.com/digitalsolutionsai/scope-config-service/pkg/version"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	log.Println("Starting ScopeConfig Service...")
+	log.Printf("Starting ScopeConfig Service v%s...", version.Version)
 
 	// Detect database dialect and DSN from environment.
 	// If DATABASE_URL is set, PostgreSQL is used. Otherwise, SQLite is the default.
@@ -108,7 +109,7 @@ func startHTTPGateway(db *sql.DB, grpcPort, httpPort string) {
 	// Connect to local gRPC server
 	grpcAddr := fmt.Sprintf("localhost:%s", grpcPort)
 	log.Printf("Connecting to gRPC server at %s...", grpcAddr)
-	
+
 	conn, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -124,9 +125,22 @@ func startHTTPGateway(db *sql.DB, grpcPort, httpPort string) {
 	// Create HTTP router without authentication
 	// Authentication is handled at the API Gateway level (e.g., Spring Gateway)
 	log.Println("HTTP service is public - authentication handled at gateway level")
+
+	// Setup Basic Auth middleware
+	authUser := os.Getenv("AUTH_USER")
+	authPassword := os.Getenv("AUTH_PASSWORD")
+	basicAuth := httpgateway.NewBasicAuthMiddleware(authUser, authPassword)
+
+	if authUser != "" && authPassword != "" {
+		log.Println("Basic Auth enabled for protected routes")
+	} else {
+		log.Println("INFO: AUTH_USER/AUTH_PASSWORD not set — running in open mode (internal/gateway deployment)")
+	}
+
 	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
-		Client: client,
-		DB:     db,
+		Client:              client,
+		BasicAuthMiddleware: basicAuth,
+		DB:                  db,
 	})
 
 	// Create HTTP server
@@ -146,7 +160,7 @@ func startHTTPGateway(db *sql.DB, grpcPort, httpPort string) {
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/latest?groupId={groupId}&...")
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/history?groupId={groupId}&...")
 	log.Println("  POST /api/v1/config/{serviceName}/scope/{scope}/publish?groupId={groupId}")
-	
+
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}

@@ -24,6 +24,7 @@ Before using the service, it's helpful to understand two key concepts:
   - **HTTP REST API Gateway**: A lightweight HTTP/JSON wrapper for easy frontend integration. See [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
   - **Swagger UI**: Interactive API documentation at `/swagger/index.html` for easy API exploration and testing.
   - **Command-Line Interface (CLI)**: A powerful CLI (`config-cli`) for easy interaction with the service.
+  - **Optional Basic Auth**: Protect admin and config routes with HTTP Basic Authentication via environment variables. Swagger docs remain public.
 
 -----
 
@@ -281,6 +282,17 @@ The config service runs both gRPC and HTTP in a single container and will be ava
 
 For detailed HTTP API documentation and examples, see the [HTTP Gateway Documentation](docs/HTTP_GATEWAY.md).
 
+### Enabling Basic Auth (Optional)
+
+To protect admin and config routes with HTTP Basic Authentication, set `AUTH_USER` and `AUTH_PASSWORD` in your `.env` file:
+
+```bash
+AUTH_USER=admin
+AUTH_PASSWORD=changeme
+```
+
+When both are set, all routes except `/swagger/*` require valid Basic Auth credentials. When either is empty or unset, the service runs in open mode.
+
 ### Exploring the API with Swagger UI
 
 Once the service is running, you can explore and test the HTTP API interactively:
@@ -298,7 +310,14 @@ This guide walks you through the complete lifecycle of a configuration using the
 
 ### Step 1: Define and Apply a Template (Admin Task)
 
-First, define the schema for your configuration in a YAML file. This is typically done once when setting up a new service.
+First, check the CLI and server version:
+
+```bash
+# Show client and server version
+config-cli version
+```
+
+Next, define the schema for your configuration in a YAML file. This is typically done once when setting up a new service.
 
 **Example `payment-template.yaml`:**
 

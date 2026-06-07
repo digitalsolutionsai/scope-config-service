@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/digitalsolutionsai/scope-config-service/pkg/httpgateway"
+	"github.com/digitalsolutionsai/scope-config-service/pkg/version"
 	configv1 "github.com/digitalsolutionsai/scope-config-service/proto/config/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	log.Println("Starting HTTP Gateway for ScopeConfig Service...")
+	log.Printf("Starting HTTP Gateway for ScopeConfig Service v%s...", version.Version)
 
 	// Get gRPC server address from environment or use default
 	grpcAddr := os.Getenv("GRPC_SERVER_ADDRESS")
@@ -60,7 +61,7 @@ func main() {
 		log.Println("Keycloak authentication enabled")
 		log.Printf("  Client: %s", keycloakClient)
 		log.Printf("  Required roles: %s", keycloakRoles)
-		
+
 		roles := strings.Split(keycloakRoles, ",")
 		authMiddleware, err = httpgateway.NewAuthMiddleware(keycloakPublicKey, keycloakClient, roles)
 		if err != nil {
@@ -72,10 +73,22 @@ func main() {
 		authMiddleware, _ = httpgateway.NewAuthMiddleware("", "", nil)
 	}
 
+	// Setup Basic Auth middleware
+	authUser := os.Getenv("AUTH_USER")
+	authPassword := os.Getenv("AUTH_PASSWORD")
+	basicAuth := httpgateway.NewBasicAuthMiddleware(authUser, authPassword)
+
+	if authUser != "" && authPassword != "" {
+		log.Println("Basic Auth enabled for protected routes")
+	} else {
+		log.Println("INFO: AUTH_USER/AUTH_PASSWORD not set — running in open mode (internal/gateway deployment)")
+	}
+
 	// Create HTTP router with authentication
 	router := httpgateway.NewRouterWithConfig(httpgateway.RouterConfig{
-		Client:         client,
-		AuthMiddleware: authMiddleware,
+		Client:              client,
+		AuthMiddleware:      authMiddleware,
+		BasicAuthMiddleware: basicAuth,
 	})
 
 	// Create HTTP server
@@ -95,7 +108,7 @@ func main() {
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/latest?groupId={groupId}&...")
 	log.Println("  GET  /api/v1/config/{serviceName}/scope/{scope}/history?groupId={groupId}&...")
 	log.Println("  POST /api/v1/config/{serviceName}/scope/{scope}/publish?groupId={groupId}")
-	
+
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}
