@@ -5,6 +5,7 @@ const app = createApp({
     return {
       // Nav
       templates: [], loadingNav: true, openServices: {},
+      navSearch: '',
       selectedService: null, selectedGroup: null,
       // Scope
       scope: 'SYSTEM', projectId: '', storeId: '', userId: '',
@@ -42,6 +43,24 @@ const app = createApp({
       }
       return map;
     },
+    filteredServiceMap() {
+      const q = (this.navSearch || '').trim().toLowerCase();
+      if (!q) return this.serviceMap;
+      const out = {};
+      for (const [svc, info] of Object.entries(this.serviceMap)) {
+        const matchLabel = (info.label || '').toLowerCase().includes(q);
+        const matchedGroups = info.groups.filter(g => {
+          if (matchLabel) return true;
+          return ((g.groupLabel || g.groupId) + ' ' + (g.serviceName || '') + ' ' + (g.groupId || '')).toLowerCase().includes(q);
+        });
+        if (matchedGroups.length) {
+          out[svc] = { label: info.label, groups: matchedGroups };
+          // Auto-expand service when searching
+          this.openServices[svc] = true;
+        }
+      }
+      return out;
+    },
     scopeBadgeText() {
       const parts = [this.scope];
       if (this.projectId) parts.push('proj:'+this.projectId);
@@ -73,6 +92,18 @@ const app = createApp({
       setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 4000);
     },
     sanitizeId(path) { return path.replace(/[^a-zA-Z0-9]/g, '_'); },
+    escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); },
+    highlightMatch(text) {
+      const q = (this.navSearch || '').trim();
+      const safe = this.escapeHtml(text);
+      if (!q) return safe;
+      const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+      return safe.replace(re, '<mark class="bg-yellow-200 text-surface-800 rounded px-0.5">$1</mark>');
+    },
+    confirmDiscardIfDirty(action) {
+      if (!this.dirty) return action();
+      if (confirm('You have unsaved changes. Discard them?')) action();
+    },
     formatDate(iso) {
       if (!iso) return '—';
       return new Date(iso).toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -101,14 +132,18 @@ const app = createApp({
 
     // Select group
     async selectGroup(svc, grp) {
-      this.selectedService = svc;
-      this.selectedGroup = grp;
-      this.dirty = false;
-      this.fieldValues = {};
-      this.secretVisible = {};
-      this.jsonErrors = {};
-      this.openServices[svc] = true;
-      await this.loadConfig();
+      if (svc === this.selectedService && grp === this.selectedGroup) return;
+      this.confirmDiscardIfDirty(async () => {
+        this.selectedService = svc;
+        this.selectedGroup = grp;
+        this.dirty = false;
+        this.fieldValues = {};
+        this.secretVisible = {};
+        this.jsonErrors = {};
+        this.openServices[svc] = true;
+        await this.loadConfig();
+        await this.loadHistory();  // Auto-load history for left side
+      });
     },
 
     onScopeChange() { if (this.selectedService && this.selectedGroup) this.loadConfig(); },
@@ -146,7 +181,23 @@ const app = createApp({
     },
 
     // Field handlers
-    onFieldInput(path, val) { this.fieldValues[path] = val; this.dirty = true; },
+    onFieldInput(path, val) {
+      this.fieldValues[path] = val;
+      this.dirty = true;
+      // Per-type validation
+      const f = (this.currentTemplate?.fields || []).find(x => x.path === path);
+      if (!f) return;
+      const t = (f.type || '').toUpperCase();
+      if (t === 'INT' || t === 'FLOAT') {
+        if (val === '' || val === null || val === undefined) {
+          delete this.jsonErrors[path];
+        } else if (Number.isNaN(Number(val))) {
+          this.jsonErrors[path] = `Must be a valid ${t === 'INT' ? 'integer' : 'number'}`;
+        } else {
+          delete this.jsonErrors[path];
+        }
+      }
+    },
     onToggle(path, evt) { this.fieldValues[path] = evt.target.checked ? 'true' : 'false'; this.dirty = true; },
     formatJsonValue(path) {
       const v = this.fieldValues[path] || '';
@@ -178,6 +229,11 @@ const app = createApp({
 
     // Save
     async saveConfig() {
+      // Block save if there are validation errors
+      if (Object.keys(this.jsonErrors).length) {
+        this.toast('Fix '+Object.keys(this.jsonErrors).length+' validation error(s) first', 'error');
+        return;
+      }
       this.saving = true;
       const params = this.scopeParams();
       try {
@@ -189,7 +245,10 @@ const app = createApp({
         const result = await this.api('PUT', `/api/v1/config/${this.selectedService}/scope/${this.scope}?${cParams}`, body);
         this.currentConfig = result;
         this.dirty = false;
+        this.viewingVersion = null; // back to latest after saving new draft
         this.toast(`Saved as draft version ${result.latestVersion}`, 'success');
+        // Refresh version history so the new draft appears immediately
+        await this.loadHistory();
       } catch(e) { this.toast('Save failed: '+e.message, 'error'); }
       this.saving = false;
     },
@@ -198,6 +257,11 @@ const app = createApp({
     startPublish() {
       if (!this.currentConfig?.latestVersion) { this.toast('Save a draft first', 'error'); return; }
       this.publishingVersion = this.currentConfig.latestVersion;
+      this.showPublishModal = true;
+    },
+    startPublishVersion(version) {
+      // Triggered by ↑ Publish button on a history row (any version, not just latest)
+      this.publishingVersion = version;
       this.showPublishModal = true;
     },
     async confirmPublish() {
@@ -224,15 +288,15 @@ const app = createApp({
         const cParams = new URLSearchParams({ groupId: this.selectedGroup });
         await this.api('POST', `/api/v1/config/${this.selectedService}/scope/${this.scope}/publish?${cParams}`, body);
         this.toast(`Version ${version} published!`, 'success');
-        this.closeHistoryPanel();
-        this.loadConfig();
+        this.viewingVersion = null;
+        await this.loadConfig();
+        await this.loadHistory();
       } catch(e) { this.toast('Failed: '+e.message, 'error'); }
     },
 
     // History
-    async openHistoryPanel() {
-      this.showHistory = true;
-      this.showOverlay = true;
+    async loadHistory() {
+      if (!this.selectedService || !this.selectedGroup) return;
       this.loadingHistory = true;
       const params = this.scopeParams();
       const cParams = new URLSearchParams(params);
@@ -241,14 +305,35 @@ const app = createApp({
       try {
         const data = await this.api('GET', `/api/v1/config/${this.selectedService}/scope/${this.scope}/history?${cParams}`);
         this.historyItems = data.history || [];
-      } catch(e) { this.historyItems = []; this.toast(e.message, 'error'); }
+      } catch(e) { this.historyItems = []; this.toast('History: '+e.message, 'error'); }
       this.loadingHistory = false;
     },
-    closeHistoryPanel() { this.showHistory = false; this.showOverlay = false; },
-
+    isActiveVersion(h) {
+      // Highlight the version currently being viewed.
+      // If viewingVersion is null (default = latest), highlight the latest.
+      const v = this.viewingVersion === null ? (this.currentConfig?.latestVersion) : this.viewingVersion;
+      return h.version === v;
+    },
     async viewVersion(version) {
+      // Latest: clear viewingVersion so the form goes back to "edit" mode
+      if (version === (this.currentConfig?.latestVersion)) {
+        this.viewingVersion = null;
+        this.loadingContent = true;
+        const params = this.scopeParams();
+        const cParams = new URLSearchParams(params);
+        cParams.set('groupId', this.selectedGroup);
+        try {
+          const cfg = await this.api('GET', `/api/v1/config/${this.selectedService}/scope/${this.scope}/latest?${cParams}`);
+          const cfgFields = cfg?.fields || {};
+          for (const f of (this.currentTemplate?.fields||[])) {
+            const raw = cfgFields[f.path] !== undefined ? cfgFields[f.path] : f.defaultValue ?? '';
+            this.fieldValues[f.path] = String(raw);
+          }
+        } catch(e) { this.toast('Error: '+e.message, 'error'); }
+        this.loadingContent = false;
+        return;
+      }
       this.viewingVersion = version;
-      this.closeHistoryPanel();
       this.loadingContent = true;
       const params = this.scopeParams();
       const cParams = new URLSearchParams(params);
@@ -267,13 +352,11 @@ const app = createApp({
     // Template panel
     openTemplatePanel() {
       this.showTmplPanel = true; this.showOverlay = true;
-      this.showHistory = false;
       this.$nextTick(() => this.initMonaco());
     },
     closeTmplPanel() { this.showTmplPanel = false; this.showOverlay = false; },
     switchToManage() { this.tmplTab = 'manage'; this.loadTmplManageList(); },
     closeAll() {
-      this.closeHistoryPanel();
       this.closeTmplPanel();
       this.showPublishModal = false;
     },
@@ -425,7 +508,13 @@ const app = createApp({
       checkbox.disabled = false;
     },
   },
-  mounted() { this.loadTemplates(); }
+  mounted() {
+    this.loadTemplates();
+    // Warn on tab close when there are unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (this.dirty) { e.preventDefault(); e.returnValue = ''; return ''; }
+    });
+  }
 });
 
 app.component('html-editor', {
